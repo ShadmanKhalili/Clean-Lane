@@ -1,0 +1,6 @@
+{
+  "name": "Clean Lane: Waste & Circular Traceability",
+  "description": "Multi-sided waste recovery, circular rewards, collector operations, and chain-of-custody traceability platform for clean lane pilots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
