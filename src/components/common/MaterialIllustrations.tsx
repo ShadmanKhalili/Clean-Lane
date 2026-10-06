@@ -147,6 +147,56 @@ export const MaterialIllustration: React.FC<MaterialIllustrationProps> = ({
         </div>
       );
 
+    case 'TETRAPAK_BEVERAGE':
+    case 'tetrapak':
+      return (
+        <div className={`relative flex items-center justify-center ${sizeClasses} ${className}`}>
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <ellipse cx="32" cy="58" rx="14" ry="3" fill="#EDE4D8" />
+            {/* Gable top carton */}
+            <path
+              d="M22 24L32 14L42 24V52H22V24Z"
+              fill="#C9F1DC"
+              stroke="#25345C"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+            <path d="M32 14V24" stroke="#25345C" strokeWidth="2.5" />
+            <circle cx="32" cy="34" r="5" fill="#F5BF55" stroke="#25345C" strokeWidth="1.5" />
+            <rect x="26" y="42" width="12" height="4" rx="1" fill="#FFFFFF" />
+          </svg>
+        </div>
+      );
+
+    case 'LDPE_FILM':
+    case 'poly_film':
+      return (
+        <div className={`relative flex items-center justify-center ${sizeClasses} ${className}`}>
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <ellipse cx="32" cy="58" rx="16" ry="3" fill="#EDE4D8" />
+            {/* Clean folded poly wrap */}
+            <path
+              d="M18 26C18 20 24 18 32 18C40 18 46 20 46 26V46C46 52 40 54 32 54C24 54 18 52 18 46V26Z"
+              fill="#E8FAF1"
+              stroke="#25345C"
+              strokeWidth="2.5"
+            />
+            <path
+              d="M22 28C26 24 38 24 42 28"
+              stroke="#12613F"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M24 38C28 42 36 42 40 38"
+              stroke="#25345C"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`relative flex items-center justify-center ${sizeClasses} ${className}`}>

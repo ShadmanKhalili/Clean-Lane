@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { speakInstruction, stopSpeaking } from '../../utils/statusDictionary';
 import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
+import { MaterialIllustration } from '../common/MaterialIllustrations';
 
 interface NewBookingModalProps {
   isOpen: boolean;
@@ -323,13 +324,13 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        {/* Large recognizable illustration emoji/glyph */}
+                        {/* Bespoke clean-line SVG illustration */}
                         <div
-                          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
                             isSelected ? 'bg-white shadow-2xs' : 'bg-[#FFF9F0]'
                           }`}
                         >
-                          {item.illustrationIcon}
+                          <MaterialIllustration category={item.id} size="md" />
                         </div>
 
                         <div>

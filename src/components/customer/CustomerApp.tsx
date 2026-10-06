@@ -14,6 +14,8 @@ import { speakInstruction } from '../../utils/statusDictionary';
 import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
 import { PreparationGuidanceModal } from '../notifications/PreparationGuidanceModal';
 import { ReminderBanner } from '../notifications/ReminderBanner';
+import { MaterialIllustration } from '../common/MaterialIllustrations';
+import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
 import { AppNotification } from '../../types';
 import {
   Home,
@@ -408,6 +410,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                         </p>
                       </div>
 
+                      {/* Clean Lane Signature Motif (Materials ready → Collected → Checked) */}
+                      <BrandJourneyDevice currentStep={2} />
+
                       {/* Automated 24h Preparation Prompt Callout */}
                       <div className="p-4 bg-[#FEF8EB] border border-[#F5BF55] rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
                         <div className="flex items-start md:items-center gap-3 min-w-0">
@@ -474,15 +479,19 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                         </p>
                       </div>
 
-                      {/* Friendly Material Visual Choices (Reflows cleanly without horizontal scrolling) */}
+                      {/* Friendly Material Visual Choices (Illustrated, Tactile & Distinctive) */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
                         <div
                           onClick={() => setIsBookingModalOpen(true)}
-                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
+                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2.5 cursor-pointer group shadow-2xs"
                         >
-                          <div className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">🧴</div>
+                          <MaterialIllustration
+                            category="PET_BOTTLES"
+                            size="lg"
+                            className="mx-auto group-hover:scale-105 transition-transform"
+                          />
                           <div>
-                            <span className="text-sm font-bold text-[#202B38] block">
+                            <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
                               {lang === 'en' ? 'Plastic Bottles' : 'প্লাস্টিক বোতল'}
                             </span>
                             <span className="text-xs text-[#12613F] font-bold">50 pts / kg</span>
@@ -491,11 +500,15 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
 
                         <div
                           onClick={() => setIsBookingModalOpen(true)}
-                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
+                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2.5 cursor-pointer group shadow-2xs"
                         >
-                          <div className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">📦</div>
+                          <MaterialIllustration
+                            category="CARDBOARD_OCC"
+                            size="lg"
+                            className="mx-auto group-hover:scale-105 transition-transform"
+                          />
                           <div>
-                            <span className="text-sm font-bold text-[#202B38] block">
+                            <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
                               {lang === 'en' ? 'Cardboard & Paper' : 'কাগজ ও কার্টন'}
                             </span>
                             <span className="text-xs text-[#12613F] font-bold">25 pts / kg</span>
@@ -504,11 +517,15 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
 
                         <div
                           onClick={() => setIsBookingModalOpen(true)}
-                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
+                          className="p-4 sm:p-5 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2.5 cursor-pointer group shadow-2xs"
                         >
-                          <div className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">🥫</div>
+                          <MaterialIllustration
+                            category="ALUMINUM_CANS"
+                            size="lg"
+                            className="mx-auto group-hover:scale-105 transition-transform"
+                          />
                           <div>
-                            <span className="text-sm font-bold text-[#202B38] block">
+                            <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
                               {lang === 'en' ? 'Cans & Containers' : 'ক্যান ও পাত্র'}
                             </span>
                             <span className="text-xs text-[#12613F] font-bold">100 pts / kg</span>
@@ -550,19 +567,22 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                       {Object.values(MATERIAL_TAXONOMY).map((item) => (
                         <div
                           key={item.id}
-                          className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] space-y-1.5"
+                          className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex items-start gap-3.5 hover:border-[#25345C]/30 transition-colors"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-xs text-[#202B38]">
-                              {lang === 'en' ? item.name : item.nameBn}
-                            </span>
-                            <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-md font-bold shrink-0">
-                              {item.rewardPointsPerKg} pts/kg
-                            </span>
+                          <MaterialIllustration category={item.id} size="sm" className="shrink-0 mt-0.5" />
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-xs text-[#202B38] truncate">
+                                {lang === 'en' ? item.name : item.nameBn}
+                              </span>
+                              <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-md font-bold shrink-0">
+                                {item.rewardPointsPerKg} pts/kg
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#53616D] line-clamp-2 leading-relaxed">
+                              {lang === 'en' ? item.prepInstructions : item.prepInstructionsBn}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-[#53616D] line-clamp-2 leading-relaxed">
-                            {lang === 'en' ? item.prepInstructions : item.prepInstructionsBn}
-                          </p>
                         </div>
                       ))}
                     </div>
