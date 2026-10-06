@@ -55,9 +55,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         <div className="px-6 py-4 border-b border-[#EDE4D8] bg-[#FFF9F0] flex items-center justify-between shrink-0">
           <div>
             <span className="text-[10px] font-mono text-[#53616D] uppercase block">
-              Reference: {booking.id}
+              {lang === 'en' ? `Reference: ${booking.id}` : `বুকিং আইডি: ${booking.id}`}
             </span>
-            <h3 className="text-base font-bold text-[#25345C]">Your Collection Status</h3>
+            <h3 className="text-base font-bold text-[#25345C]">
+              {lang === 'en' ? 'Your Collection Status' : 'বর্জ্য সংগ্রহের সার্বিক অগ্রগতি'}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -87,24 +89,42 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             <div>
               <span className="text-xs font-bold font-mono uppercase tracking-wider text-[#53616D] block">
                 {isQuantityConfirmed
-                  ? 'QUANTITY CONFIRMED ✓'
+                  ? lang === 'en'
+                    ? 'QUANTITY CONFIRMED ✓'
+                    : 'পরিমাণ নিশ্চিত করা হয়েছে ✓'
                   : isCollected
-                  ? 'COLLECTED ✓'
-                  : 'PICKUP REQUESTED'}
+                  ? lang === 'en'
+                    ? 'COLLECTED ✓'
+                    : 'সংগ্রহ সম্পন্ন ✓'
+                  : lang === 'en'
+                  ? 'PICKUP REQUESTED'
+                  : 'পিকআপের অনুরোধ করা হয়েছে'}
               </span>
               <h4 className="text-lg font-bold text-[#202B38] mt-0.5">
                 {isQuantityConfirmed
-                  ? `${booking.confirmedWeightKg || 6.5} kg verified at scale`
+                  ? lang === 'en'
+                    ? `${booking.confirmedWeightKg || 6.5} kg verified at scale`
+                    : `${booking.confirmedWeightKg || 6.5} কেজি স্কেলে যাচাইকৃত`
                   : isCollected
-                  ? 'Your materials were picked up today'
-                  : `Booked for ${booking.scheduledDate}`}
+                  ? lang === 'en'
+                    ? 'Your materials were picked up today'
+                    : 'আপনার বর্জ্য সংগ্রহ করা হয়েছে'
+                  : lang === 'en'
+                  ? `Booked for ${booking.scheduledDate}`
+                  : `${booking.scheduledDate} তারিখের জন্য বুকিং`}
               </h4>
               <p className="text-xs text-[#53616D] max-w-xs mx-auto mt-1">
                 {isQuantityConfirmed
-                  ? 'Points unlocked in your available balance. Ready to spend in Rewards store.'
+                  ? lang === 'en'
+                    ? 'Points unlocked in your available balance. Ready to spend in Rewards store.'
+                    : 'পয়েন্ট আপনার অ্যাকাউন্টে যোগ করা হয়েছে। রিওয়ার্ড ভাউচারে ব্যয় করতে পারেন।'
                   : isCollected
-                  ? 'Next: We are checking the quantity on the digital platform scale at the hub.'
-                  : 'Next: Collector assigned before your pickup window.'}
+                  ? lang === 'en'
+                    ? 'Next: We are checking the quantity on the digital platform scale at the hub.'
+                    : 'পরবর্তী ধাপ: হাবে ডিজিটাল প্ল্যাটফর্ম স্কেলে চূড়ান্ত ওজন যাচাই করা হচ্ছে।'
+                  : lang === 'en'
+                  ? 'Next: Collector assigned before your pickup window.'
+                  : 'পরবর্তী ধাপ: সংগ্রহের সময়ের আগে কালেক্টর নিযুক্ত করা হবে।'}
               </p>
             </div>
           </div>
@@ -118,21 +138,25 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           {/* Core Simple Summary */}
           <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2.5">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-[#53616D]">Materials:</span>
+              <span className="text-[#53616D]">{lang === 'en' ? 'Materials:' : 'উপাদান:'}</span>
               <span className="font-bold text-[#202B38]">
                 {booking.materials.map((m) => m.category.replace(/_/g, ' ')).join(', ')}
               </span>
             </div>
             <div className="flex justify-between items-center text-xs pt-1.5 border-t border-[#EDE4D8]">
-              <span className="text-[#53616D]">Address:</span>
+              <span className="text-[#53616D]">{lang === 'en' ? 'Address:' : 'ঠিকানা:'}</span>
               <span className="font-medium text-[#202B38]">{booking.address.split(',')[0]}</span>
             </div>
             <div className="flex justify-between items-center text-xs pt-1.5 border-t border-[#EDE4D8]">
-              <span className="text-[#53616D]">Points Status:</span>
+              <span className="text-[#53616D]">{lang === 'en' ? 'Points Status:' : 'পয়েন্ট স্থিতি:'}</span>
               <span className="font-bold font-mono text-[#7A4D00]">
                 {isQuantityConfirmed
-                  ? `+${booking.earnedPoints || 325} pts Available`
-                  : `~${booking.earnedPoints || 325} pts Being Checked`}
+                  ? lang === 'en'
+                    ? `+${booking.earnedPoints || 325} pts Available`
+                    : `+${booking.earnedPoints || 325} পয়েন্ট উপলব্ধ`
+                  : lang === 'en'
+                  ? `~${booking.earnedPoints || 325} pts Being Checked`
+                  : `~${booking.earnedPoints || 325} পয়েন্ট যাচাইাধীন`}
               </span>
             </div>
           </div>
@@ -144,7 +168,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               onClick={() => setShowFullJourney(!showFullJourney)}
               className="w-full py-2.5 px-3.5 rounded-2xl border border-[#EDE4D8] hover:bg-[#FFF9F0] text-[#25345C] font-bold text-xs flex items-center justify-between cursor-pointer transition-colors"
             >
-              <span>{showFullJourney ? 'Hide full journey & audit logs' : 'See full journey & scale proof ▾'}</span>
+              <span>
+                {showFullJourney
+                  ? lang === 'en'
+                    ? 'Hide full journey & audit logs'
+                    : 'কাস্টডি জার্নি ও অডিট লগ লুকান'
+                  : lang === 'en'
+                  ? 'See full journey & scale proof ▾'
+                  : 'সম্পূর্ণ কাস্টডি জার্নি ও স্কেল প্রমাণ দেখুন ▾'}
+              </span>
               {showFullJourney ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
@@ -153,7 +185,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           {showFullJourney && (
             <div className="p-4 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] space-y-3 font-mono text-xs animate-fade-in">
               <div className="flex items-center justify-between">
-                <span className="font-bold font-sans text-[#202B38]">TRACEABILITY LEDGER</span>
+                <span className="font-bold font-sans text-[#202B38]">
+                  {lang === 'en' ? 'TRACEABILITY LEDGER' : 'ট্রেসেবিলিটি লেজার'}
+                </span>
                 <EvidenceBadge level={booking.evidenceLevel} />
               </div>
 
@@ -161,7 +195,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 <div className="flex items-start gap-2">
                   <div className="w-2 h-2 rounded-full bg-[#25345C] mt-1.5 shrink-0" />
                   <div>
-                    <span className="font-bold text-[#202B38] block font-sans">E0: Pickup Booked</span>
+                    <span className="font-bold text-[#202B38] block font-sans">
+                      {lang === 'en' ? 'E0: Pickup Booked' : 'E0: পিকআপ অনুরোধ করা হয়েছে'}
+                    </span>
                     <span className="text-[10px]">{booking.createdAt}</span>
                   </div>
                 </div>
@@ -171,9 +207,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className="w-2 h-2 rounded-full bg-[#25345C] mt-1.5 shrink-0" />
                     <div>
                       <span className="font-bold text-[#202B38] block font-sans">
-                        E1: Collected by {booking.collectorName || 'Tariq Hossain'}
+                        {lang === 'en'
+                          ? `E1: Collected by ${booking.collectorName || 'Tariq Hossain'}`
+                          : `E1: কালেক্টর ${booking.collectorName || 'তারিক হোসেন'} সংগ্রহ করেছেন`}
                       </span>
-                      <span className="text-[10px]">Portable scale reading: {booking.fieldWeightKg || 6.8} kg</span>
+                      <span className="text-[10px]">
+                        {lang === 'en'
+                          ? `Portable scale reading: ${booking.fieldWeightKg || 6.8} kg`
+                          : `ফিল্ড স্কেল ওজন: ${booking.fieldWeightKg || 6.8} কেজি`}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -183,9 +225,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className="w-2 h-2 rounded-full bg-[#12613F] mt-1.5 shrink-0" />
                     <div>
                       <span className="font-bold text-[#12613F] block font-sans">
-                        E2: Certified Platform Scale Verified
+                        {lang === 'en'
+                          ? 'E2: Certified Platform Scale Verified'
+                          : 'E2: সার্টিফাইড প্ল্যাটফর্ম স্কেলে ওজন নিশ্চিত'}
                       </span>
-                      <span className="text-[10px]">Gulshan Hub #GW-01 · Net: {booking.confirmedWeightKg} kg</span>
+                      <span className="text-[10px]">
+                        {lang === 'en'
+                          ? `Gulshan Hub #GW-01 · Net: ${booking.confirmedWeightKg} kg`
+                          : `গুলশান হাব #GW-01 · নিট ওজন: ${booking.confirmedWeightKg} কেজি`}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -205,7 +253,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             className="min-h-[48px] px-4 py-2.5 rounded-2xl border border-[#EDE4D8] text-xs font-bold text-[#53616D] hover:bg-[#FFF9F0] flex items-center gap-1.5 cursor-pointer"
           >
             <HelpCircle className="w-4 h-4" />
-            <span>Get help with this pickup</span>
+            <span>{lang === 'en' ? 'Get help with this pickup' : 'এই সংগ্রহ সংক্রান্ত সহায়তা'}</span>
           </button>
 
           <button
@@ -213,7 +261,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             onClick={onClose}
             className="min-h-[48px] px-6 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl text-xs font-bold cursor-pointer transition-all"
           >
-            Done
+            {lang === 'en' ? 'Done' : 'ঠিক আছে'}
           </button>
         </div>
       </div>

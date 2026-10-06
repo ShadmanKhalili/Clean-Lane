@@ -88,42 +88,54 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
     subtitleEn: string;
     subtitleBn: string;
     tag: string;
+    tagBn?: string;
     illustrationIcon: string;
     acceptedList: string[];
+    acceptedListBn?: string[];
     rejectedList: string[];
+    rejectedListBn?: string[];
   }> = [
     {
       id: 'PET_BOTTLES',
       titleEn: 'Plastic bottles',
-      titleBn: 'প্লাস্টিকের বোতল',
+      titleBn: 'প্লাস্টিকের বোতল (PET)',
       subtitleEn: 'Water, soft drinks, edible oil bottles',
-      subtitleBn: 'পানি ও কোমল পানীয়ের বোতল',
+      subtitleBn: 'খাবার পানি, জুস ও কোমল পানীয়ের পরিষ্কার বোতল',
       tag: 'Most common',
+      tagBn: 'সবচেয়ে জনপ্রিয়',
       illustrationIcon: '🧴',
-      acceptedList: ['Clear water bottles', 'Soft drink bottles', 'Mustard oil containers'],
-      rejectedList: ['Foil snack wrappers', 'Plastic bags', 'Unwashed chemical jugs']
+      acceptedList: ['Clear water bottles', 'Soft drink bottles', 'Mustard/edible oil containers'],
+      acceptedListBn: ['স্বচ্ছ পানির বোতল', 'কোমল পানীয়ের বোতল', 'ভোজ্য তেলের বোতল'],
+      rejectedList: ['Foil snack wrappers', 'Plastic grocery bags', 'Unwashed pesticide jugs'],
+      rejectedListBn: ['চিপসের ফয়েল প্যাকেট', 'পাতলা পলিথিন ব্যাগ', 'কীটনাশকের জার']
     },
     {
       id: 'CARDBOARD_OCC',
       titleEn: 'Paper & cardboard',
-      titleBn: 'কাগজ ও কার্টন',
+      titleBn: 'কাগজ ও কার্টন (OCC)',
       subtitleEn: 'Delivery boxes, packaging cartons, newspapers',
-      subtitleBn: 'ডেলিভারি বক্স, কার্টন ও পত্রিকা',
+      subtitleBn: 'ডেলিভারি পার্সেল বক্স, কার্টন ও পত্রিকা',
       tag: 'Easy to stack',
+      tagBn: 'সহজে স্তূপযোগ্য',
       illustrationIcon: '📦',
-      acceptedList: ['Brown shipping boxes', 'Cereal packaging', 'White paper bundles'],
-      rejectedList: ['Wet paper', 'Pizza boxes with grease', 'Plastic-laminated paper']
+      acceptedList: ['Brown shipping boxes', 'Cereal packaging', 'Clean white paper bundles'],
+      acceptedListBn: ['শিপিং কার্টুন বক্স', 'খাবারের প্যাকেট বক্স', 'পরিষ্কার সাদা কাগজের বান্ডিল'],
+      rejectedList: ['Wet paper', 'Pizza boxes with grease', 'Plastic-laminated paper'],
+      rejectedListBn: ['ভেজা কাগজ', 'তেলযুক্ত পিৎজা বক্স', 'প্লাস্টিক ল্যামিনেটেড কাগজ']
     },
     {
       id: 'HDPE_RIGID',
       titleEn: 'Other packaging containers',
-      titleBn: 'অন্যান্য পরিচ্ছন্ন পাত্র',
+      titleBn: 'অন্যান্য পরিচ্ছন্ন পাত্র (HDPE/ক্যান)',
       subtitleEn: 'Shampoo bottles, detergent jugs, metal soda cans',
-      subtitleBn: 'শ্যাম্পুর বোতল, ডিটারজেন্ট পাত্র, ক্যান',
+      subtitleBn: 'শ্যাম্পুর বোতল, ডিটারজেন্ট পাত্র ও ধাতব ক্যান',
       tag: 'Clean & dry only',
+      tagBn: 'শুকনো ও পরিষ্কার',
       illustrationIcon: '🥫',
       acceptedList: ['Detergent jugs', 'Soda cans', 'Clean cosmetics tubs'],
-      rejectedList: ['Hazardous chemicals', 'Medical waste', 'Motor oil cans']
+      acceptedListBn: ['ডিটারজেন্ট কন্টেইনার', 'কোমল পানীয়ের অ্যালুমিনিয়াম ক্যান', 'পরিষ্কার প্রসাধন পাত্র'],
+      rejectedList: ['Hazardous chemicals', 'Medical waste', 'Motor oil cans'],
+      rejectedListBn: ['ঝুঁকিপূর্ণ রাসায়নিক পাত্র', 'মেডিকেল বর্জ্য', 'মবিল/লুব্রিকেন্ট ক্যান']
     }
   ];
 
@@ -138,14 +150,29 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   };
 
   const getDayDisplay = () => {
-    if (scheduledDay === 'today') return { label: 'Today (Tue, Oct 6)', date: '2026-10-06' };
-    if (scheduledDay === 'tomorrow') return { label: 'Tomorrow (Wed, Oct 7)', date: '2026-10-07' };
-    return { label: 'Thursday (Oct 8)', date: '2026-10-08' };
+    if (scheduledDay === 'today') {
+      return {
+        label: lang === 'en' ? 'Today (Tue, Oct 6)' : 'আজ (মঙ্গলবার, ৬ অক্টোবর)',
+        date: '2026-10-06'
+      };
+    }
+    if (scheduledDay === 'tomorrow') {
+      return {
+        label: lang === 'en' ? 'Tomorrow (Wed, Oct 7)' : 'আগামীকাল (বুধবার, ৭ অক্টোবর)',
+        date: '2026-10-07'
+      };
+    }
+    return {
+      label: lang === 'en' ? 'Thursday (Oct 8)' : 'বৃহস্পতিবার (৮ অক্টোবর)',
+      date: '2026-10-08'
+    };
   };
 
   const getWindowDisplay = () => {
-    if (scheduledWindow === 'morning') return 'Morning · 9 am–12 pm';
-    return 'Afternoon · 1 pm–4 pm';
+    if (scheduledWindow === 'morning') {
+      return lang === 'en' ? 'Morning · 9 am–12 pm' : 'সকাল · ৯:০০ - ১২:০০';
+    }
+    return lang === 'en' ? 'Afternoon · 1 pm–4 pm' : 'দুপুর · ১:০০ - ৪:০০';
   };
 
   const handleVoice = () => {
@@ -313,7 +340,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
                             {lang === 'en' ? item.subtitleEn : item.subtitleBn}
                           </span>
                           <span className="text-[10px] font-mono text-[#12613F] font-semibold mt-1 inline-block bg-[#C9F1DC] px-2 py-0.2 rounded-md">
-                            {item.tag}
+                            {lang === 'en' ? item.tag : item.tagBn || item.tag}
                           </span>
                         </div>
                       </div>

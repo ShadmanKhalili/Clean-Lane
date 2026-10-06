@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MaterialCategory, PickupJob } from '../../types';
+import { MaterialCategory, PickupJob, MaterialLot } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
+import { QrCodeScannerModal } from './QrCodeScannerModal';
+import { LotHandoverModal } from './LotHandoverModal';
 import {
   Briefcase,
   Navigation,
@@ -22,7 +24,9 @@ import {
   Truck,
   Check,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  ScanLine,
+  Sparkles
 } from 'lucide-react';
 
 export const CollectorFieldApp: React.FC = () => {
@@ -47,6 +51,12 @@ export const CollectorFieldApp: React.FC = () => {
   // Active Job Detail & Modal State
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isPickupModalOpen, setIsPickupModalOpen] = useState<boolean>(false);
+
+  // QR Code Camera Scanner & Handover Modal States
+  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [scannerMode, setScannerMode] = useState<'lot' | 'job' | 'any'>('lot');
+  const [selectedLotForHandover, setSelectedLotForHandover] = useState<MaterialLot | null>(null);
+  const [associatedBagBarcode, setAssociatedBagBarcode] = useState<string>('');
 
   // Form State for O03 & O04: Pickup Outcome & Material Capture
   const [pickupOutcome, setPickupOutcome] = useState<
@@ -78,9 +88,26 @@ export const CollectorFieldApp: React.FC = () => {
     setWeightKg(6.5);
     setBagCount(2);
     setWeightBasis('field_scale');
+    setAssociatedBagBarcode(`TAG-${job.id.slice(-4)}-${job.expectedMaterials[0] || 'PET'}`);
     setUncollectedNotes('');
     setContaminationObservation('');
     setIsPickupModalOpen(true);
+  };
+
+  const handleScanResult = (scannedText: string, matchedLot?: MaterialLot, matchedJob?: PickupJob) => {
+    if (matchedLot) {
+      setSelectedLotForHandover(matchedLot);
+    } else if (matchedJob) {
+      handleOpenPickupFlow(matchedJob);
+    } else {
+      // Check if scannedText starts with LOT- or JOB-
+      const lot = lots.find((l) => l.id.toLowerCase() === scannedText.toLowerCase());
+      if (lot) {
+        setSelectedLotForHandover(lot);
+      } else {
+        setAssociatedBagBarcode(scannedText);
+      }
+    }
   };
 
   const handlePickupSubmit = (e: React.FormEvent) => {
@@ -132,9 +159,22 @@ export const CollectorFieldApp: React.FC = () => {
 
         {/* Offline Mode Switcher & Sync Status (PRD O01) */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Quick Camera QR Code Scanner Trigger */}
+          <button
+            onClick={() => {
+              setScannerMode('any');
+              setIsScannerOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            title="Scan QR Code via Device Camera"
+          >
+            <Camera className="w-3.5 h-3.5 text-[#C9F1DC]" />
+            <span>Scan QR</span>
+          </button>
+
           <button
             onClick={() => setIsOfflineMode(!isOfflineMode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
               isOfflineMode
                 ? 'bg-amber-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -147,7 +187,7 @@ export const CollectorFieldApp: React.FC = () => {
           {offlineQueueCount > 0 && (
             <button
               onClick={syncOfflineQueue}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs"
+              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Sync ({offlineQueueCount})</span>
@@ -333,44 +373,66 @@ export const CollectorFieldApp: React.FC = () => {
       {/* ========================================================================= */}
       {activeDestination === 'handovers' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Handover Queue (PRD O06)</h2>
-            <p className="text-xs text-slate-500">
-              Lots currently on collector vehicle awaiting transfer to Gulshan Aggregation Hub #3.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Handover Queue & Hub Reception (PRD O06)</h2>
+              <p className="text-xs text-slate-500">
+                Scan QR barcodes on vehicle lots for instant custody transfer to Gulshan Aggregation Hub #3.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setScannerMode('lot');
+                setIsScannerOpen(true);
+              }}
+              className="px-4 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors shrink-0"
+            >
+              <Camera className="w-4 h-4 text-[#C9F1DC]" />
+              <span>Scan Lot QR Tag (Camera)</span>
+            </button>
           </div>
 
           <div className="space-y-3">
             {lots.map((lot) => (
               <div
                 key={lot.id}
-                className="p-4 rounded-xl border border-slate-200 bg-white space-y-2 text-xs"
+                className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5 text-xs shadow-2xs hover:border-slate-400 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <QrCode className="w-4 h-4 text-slate-700" />
+                    <QrCode className="w-4 h-4 text-[#25345C]" />
                     <span className="font-mono font-bold text-slate-900">{lot.id}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="text-slate-600">{lot.material}</span>
+                    <span className="text-slate-600 font-semibold">{lot.material.replace(/_/g, ' ')}</span>
                   </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                    Custodian: {lot.currentCustodian}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                      Custodian: {lot.currentCustodian}
+                    </span>
+                    <button
+                      onClick={() => setSelectedLotForHandover(lot)}
+                      className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+                    >
+                      <Scale className="w-3.5 h-3.5" />
+                      <span>Verify Handover</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 font-mono text-slate-700 pt-1 border-t border-slate-100">
                   <div>
-                    Field Weight: <strong>{lot.initialFieldWeightKg} kg</strong>
+                    Field Net Weight: <strong>{lot.initialFieldWeightKg} kg</strong>
                   </div>
                   <div>
-                    Hub Scale: <strong>{lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Awaiting scale'}</strong>
+                    Hub Platform Scale: <strong>{lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Awaiting scale'}</strong>
                   </div>
                 </div>
 
                 {lot.discrepancyPercentage !== undefined && Math.abs(lot.discrepancyPercentage) > 5 && (
-                  <div className="p-2 bg-amber-50 rounded-lg text-amber-900 text-[11px] flex items-center gap-1.5 border border-amber-200">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                    <span>Discrepancy Open: Delta {lot.discrepancyPercentage}% pending weighmaster review.</span>
+                  <div className="p-2.5 bg-amber-50 rounded-lg text-amber-900 text-[11px] flex items-center gap-1.5 border border-amber-200">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    <span>Discrepancy Flag: Delta {lot.discrepancyPercentage}% recorded. Requires supervisor signoff.</span>
                   </div>
                 )}
               </div>
@@ -530,6 +592,31 @@ export const CollectorFieldApp: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Associated Bag Barcode / Tag ID */}
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-900 block text-xs">Physical Sack Barcode / Tag ID</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScannerMode('any');
+                          setIsScannerOpen(true);
+                        }}
+                        className="text-[11px] font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-[#25345C]" />
+                        <span>Scan Barcode (Camera)</span>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={associatedBagBarcode}
+                      onChange={(e) => setAssociatedBagBarcode(e.target.value)}
+                      placeholder="e.g. TAG-101-PET"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-xs text-slate-900"
+                    />
+                  </div>
+
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <span className="font-medium text-slate-700">Photo Proof Captured</span>
                     <input
@@ -561,13 +648,13 @@ export const CollectorFieldApp: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsPickupModalOpen(false)}
-                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium"
+                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer transition-colors shadow-xs"
                 >
                   {isOfflineMode ? 'Save Locally on Device' : 'Submit Pickup'}
                 </button>
@@ -576,6 +663,32 @@ export const CollectorFieldApp: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* QR CODE CAMERA SCANNER MODAL */}
+      {/* ========================================================================= */}
+      <QrCodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanResult={handleScanResult}
+        mode={scannerMode}
+        title={
+          scannerMode === 'lot'
+            ? 'Scan Lot Handover QR Tag'
+            : scannerMode === 'job'
+            ? 'Scan Customer Booking Ticket'
+            : 'Scan QR Barcode'
+        }
+      />
+
+      {/* ========================================================================= */}
+      {/* HUB HANDOVER & PLATFORM SCALE VERIFICATION MODAL */}
+      {/* ========================================================================= */}
+      <LotHandoverModal
+        isOpen={Boolean(selectedLotForHandover)}
+        onClose={() => setSelectedLotForHandover(null)}
+        lot={selectedLotForHandover}
+      />
     </div>
   );
 };

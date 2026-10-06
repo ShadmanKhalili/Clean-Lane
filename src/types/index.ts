@@ -299,6 +299,7 @@ export interface RewardItem {
   pointsCost: number;
   cashEquivalentBdt: number;
   description: string;
+  descriptionBn?: string;
   validityDays: number;
   stockAvailable: number;
   funder: string;

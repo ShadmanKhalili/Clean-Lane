@@ -514,6 +514,7 @@ export const INITIAL_REWARDS: RewardItem[] = [
     pointsCost: 400,
     cashEquivalentBdt: 250,
     description: 'Valid for fresh produce and household staples on Chaldal online grocery delivery in Dhaka.',
+    descriptionBn: 'চালডাল অনলাইন গ্রোসারিতে তাজা ফলমূল, শাকসবজি ও নিত্যপ্রয়োজনীয় পণ্যে ব্যবহারযোগ্য।',
     validityDays: 60,
     stockAvailable: 45,
     funder: 'Clean Lane Operator Circular Fund'
@@ -527,6 +528,7 @@ export const INITIAL_REWARDS: RewardItem[] = [
     pointsCost: 750,
     cashEquivalentBdt: 500,
     description: 'Redeemable for handloom and natural botanical bodycare products across Aarong outlets.',
+    descriptionBn: 'আড়ং-এর সকল আউটলেটে প্রাকৃতিক ও টেকসই হস্তশিল্প এবং অর্গানিক পণ্যে প্রযোজ্য।',
     validityDays: 90,
     stockAvailable: 22,
     funder: 'Aarong Community Partner Program'
@@ -540,6 +542,7 @@ export const INITIAL_REWARDS: RewardItem[] = [
     pointsCost: 180,
     cashEquivalentBdt: 100,
     description: 'Instant mobile credit top-up to any Grameenphone, Robi, Banglalink or Teletalk number.',
+    descriptionBn: 'যেকোনো গ্রামীণফোন, রবি, বাংলালিংক বা টেলিটক নম্বরে তাৎক্ষণিক ব্যালেন্স রিচার্জ।',
     validityDays: 30,
     stockAvailable: 150,
     funder: 'Clean Lane Pilot Budget'
@@ -553,6 +556,7 @@ export const INITIAL_REWARDS: RewardItem[] = [
     pointsCost: 600,
     cashEquivalentBdt: 450,
     description: 'Directly fund a certified solar study lamp for a primary student in Sunamganj haor region.',
+    descriptionBn: 'হাওর বা বন্যাপ্রবণ অঞ্চলের প্রাথমিক শিক্ষার্থীদের জন্য সৌরবাতি উপহার তহবিলে অনুদান।',
     validityDays: 365,
     stockAvailable: 100,
     funder: 'Unilever Bangladesh CSR Match'

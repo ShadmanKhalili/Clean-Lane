@@ -749,10 +749,10 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                             {lang === 'en' ? item.title : item.titleBn}
                           </h4>
                           <p className="text-xs text-[#53616D] leading-relaxed">
-                            {item.description}
+                            {lang === 'en' ? item.description : item.descriptionBn || item.description}
                           </p>
                           <span className="text-[11px] text-[#53616D] block font-semibold">
-                            Funder: {item.funder}
+                            {lang === 'en' ? `Funder: ${item.funder}` : `ইপিআর স্পনসর: ${item.funder}`}
                           </span>
                         </div>
 
@@ -770,8 +770,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                             {canAfford
                               ? lang === 'en'
                                 ? 'Redeem Voucher'
-                                : 'ভাউচার রিডিম'
-                              : `${item.pointsCost - customerAvailablePoints} more pts needed`}
+                                : 'ভাউচার রিডিম করুন'
+                              : `${item.pointsCost - customerAvailablePoints} ${lang === 'en' ? 'more pts needed' : 'পয়েন্ট প্রয়োজন'}`}
                           </span>
                         </button>
                       </div>
