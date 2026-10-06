@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/common/Header';
 import { CustomerApp } from './components/customer/CustomerApp';
-import { RewardsStore } from './components/customer/RewardsStore';
 import { CollectorFieldApp } from './components/collector/CollectorFieldApp';
 import { AggregationHub } from './components/aggregator/AggregationHub';
 import { ProcessorFacility } from './components/processor/ProcessorFacility';
@@ -10,15 +9,26 @@ import { OperatorDashboard } from './components/operator/OperatorDashboard';
 import { BrandEPRPortal } from './components/brand/BrandEPRPortal';
 import { ChainOfCustodyView } from './components/traceability/ChainOfCustodyView';
 import { EvidenceModelView } from './components/traceability/EvidenceModelView';
-import { CheckCircle2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { useTranslation } from './utils/translations';
 
 const MainContent: React.FC = () => {
   const { role, activeToast, lang } = useApp();
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const t = useTranslation(lang);
 
   const renderActiveView = () => {
     if (activeTab === 'rewards') {
-      return <CustomerApp initialTab="rewards" />;
+      return <CustomerApp initialTab="rewards" onNavigateTab={setActiveTab} />;
+    }
+    if (activeTab === 'activity') {
+      return <CustomerApp initialTab="activity" onNavigateTab={setActiveTab} />;
+    }
+    if (activeTab === 'services') {
+      return <CustomerApp initialTab="services" onNavigateTab={setActiveTab} />;
+    }
+    if (activeTab === 'account') {
+      return <CustomerApp initialTab="account" onNavigateTab={setActiveTab} />;
     }
     if (activeTab === 'traceability') {
       return <ChainOfCustodyView />;
@@ -32,7 +42,7 @@ const MainContent: React.FC = () => {
       case 'customer_household':
       case 'customer_apartment':
       case 'customer_business':
-        return <CustomerApp />;
+        return <CustomerApp initialTab="home" onNavigateTab={setActiveTab} />;
       case 'collector':
         return <CollectorFieldApp />;
       case 'aggregator':
@@ -44,47 +54,55 @@ const MainContent: React.FC = () => {
       case 'brand_partner':
         return <BrandEPRPortal />;
       default:
-        return <CustomerApp />;
+        return <CustomerApp initialTab="home" onNavigateTab={setActiveTab} />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen flex flex-col bg-[#FAF9F5] text-[#202B38] font-sans selection:bg-[#C9F1DC] selection:text-[#12613F]">
       {/* Toast Notification Container */}
       {activeToast && (
         <div className="fixed bottom-6 right-6 z-50 animate-fade-in max-w-sm">
-          <div className="bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 border border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="bg-[#172521] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-[#25345C]">
+            <CheckCircle2 className="w-4 h-4 text-[#C9F1DC] shrink-0" />
             <span className="leading-snug">{activeToast}</span>
           </div>
         </div>
       )}
 
-      {/* Top Navigation Contract (PRD & Section 2) */}
+      {/* Single Unified Top Navigation Header */}
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl">
         {renderActiveView()}
       </main>
 
-      {/* Clean Quiet Footer (Section 1.B Anti-slop Ban) */}
-      <footer className="bg-white border-t border-slate-200 mt-12 py-8 text-xs text-slate-500">
+      {/* Clean Quiet Footer */}
+      <footer className="bg-white border-t border-[#EDE4D8] mt-12 py-8 text-xs text-[#53616D]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800 tracking-tight">Clean Lane</span>
+          <div className="flex items-center gap-2 text-center sm:text-left">
+            <span className="font-bold text-[#202B38] tracking-tight">Clean Lane</span>
             <span aria-hidden="true">·</span>
-            <span>Waste Services, Circular Rewards and Recovery Traceability</span>
+            <span>
+              {lang === 'en'
+                ? 'Household Waste Services, Circular Rewards & Digital Recovery Traceability'
+                : 'গৃহস্থালি বর্জ্য সেবা, সার্কুলার রিওয়ার্ড ও ডিজিটাল ট্রেসেবিলিটি ট্র্যাকিং'}
+            </span>
           </div>
 
-          <div className="flex items-center gap-4 text-slate-600">
-            <span>Bangladesh Solid Waste Management Rules 2021 Reference</span>
+          <div className="flex items-center gap-4 text-[#53616D]">
+            <span>
+              {lang === 'en'
+                ? 'Bangladesh Solid Waste Management Rules 2021 Reference'
+                : 'বাংলাদেশ কঠিন বর্জ্য ব্যবস্থাপনা বিধিমালা ২০২১ অনুসরণে'}
+            </span>
             <span aria-hidden="true">·</span>
             <button
               onClick={() => setActiveTab('evidence_model')}
-              className="hover:text-slate-900 underline underline-offset-4"
+              className="hover:text-[#25345C] underline underline-offset-4 cursor-pointer font-medium"
             >
-              Evidence Protocol (E0–E5)
+              {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
             </button>
           </div>
         </div>

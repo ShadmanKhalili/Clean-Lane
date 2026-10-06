@@ -133,10 +133,10 @@ export const CollectorFieldApp: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-1 overflow-x-auto">
           {[
-            { id: 'jobs', label: 'Jobs (O01)', icon: Briefcase },
-            { id: 'route', label: 'Route', icon: Navigation },
-            { id: 'handovers', label: `Handovers (${lots.filter(l => l.currentCustodian === 'COLLECTOR').length})`, icon: PackageCheck },
-            { id: 'account', label: 'Account', icon: User }
+            { id: 'jobs', labelEn: 'Jobs', labelBn: 'কাজের তালিকা', icon: Briefcase },
+            { id: 'route', labelEn: 'Route', labelBn: 'রুট ম্যাপ', icon: Navigation },
+            { id: 'handovers', labelEn: `Handovers (${lots.filter(l => l.currentCustodian === 'COLLECTOR').length})`, labelBn: `হ্যান্ডওভার (${lots.filter(l => l.currentCustodian === 'COLLECTOR').length})`, icon: PackageCheck },
+            { id: 'account', labelEn: 'Account', labelBn: 'অ্যাকাউন্ট', icon: User }
           ].map((dest) => {
             const Icon = dest.icon;
             const isActive = activeDestination === dest.id;
@@ -151,7 +151,7 @@ export const CollectorFieldApp: React.FC = () => {
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{dest.label}</span>
+                <span>{lang === 'en' ? dest.labelEn : dest.labelBn}</span>
               </button>
             );
           })}
@@ -166,10 +166,10 @@ export const CollectorFieldApp: React.FC = () => {
               setIsScannerOpen(true);
             }}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
-            title="Scan QR Code via Device Camera"
+            title={lang === 'en' ? 'Scan QR Code via Device Camera' : 'ডিভাইস ক্যামেরা দিয়ে কিউআর কোড স্ক্যান করুন'}
           >
             <Camera className="w-3.5 h-3.5 text-[#C9F1DC]" />
-            <span>Scan QR</span>
+            <span>{lang === 'en' ? 'Scan QR' : 'কিউআর স্ক্যান'}</span>
           </button>
 
           <button
@@ -181,7 +181,11 @@ export const CollectorFieldApp: React.FC = () => {
             }`}
           >
             {isOfflineMode ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
-            <span>{isOfflineMode ? 'Offline Mode' : 'Online'}</span>
+            <span>
+              {isOfflineMode
+                ? lang === 'en' ? 'Offline Mode' : 'অফলাইন মোড'
+                : lang === 'en' ? 'Online' : 'অনলাইন'}
+            </span>
           </button>
 
           {offlineQueueCount > 0 && (
@@ -190,7 +194,7 @@ export const CollectorFieldApp: React.FC = () => {
               className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Sync ({offlineQueueCount})</span>
+              <span>{lang === 'en' ? `Sync (${offlineQueueCount})` : `সিঙ্ক (${offlineQueueCount})`}</span>
             </button>
           )}
         </div>
@@ -205,17 +209,19 @@ export const CollectorFieldApp: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[11px] font-mono text-slate-500 uppercase tracking-wider block">
-                FIELD WORKER WORKSPACE (PRD O01)
+                {lang === 'en' ? 'FIELD WORKER DISPATCH' : 'মাঠকর্মী ডিসপ্যাচ ও কার্যতালিকা'}
               </span>
-              <h1 className="text-lg font-bold text-slate-900">Today's Collections</h1>
+              <h1 className="text-lg font-bold text-slate-900">
+                {lang === 'en' ? "Today's Collections" : 'আজকের সংগৃহীতব্য কাজ'}
+              </h1>
             </div>
 
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
               {[
-                { id: 'assigned', label: 'Assigned' },
-                { id: 'in_progress', label: 'In Progress' },
-                { id: 'completed', label: 'Completed' },
-                { id: 'exceptions', label: 'Exceptions' }
+                { id: 'assigned', labelEn: 'Assigned', labelBn: 'বরাদ্দকৃত' },
+                { id: 'in_progress', labelEn: 'In Progress', labelBn: 'চলমান' },
+                { id: 'completed', labelEn: 'Completed', labelBn: 'সম্পন্ন' },
+                { id: 'exceptions', labelEn: 'Exceptions', labelBn: 'ব্যতিক্রম' }
               ].map((f) => (
                 <button
                   key={f.id}
@@ -226,7 +232,7 @@ export const CollectorFieldApp: React.FC = () => {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {f.label}
+                  {lang === 'en' ? f.labelEn : f.labelBn}
                 </button>
               ))}
             </div>
@@ -302,7 +308,7 @@ export const CollectorFieldApp: React.FC = () => {
                             className="w-full sm:w-auto px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
                           >
                             <Scale className="w-4 h-4" />
-                            <span>Weigh & Pickup</span>
+                            <span>{lang === 'en' ? 'Weigh & Pickup' : 'ওজন ও পিকআপ'}</span>
                           </button>
                         ) : isCompleted ? (
                           <div className="text-right">

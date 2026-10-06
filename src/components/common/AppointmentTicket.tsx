@@ -3,6 +3,7 @@ import { Booking } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { MapPin, Clock, Calendar, CheckCircle2, FileCheck2, ChevronRight, Sparkles } from 'lucide-react';
 import { MaterialIllustration } from './MaterialIllustrations';
+import { MATERIAL_TAXONOMY } from '../../data/mockData';
 
 interface AppointmentTicketProps {
   booking: Booking;
@@ -66,28 +67,43 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
         {/* Selected Material Cards & Illustrations */}
         <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto py-0.5">
-            {booking.materials.map((m) => (
-              <div
-                key={m.category}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-[#EDE4D8] text-xs font-bold text-[#202B38] shrink-0 shadow-2xs"
-              >
-                <MaterialIllustration category={m.category} size="sm" />
-                <span className="capitalize">{m.category.replace(/_/g, ' ').toLowerCase()}</span>
-              </div>
-            ))}
+            {booking.materials.map((m) => {
+              const tax = MATERIAL_TAXONOMY[m.category];
+              const matName = tax
+                ? lang === 'en'
+                  ? tax.name.split('(')[0].trim()
+                  : tax.nameBn
+                : m.category.replace(/_/g, ' ');
+
+              return (
+                <div
+                  key={m.category}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-[#EDE4D8] text-xs font-bold text-[#202B38] shrink-0 shadow-2xs"
+                >
+                  <MaterialIllustration category={m.category} size="sm" />
+                  <span className="truncate max-w-[150px]">{matName}</span>
+                </div>
+              );
+            })}
           </div>
 
           <span className="text-[11px] font-mono text-[#12613F] font-bold bg-[#C9F1DC] px-2.5 py-1 rounded-lg shrink-0">
-            Clean Stream
+            {lang === 'en' ? 'Clean Stream' : 'পরিচ্ছন্ন ধারা'}
           </span>
         </div>
 
         {/* Signature Curved Path Motif (Materials Ready → Collected → Checked) */}
         <div className="py-1">
           <div className="flex items-center justify-between text-[11px] font-bold text-[#53616D] px-1 mb-1.5">
-            <span className="text-[#12613F]">1. Materials ready</span>
-            <span className="text-[#25345C]">2. Doorstep pickup</span>
-            <span className="text-[#7A4D00]">3. Hub scale check</span>
+            <span className="text-[#12613F]">
+              {lang === 'en' ? '1. Materials ready' : '১. উপাদান প্রস্তুত'}
+            </span>
+            <span className="text-[#25345C]">
+              {lang === 'en' ? '2. Doorstep pickup' : '২. ডোরস্টেপ সংগ্রহ'}
+            </span>
+            <span className="text-[#7A4D00]">
+              {lang === 'en' ? '3. Hub scale check' : '৩. হাবে ওজন যাচাই'}
+            </span>
           </div>
           {/* Subtle curved pathway SVG */}
           <svg viewBox="0 0 320 18" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-4">
@@ -141,7 +157,7 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
         {/* Barcode & Reference Stamp */}
         <div className="flex items-center justify-between pt-1">
           <div className="font-mono text-[11px] text-[#53616D]">
-            <span>DOORSTEP TAG: </span>
+            <span>{lang === 'en' ? 'DOORSTEP TAG: ' : 'ডোরস্টেপ ট্যাগ: '}</span>
             <strong className="text-[#25345C]">{booking.id}</strong>
           </div>
           {/* Subtle simulated barcode glyph */}

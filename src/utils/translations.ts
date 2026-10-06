@@ -35,6 +35,24 @@ export interface TranslationDictionary {
   activeLane: string;
   waitlist: string;
 
+  // New Menu & Navigation items
+  moreMenu: string;
+  investorBrief: string;
+  fiveStepTour: string;
+  evidenceModel: string;
+  chainOfCustody: string;
+  myServices: string;
+  fieldJobs: string;
+  hubIntake: string;
+  millProcessing: string;
+  commandCenter: string;
+  eprCampaigns: string;
+  desktopView: string;
+  phonePreview: string;
+  listenAudio: string;
+  audioSpeaking: string;
+  notifications: string;
+
   // Home Hero & Banners
   nextScheduledPickup: string;
   assignedTimeWindow: string;
@@ -54,6 +72,11 @@ export interface TranslationDictionary {
   viewAll: string;
   approvedStreams: string;
   solidWasteRules: string;
+  acceptedCleanStreams: string;
+  segregatedRecyclables: string;
+  fullSortingGuide: string;
+  showFull6Streams: string;
+  hideFull6Streams: string;
 
   // Booking Flow
   step1Title: string;
@@ -142,6 +165,39 @@ export interface TranslationDictionary {
   describeIssue: string;
   submitDispute: string;
   disputeReceived: string;
+
+  // Environmental Impact & ESG
+  verifiedCircularityImpact: string;
+  divertedFromLandfill: string;
+  co2Avoided: string;
+  viewImpactLedger: string;
+  hideImpactLedger: string;
+  householdScope: string;
+  pilotZoneScope: string;
+  treesEquivalent: string;
+  plasticBottlesDiverted: string;
+  landfillSpaceSaved: string;
+
+  // Collector & QR Scanning
+  scanQrCode: string;
+  scanQrInstruction: string;
+  switchCamera: string;
+  toggleFlash: string;
+  recordWeight: string;
+  verifiedScaleWeight: string;
+  manualLotEntry: string;
+  lotIdentified: string;
+
+  // Quick Actions & Receipts
+  viewPreparationChecklist: string;
+  trackLiveCollection: string;
+  viewScaleCertificate: string;
+  recentCollection: string;
+  doorstepSupport: string;
+  pickupQuestions: string;
+  getHelp: string;
+  selectAddress: string;
+  addNewAddress: string;
 }
 
 export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
@@ -155,7 +211,7 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     account: 'Account & Sites',
     bookPickup: 'Book a pickup',
     bookAnotherPickup: 'Book Another Pickup',
-    trackLiveStatus: 'Track Live Collection Status',
+    trackLiveStatus: 'Track Live Status',
     viewDetails: 'View Details',
     sortingGuide: 'Sorting Guide →',
     close: 'Close',
@@ -164,47 +220,69 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     back: 'Back',
     next: 'Next',
     submit: 'Submit',
-    save: 'Save',
+    save: 'Save Changes',
     available: 'Available',
-    pending: 'Pending verification',
+    pending: 'Pending Hub Check',
     points: 'Points',
     kilograms: 'Kilograms',
     kg: 'kg',
     bdt: 'BDT',
     taka: '৳',
     helpAndSupport: 'Help & Support',
-    activeLane: 'Clean Lane Active',
-    waitlist: 'Waitlist Lane',
+    activeLane: 'Active Lane',
+    waitlist: 'Waitlist',
+
+    moreMenu: 'More Options',
+    investorBrief: 'Investor Brief',
+    fiveStepTour: '5-Step Tour',
+    evidenceModel: 'Evidence Standard (E0–E5)',
+    chainOfCustody: 'Chain of Custody',
+    myServices: 'My Services',
+    fieldJobs: 'Field Jobs',
+    hubIntake: 'Hub Intake',
+    millProcessing: 'Mill Processing',
+    commandCenter: 'Command Center',
+    eprCampaigns: 'EPR & Campaigns',
+    desktopView: 'Desktop View',
+    phonePreview: 'Phone Preview',
+    listenAudio: 'Listen to Spoken Summary',
+    audioSpeaking: 'Speaking (Tap to stop)',
+    notifications: 'Notifications & Reminders',
 
     nextScheduledPickup: 'Next Scheduled Pickup',
-    assignedTimeWindow: 'Assigned Collection Window',
+    assignedTimeWindow: 'Assigned Time Window',
     whatWouldYouLikeCollected: 'What would you like collected?',
-    whatWouldYouLikeCollectedSub: 'Select clean recyclables, choose a convenient collection window, and earn verified circular reward points right at your doorstep.',
-    prepReminderActive: '24h Preparation Instructions Active',
-    prepReminderDesc: 'Rinse bottles, flatten cardboard boxes, and place bags ready 15 mins before arrival.',
+    whatWouldYouLikeCollectedSub: 'Select clean recyclables, choose a convenient window, and earn verified circular points right at your doorstep.',
+    prepReminderActive: '24h Preparation Guide Active',
+    prepReminderDesc: 'Rinse bottles clean, flatten cardboard boxes, and place bags near your door 15 minutes before the window.',
     viewChecklist: 'View Checklist',
     rewardsBalance: 'Rewards Balance',
     availableToRedeem: 'Available to Redeem',
-    pendingHubCheck: 'Pending hub scale verification',
-    totalDiverted: 'total verified material diverted',
+    pendingHubCheck: 'Pending Hub Scale Check',
+    totalDiverted: 'Total Material Diverted',
     redeemVouchers: 'Redeem Points for Vouchers',
     serviceAddress: 'Service Address',
-    changeAddress: 'Change',
-    automatedAlerts: 'Automated 24h Alerts',
+    changeAddress: 'Change Address',
+    automatedAlerts: 'Automated 24h Reminders',
     viewAll: 'View All',
-    approvedStreams: 'Approved Clean Lane Streams',
-    solidWasteRules: 'Bangladesh Solid Waste Management Rules 2021 Segregated Streams',
+    approvedStreams: 'Accepted Clean Streams',
+    solidWasteRules: 'Segregated in compliance with Bangladesh Solid Waste Rules 2021',
+    acceptedCleanStreams: 'Accepted Clean Streams',
+    segregatedRecyclables: 'Segregated household recyclables eligible for verified points',
+    fullSortingGuide: 'Full Sorting Guide →',
+    showFull6Streams: 'Show full 6-category specifications ▾',
+    hideFull6Streams: 'Hide full 6-category specifications ▴',
 
     step1Title: 'Step 1 of 3: Materials',
-    step1Heading: 'What do you have?',
-    step2Title: 'Step 2 of 3: Time',
-    step2Heading: 'When should we come?',
+    step1Heading: 'What are you recycling today?',
+    step2Title: 'Step 2 of 3: Schedule',
+    step2Heading: 'When should the collector arrive?',
     step3Title: 'Step 3 of 3: Review',
-    step3Heading: 'Your pickup receipt',
+    step3Heading: 'Review Pickup Appointment Ticket',
     step4Title: 'Booking Confirmed',
-    step4Heading: "You're booked ✓",
-    selectMaterialsPrompt: 'Tap all the clean dry recyclable streams you have ready for collection.',
-    pickupTimePrompt: 'Select your preferred collection date and appointment window.',
+    step4Heading: 'Your Pickup is Confirmed ✓',
+    selectMaterialsPrompt: 'Select all clean, dry materials you have prepared.',
+    pickupTimePrompt: 'Choose your preferred collection day and arrival window.',
     chooseDay: 'Choose Day',
     today: 'Today',
     tomorrow: 'Tomorrow',
@@ -212,41 +290,41 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     morningSlot: 'Morning (09:00 AM – 11:30 AM)',
     afternoonSlot: 'Afternoon (02:00 PM – 04:30 PM)',
     addressLabel: 'Pickup Address',
-    accessInstructionsOptional: 'Access Instructions (Gate code, elevator, caretaker note)',
-    accessPlaceholder: 'e.g., Security guard will buzz 3rd floor. Leave clean blue sack beside door.',
-    appointmentTicket: 'Digital Collection Ticket',
-    ticketInstruction: 'Show this ticket or your booking code to the collector at the time of weighing.',
-    noUpfrontPayment: 'No payment required. Points are credited immediately upon verified weighing.',
-    verifiedPointsEarned: 'Estimated points to earn on collection',
+    accessInstructionsOptional: 'Gate or Building Instructions (Optional)',
+    accessPlaceholder: 'e.g. Ring flat 4B bell. Blue recycling bag placed next to doorway.',
+    appointmentTicket: 'Digital Appointment Ticket',
+    ticketInstruction: 'Present this booking ticket to your collector during certified scale weigh-in.',
+    noUpfrontPayment: 'Zero fee required. Verified reward points are credited upon scale confirmation.',
+    verifiedPointsEarned: 'Estimated Circular Points',
 
     plasticBottlesTitle: 'Plastic Bottles (PET)',
-    plasticBottlesSub: 'Water, soft drinks, clear beverage bottles',
+    plasticBottlesSub: 'Clean water, juice and soft drink bottles',
     cardboardTitle: 'Cardboard & Paper (OCC)',
-    cardboardSub: 'Delivery boxes, clean packaging, carton sheets',
-    cansTitle: 'Metal Cans & Containers',
-    cansSub: 'Beverage cans, tin food containers',
-    hdpeTitle: 'Rigid Plastic Containers (HDPE)',
-    hdpeSub: 'Shampoo, detergent bottles, dairy jars',
-    polyFilmTitle: 'Clean Poly Film & Pouches (LDPE)',
-    polyFilmSub: 'Clean transparent grocery wrappers, bubble wrap',
-    tetrapakTitle: 'Juice & Milk Cartons (Tetra Pak)',
-    tetrapakSub: 'Aseptic multi-layer beverage boxes',
+    cardboardSub: 'Clean delivery boxes, packaging cartons and paper boards',
+    cansTitle: 'Cans & Containers (Aluminum & Tin)',
+    cansSub: 'Beverage cans, tin food containers, aerosol cans',
+    hdpeTitle: 'Rigid Plastics (HDPE)',
+    hdpeSub: 'Shampoo, laundry detergent bottles and milk jugs',
+    polyFilmTitle: 'Clean Poly Film & Bags (LDPE)',
+    polyFilmSub: 'Clean grocery bags, bubble wrap and clear film packaging',
+    tetrapakTitle: 'Beverage Cartons (Tetra Pak)',
+    tetrapakSub: 'Aseptic juice and milk multilayer cartons',
 
-    notifCenterTitle: 'Notification & 24h Reminder Center',
-    prepGuidanceTitle: 'Preparation & Quality Checklist',
-    prepStep1Title: '1. Rinse & Empty',
-    prepStep1Desc: 'Empty all liquids and rinse food residue. Materials must be completely dry to prevent contamination.',
-    prepStep2Title: '2. Flatten & Compress',
-    prepStep2Desc: 'Flatten cardboard boxes and crush plastic bottles to save space in the collector vehicle.',
-    prepStep3Title: '3. Separate Streams',
-    prepStep3Desc: 'Keep plastics, metals, and paper in separate bags or tied bundles for instant tare weighing.',
-    prepStep4Title: '4. Doorstep Placement',
-    prepStep4Desc: 'Place bundles outside your doorstep or notify security 15 minutes before the arrival window.',
-    qualityGuidelines: 'Clean Lane Quality Acceptance Rules',
+    notifCenterTitle: '24h Notification & Reminder Center',
+    prepGuidanceTitle: 'Material Preparation & Quality Checklist',
+    prepStep1Title: '1. Rinse and Air Dry',
+    prepStep1Desc: 'Empty residual liquids, rinse with water, and let dry thoroughly to prevent mold or odor.',
+    prepStep2Title: '2. Flatten & Compact',
+    prepStep2Desc: 'Flatten cardboard delivery boxes and crush plastic bottles to optimize collector cargo volume.',
+    prepStep3Title: '3. Keep Streams Segregated',
+    prepStep3Desc: 'Keep plastics, cardboard, and metals in separate bags for rapid certified scale check.',
+    prepStep4Title: '4. Stage at Doorstep',
+    prepStep4Desc: 'Place your bagged materials by your door 15 minutes before the arrival window.',
+    qualityGuidelines: 'Clean Lane Quality Standards',
     acceptedItems: 'Accepted for Points',
-    rejectedItems: 'Rejected / Non-Recyclable',
+    rejectedItems: 'Rejected / Contaminated',
     doorstepProtocol: 'Collector Handover Protocol',
-    doorstepProtocolDesc: 'Our licensed collector will verify segregation, hook bags to the digital hanging scale, and issue a verified digital receipt.',
+    doorstepProtocolDesc: 'Certified collectors weigh materials on digital hanging scales in your presence and log cryptographic receipts.',
 
     rewardCatalogTitle: 'Available Circular Rewards',
     rewardCatalogSub: 'Redeem your verified points for grocery vouchers, mobile recharges, and utility credits.',
@@ -275,7 +353,37 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     issueCollector: 'Collector interaction or behavior',
     describeIssue: 'Describe what happened',
     submitDispute: 'Submit Ticket to Dispatch Operator',
-    disputeReceived: 'Your dispute has been logged. Operator is reviewing audit evidence.'
+    disputeReceived: 'Your dispute has been logged. Operator is reviewing audit evidence.',
+
+    verifiedCircularityImpact: 'Verified Circularity Impact',
+    divertedFromLandfill: 'diverted from Matuail landfill',
+    co2Avoided: 'CO₂e avoided',
+    viewImpactLedger: 'View ESG Impact Details',
+    hideImpactLedger: 'Hide Impact Details',
+    householdScope: 'My Household',
+    pilotZoneScope: 'Dhanmondi Ward (Zone 5)',
+    treesEquivalent: 'Trees planted equivalent',
+    plasticBottlesDiverted: 'Plastic bottles diverted',
+    landfillSpaceSaved: 'Landfill space saved',
+
+    scanQrCode: 'Scan Lot QR Code',
+    scanQrInstruction: 'Align the camera over the bag or lot QR code to identify instantly',
+    switchCamera: 'Switch Camera',
+    toggleFlash: 'Flashlight',
+    recordWeight: 'Record Weight',
+    verifiedScaleWeight: 'Certified Scale Weight',
+    manualLotEntry: 'Or enter lot code manually',
+    lotIdentified: 'Lot Identified Successfully',
+
+    viewPreparationChecklist: 'View Preparation Checklist',
+    trackLiveCollection: 'Track Live Status',
+    viewScaleCertificate: 'View Scale Certificate',
+    recentCollection: 'Recent Collection',
+    doorstepSupport: 'Doorstep Support',
+    pickupQuestions: 'Questions about your collection?',
+    getHelp: 'Get Help',
+    selectAddress: 'Select Service Address',
+    addNewAddress: 'Add New Address / Check Area'
   },
   bn: {
     appTitle: 'ক্লিন লেন',
@@ -287,7 +395,7 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     account: 'অ্যাকাউন্ট ও সাইট',
     bookPickup: 'পিকআপ বুক করুন',
     bookAnotherPickup: 'নতুন পিকআপ বুক করুন',
-    trackLiveStatus: 'লাইভ সংগ্রহ অগ্রগতি দেখুন',
+    trackLiveStatus: 'লাইভ অগ্রগতি দেখুন',
     viewDetails: 'বিস্তারিত দেখুন',
     sortingGuide: 'বাছাই নির্দেশিকা →',
     close: 'বন্ধ করুন',
@@ -308,6 +416,23 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     activeLane: 'ক্লিন লেন সক্রিয়',
     waitlist: 'অপেক্ষমাণ লেন',
 
+    moreMenu: 'আরও বিকল্প ▾',
+    investorBrief: 'ইনভেস্টর বিবরণ ও অর্থনীতি',
+    fiveStepTour: '৫-ধাপের সার্কুলার সফর',
+    evidenceModel: 'ডিজিটাল প্রমাণ মানদণ্ড (E0–E5)',
+    chainOfCustody: 'কাস্টডি রেকর্ড ও চেইন',
+    myServices: 'আমার সেবা',
+    fieldJobs: 'মাঠের কাজ',
+    hubIntake: 'কেন্দ্র ইনটেক',
+    millProcessing: 'মিল প্রসেসিং',
+    commandCenter: 'কমান্ড সেন্টার',
+    eprCampaigns: 'ইপিআর ও পার্টনার',
+    desktopView: 'ডেস্কটপ ভিউ',
+    phonePreview: 'মোবাইল ফ্রেম প্রিভিউ',
+    listenAudio: 'অডিও সারাংশ শুনুন',
+    audioSpeaking: 'অডিও চলছে (থামাতে চাপুন)',
+    notifications: 'বিজ্ঞপ্তি ও ২৪ ঘণ্টার রিমাইন্ডার',
+
     nextScheduledPickup: 'পরবর্তী নির্ধারিত সংগ্রহ',
     assignedTimeWindow: 'নির্ধারিত সংগ্রহের সময়সূচি',
     whatWouldYouLikeCollected: 'কী ধরনের বর্জ্য দিতে চান?',
@@ -321,11 +446,16 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     totalDiverted: 'মোট উদ্ধারকৃত বর্জ্য পুনর্ব্যবহার',
     redeemVouchers: 'ভাউচারে পয়েন্ট রিডিম করুন',
     serviceAddress: 'সেবার ঠিকানা',
-    changeAddress: 'পরিবর্তন',
+    changeAddress: 'পরিবর্তন করুন',
     automatedAlerts: 'স্বয়ংক্রিয় ২৪ ঘণ্টার সতর্কতা',
     viewAll: 'সবগুলো দেখুন',
     approvedStreams: 'অনুমোদিত ক্লিন লেন উপাদান',
     solidWasteRules: 'বাংলাদেশ কঠিন বর্জ্য ব্যবস্থাপনা বিধিমালা ২০২১ অনুযায়ী পৃথককৃত উপাদান',
+    acceptedCleanStreams: 'অনুমোদিত পরিচ্ছন্ন বর্জ্য উপাদান',
+    segregatedRecyclables: 'যাচাইকৃত রিওয়ার্ড পয়েন্টের জন্য যোগ্য পৃথকীকৃত উপাদান',
+    fullSortingGuide: 'সম্পূর্ণ বাছাই নির্দেশিকা →',
+    showFull6Streams: 'সকল ৬টি ক্যাটাগরির বিস্তারিত বিবরণ দেখুন ▾',
+    hideFull6Streams: '৬টি ক্যাটাগরির বিস্তারিত বিবরণ লুকান ▴',
 
     step1Title: 'ধাপ ১/৩: উপাদান নির্বাচন',
     step1Heading: 'কী কী বর্জ্য জমা দেবেন?',
@@ -407,7 +537,37 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     issueCollector: 'কালেক্টরের অনুপযুক্ত আচরণ বা সেবা ত্রুটি',
     describeIssue: 'সমস্যার বিস্তারিত বিবরণ দিন',
     submitDispute: 'অপারেটরের কাছে টিকেট জমা দিন',
-    disputeReceived: 'আপনার অভিযোগ গৃহীত হয়েছে। অপারেটর অডিট লগ পর্যালোচনা করে দ্রুত সমাধান জানাবে।'
+    disputeReceived: 'আপনার অভিযোগ গৃহীত হয়েছে। অপারেটর অডিট লগ পর্যালোচনা করে দ্রুত সমাধান জানাবে।',
+
+    verifiedCircularityImpact: 'পরিবেশগত সার্কুলার অর্জন',
+    divertedFromLandfill: 'মাতুয়াইল ল্যান্ডফিল থেকে অপসারিত',
+    co2Avoided: 'কার্বন নির্গমন সাশ্রয়',
+    viewImpactLedger: 'ইএসজি খতিয়ান ও প্রভাব দেখুন',
+    hideImpactLedger: 'বিবরণ লুকান',
+    householdScope: 'আমার পরিবার',
+    pilotZoneScope: 'ধানমন্ডি এলাকা (জোন ৫)',
+    treesEquivalent: 'গাছ রোপণের সমান অবদান',
+    plasticBottlesDiverted: 'প্লাস্টিক বোতল পুনরুদ্ধার',
+    landfillSpaceSaved: 'ল্যান্ডফিলের জায়গা সাশ্রয়',
+
+    scanQrCode: 'লট কিউআর কোড স্ক্যান করুন',
+    scanQrInstruction: 'দ্রুত শনাক্ত করতে আপনার ক্যামেরাকে ব্যাগের কিউআর কোডের সামনে ধরুন',
+    switchCamera: 'ক্যামেরা পরিবর্তন',
+    toggleFlash: 'ফ্ল্যাশলাইট',
+    recordWeight: 'ওজন রেকর্ড করুন',
+    verifiedScaleWeight: 'সার্টিফাইড ডিজিটাল স্কেল ওজন',
+    manualLotEntry: 'অথবা ম্যানুয়ালি লট কোড লিখুন',
+    lotIdentified: 'লট সফলভাবে শনাক্ত হয়েছে',
+
+    viewPreparationChecklist: 'প্রস্তুতি চেকলিস্ট দেখুন',
+    trackLiveCollection: 'লাইভ অগ্রগতি দেখুন',
+    viewScaleCertificate: 'স্কেল সার্টিফিকেট দেখুন',
+    recentCollection: 'সাম্প্রতিক সংগ্রহ',
+    doorstepSupport: 'ডোরস্টেপ সহায়তা',
+    pickupQuestions: 'সংগ্রহ সংক্রান্ত কোনো প্রশ্ন?',
+    getHelp: 'সাহায্য নিন',
+    selectAddress: 'সেবার ঠিকানা নির্বাচন করুন',
+    addNewAddress: 'নতুন ঠিকানা যোগ করুন / এলাকা যাচাই'
   }
 };
 
