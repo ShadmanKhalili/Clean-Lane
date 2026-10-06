@@ -37,5 +37,14 @@ export const TOKENS = {
     pending: '#C27803',
     attention: '#C25E00',
     error: '#D32F2F'
+  },
+  motion: {
+    tap: 120, // 100-150ms Press & selection feedback
+    reveal: 190, // 160-220ms Expand short explanation/reveal field
+    navigate: 220, // 180-260ms Move between booking steps
+    confirm: 350, // 300-450ms One-time booking or reward confirmation
+    status: 200, // 180-250ms Status card update
+    easingOut: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    easingIn: 'cubic-bezier(0.7, 0, 0.84, 0)'
   }
 } as const;

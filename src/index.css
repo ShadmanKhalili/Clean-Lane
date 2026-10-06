@@ -9,11 +9,86 @@
     --color-ink: #202B38;
     --color-slate: #53616D;
     --color-border: #EDE4D8;
+
+    /* Motion Contract Tokens */
+    --motion-tap: 120ms;
+    --motion-reveal: 190ms;
+    --motion-navigate: 220ms;
+    --motion-confirm: 350ms;
+    --motion-status: 200ms;
+    --ease-out-clean: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-clean: cubic-bezier(0.7, 0, 0.84, 0);
   }
 
   body {
     background-color: #FFF9F0;
     color: #202B38;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Accessible Focus States */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: none;
+    ring: 2px solid #25345C;
+    ring-offset: 2px;
+  }
+}
+
+/* One-time Confirmation Checkmark Draw */
+@keyframes checkmark-draw {
+  0% {
+    stroke-dashoffset: 48;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.animate-draw-check {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: checkmark-draw 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* One-time subtle status update highlight (replaces continuous pulses) */
+@keyframes status-highlight-once {
+  0% {
+    background-color: rgba(201, 241, 220, 0.5);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-status-update {
+  animation: status-highlight-once 1200ms ease-out 1 forwards;
+}
+
+/* Smooth motion tap feedback */
+.motion-tap {
+  transition: transform var(--motion-tap) ease, background-color var(--motion-tap) ease, border-color var(--motion-tap) ease;
+}
+.motion-tap:active {
+  transform: scale(0.985);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

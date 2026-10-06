@@ -4,6 +4,7 @@ import { UserRole } from '../../types';
 import { TOKENS } from '../../theme/tokens';
 import { ShieldCheck, Wifi, WifiOff, Sparkles } from 'lucide-react';
 import { InvestorLoopDemonstrator } from './InvestorLoopDemonstrator';
+import { InvestorShowcaseModal } from './InvestorShowcaseModal';
 
 interface HeaderProps {
   activeTab: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const { role, setRole, lang, setLang, isOfflineMode, offlineQueueCount, syncOfflineQueue } = useApp();
   const [isDemonstratorOpen, setIsDemonstratorOpen] = useState(false);
+  const [isInvestorShowcaseOpen, setIsInvestorShowcaseOpen] = useState(false);
 
   const roleLabels: Record<UserRole, { en: string; bn: string }> = {
     customer_household: { en: 'Household Resident', bn: 'বাসাবাড়ির বাসিন্দা' },
@@ -134,16 +136,25 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             </button>
           </nav>
 
-          {/* Zone 3: Actions (Interactive Tour, Role Switcher, Language) */}
-          <div className="flex items-center gap-2.5">
-            {/* Investor / Evaluator Continuous Loop Tour Button */}
+          {/* Zone 3: Actions (Interactive Tour, Investor Brief, Role Switcher, Language) */}
+          <div className="flex items-center gap-2">
+            {/* Investor Brief & Economics Button */}
+            <button
+              onClick={() => setIsInvestorShowcaseOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25345C] hover:bg-[#1B2644] text-[#C9F1DC] text-xs font-bold transition-all cursor-pointer shadow-2xs border border-[#C9F1DC]/30"
+              title="Launch Investor Brief, Unit Economics & ESG Evidence Showcase"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#C9F1DC]" />
+              <span className="hidden sm:inline">Investor Brief</span>
+            </button>
+
+            {/* Circularity 5-Step Tour Button */}
             <button
               onClick={() => setIsDemonstratorOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2F7E9] hover:bg-[#E4F0D3] text-[#124B3A] border border-[#CBEA70] text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] border border-[#EDE4D8] text-xs font-bold transition-all cursor-pointer shadow-2xs"
               title="Launch 5-Stage Everyday Circularity Walkthrough"
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#124B3A]" />
-              <span>Circularity Tour</span>
+              <span>5-Step Tour</span>
             </button>
 
             {/* Role Selector */}
@@ -190,6 +201,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
       <InvestorLoopDemonstrator
         isOpen={isDemonstratorOpen}
         onClose={() => setIsDemonstratorOpen(false)}
+      />
+
+      {/* Investor Brief & Scale Economics Modal */}
+      <InvestorShowcaseModal
+        isOpen={isInvestorShowcaseOpen}
+        onClose={() => setIsInvestorShowcaseOpen(false)}
+        onOpenLoopDemonstrator={() => setIsDemonstratorOpen(true)}
       />
     </>
   );
