@@ -373,3 +373,75 @@ export interface AuditEvent {
   newValue?: string;
   reason: string;
 }
+
+export type NotificationType =
+  | 'COLLECTION_REMINDER_24H'
+  | 'COLLECTION_REMINDER_2H'
+  | 'BOOKING_CONFIRMED'
+  | 'COLLECTOR_EN_ROUTE'
+  | 'COLLECTION_COMPLETED'
+  | 'POINTS_UNLOCKED'
+  | 'PREPARATION_ALERT';
+
+export type NotificationChannel = 'IN_APP' | 'SMS' | 'PUSH' | 'WHATSAPP';
+
+export interface MaterialPrepGuide {
+  category: MaterialCategory;
+  name: string;
+  nameBn: string;
+  instructions: string;
+  instructionsBn: string;
+  doNotInclude: string[];
+}
+
+export interface PrepStep {
+  stepNumber: number;
+  title: string;
+  titleBn: string;
+  detail: string;
+  detailBn: string;
+  icon: string;
+}
+
+export interface AppNotification {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  customerPhone?: string;
+  bookingId: string;
+  type: NotificationType;
+  title: string;
+  titleBn: string;
+  message: string;
+  messageBn: string;
+  scheduledCollectionDate: string;
+  scheduledTimeWindow: string;
+  address: string;
+  channel: NotificationChannel;
+  status: 'SCHEDULED' | 'SENT' | 'DELIVERED' | 'READ';
+  scheduledSendTime: string;
+  sentAt?: string;
+  read: boolean;
+  preparationInstructions: {
+    steps: PrepStep[];
+    materialSpecific: MaterialPrepGuide[];
+    gatePlacementNote: string;
+    gatePlacementNoteBn: string;
+    contaminationWarning: string;
+    contaminationWarningBn: string;
+  };
+  smsPreview: string;
+  pushPreview: string;
+  createdAt: string;
+}
+
+export interface NotificationSettings {
+  reminder24h: boolean;
+  reminder2h: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+  whatsappEnabled: boolean;
+  audioReadout: boolean;
+  languagePreference: 'en' | 'bn';
+}
+

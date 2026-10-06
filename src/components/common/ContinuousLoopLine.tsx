@@ -74,7 +74,7 @@ export const ContinuousLoopLine: React.FC<ContinuousLoopLineProps> = ({
           {/* Active progress loop line */}
           <path
             d="M 20 25 C 100 25, 120 10, 200 10 C 280 10, 320 40, 400 40 C 480 40, 520 25, 580 25"
-            stroke={TOKENS.brand.primary}
+            stroke={TOKENS.brand.signature}
             strokeWidth="4"
             strokeLinecap="round"
             strokeDasharray="600"
@@ -85,7 +85,7 @@ export const ContinuousLoopLine: React.FC<ContinuousLoopLineProps> = ({
           {/* Accent glow line on active segment */}
           <path
             d="M 20 25 C 100 25, 120 10, 200 10 C 280 10, 320 40, 400 40 C 480 40, 520 25, 580 25"
-            stroke={TOKENS.brand.accent}
+            stroke={TOKENS.brand.marigold}
             strokeWidth="2"
             strokeLinecap="round"
             strokeDasharray="60"

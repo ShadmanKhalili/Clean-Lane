@@ -1,39 +1,41 @@
 /**
- * Design Tokens for Clean Lane: "Everyday Circularity"
- * Visual direction: Optimistic, dependable, local and quietly premium.
+ * Design Tokens for Clean Lane: "Bright, Human, Trustworthy" Redesign
+ * Visual Direction: Deep Indigo, Cream, Mint, Marigold, Ink, Slate
  */
 
 export const TOKENS = {
   brand: {
-    primary: '#124B3A', // Deep forest green
-    primaryHover: '#0D382B',
-    accent: '#CBEA70', // Fresh lime
-    accentHover: '#BAE256',
-    accentLight: '#F3F9E2',
-    supporting: '#147D79', // Clear teal
-    supportingLight: '#E8F5F4'
+    signature: '#25345C', // Deep Indigo (Logo, primary buttons, key headings)
+    signatureHover: '#1B2644',
+    signatureLight: '#EDF1F9',
+    mint: '#C9F1DC', // Fresh Mint (Service illustrations, light highlights)
+    mintDark: '#12613F', // For readable text on mint
+    mintLight: '#E8FAF1',
+    marigold: '#F5BF55', // Reward Marigold (Points, celebration)
+    marigoldDark: '#7A4D00',
+    marigoldLight: '#FEF8EB'
   },
   surface: {
-    page: '#F8F7F1', // Soft ivory
-    card: '#FFFFFF',
-    highlight: '#F2F7E9', // Warm lime wash
-    border: '#E8E5DA', // Muted warm border
-    borderSubtle: '#F0EEE6'
+    canvas: '#FFF9F0', // Warm Cream (Main app background)
+    card: '#FFFFFF', // Secondary surface (Forms, cards)
+    cardSubtle: '#FAF5EC',
+    border: '#EDE4D8', // Soft warm border
+    borderSubtle: '#F5EFE6'
   },
   text: {
-    primary: '#172521', // Deep charcoal
-    secondary: '#53625C', // Warm slate
-    muted: '#879690',
-    onPrimary: '#FFFFFF',
-    onAccent: '#172521'
+    ink: '#202B38', // Main copy (Ink)
+    slate: '#53616D', // Supporting copy (Slate)
+    muted: '#8896A4',
+    onSignature: '#FFFFFF',
+    onMarigold: '#202B38'
   },
   status: {
-    requested: '#147D79', // Clear teal
-    confirmed: '#124B3A', // Deep forest
-    collected: '#124B3A',
-    quantityChecked: '#0F6550',
-    pending: '#B46A14', // Warm amber
-    attention: '#B45309',
-    error: '#BE123C' // Crimson
+    requested: '#25345C',
+    confirmed: '#25345C',
+    collected: '#12613F',
+    quantityChecked: '#1B7A53',
+    pending: '#C27803',
+    attention: '#C25E00',
+    error: '#D32F2F'
   }
 } as const;

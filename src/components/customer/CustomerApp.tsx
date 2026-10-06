@@ -13,6 +13,10 @@ import { DropOffDetailModal } from './DropOffDetailModal';
 import { OrganisationDashboardView } from './OrganisationDashboardView';
 import { speakInstruction } from '../../utils/statusDictionary';
 import { ContinuousLoopLine } from '../common/ContinuousLoopLine';
+import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
+import { PreparationGuidanceModal } from '../notifications/PreparationGuidanceModal';
+import { ReminderBanner } from '../notifications/ReminderBanner';
+import { AppNotification } from '../../types';
 import {
   Home,
   Layers,
@@ -35,7 +39,12 @@ import {
   Compass,
   FileText,
   Search,
-  Sparkles
+  Sparkles,
+  Bell,
+  FileCheck2,
+  Smartphone,
+  MessageSquare,
+  Settings
 } from 'lucide-react';
 
 interface CustomerAppProps {
@@ -59,7 +68,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
     savedLocations,
     selectedLocationId,
     setSelectedLocationId,
-    redeemReward
+    redeemReward,
+    notifications
   } = useApp();
 
   // 5 Destinations: home | services | activity | rewards | account
@@ -76,9 +86,16 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
+  const [selectedPrepNotif, setSelectedPrepNotif] = useState<AppNotification | null>(null);
+  const [selectedPrepBooking, setSelectedPrepBooking] = useState<Booking | null>(null);
   const [selectedBookingForDispute, setSelectedBookingForDispute] = useState<string | undefined>(undefined);
   const [inspectedBooking, setInspectedBooking] = useState<Booking | null>(null);
   const [selectedDropOffPoint, setSelectedDropOffPoint] = useState<DropOffPoint | null>(null);
+
+  // Unread notification count
+  const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
   // Activity Tab filter
   const [activityFilter, setActivityFilter] = useState<'all' | 'upcoming' | 'completed' | 'needs_attention'>('all');
@@ -123,7 +140,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
   return (
     <div className="space-y-6">
       {/* 5 Bottom-Navigation Tabs (Desktop top pill switcher + mobile bottom bar) */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto">
           {[
             { id: 'home', label: lang === 'en' ? 'Home' : 'হোম', icon: Home },
@@ -151,14 +168,31 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
           })}
         </div>
 
-        {/* Quick Launch Onboarding Button (to test Flow A) */}
-        <button
-          onClick={() => setIsOnboardingModalOpen(true)}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-          <span>Test Flow A (Onboarding & Check)</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Automated 24h Reminders & Notification Center Bell */}
+          <button
+            onClick={() => setIsNotificationModalOpen(true)}
+            className="relative p-2 text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title="Open Notifications & Automated 24h Reminders"
+          >
+            <Bell className="w-4 h-4 text-[#25345C]" />
+            <span className="hidden md:inline">{lang === 'en' ? 'Reminders' : 'রিমাইন্ডার'}</span>
+            {unreadNotifCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-[#F5BF55] text-[#202B38] text-[10px] font-bold rounded-full border border-amber-600">
+                {unreadNotifCount}
+              </span>
+            )}
+          </button>
+
+          {/* Quick Launch Onboarding Button (to test Flow A) */}
+          <button
+            onClick={() => setIsOnboardingModalOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Test Flow A</span>
+          </button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -166,6 +200,19 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
       {/* ========================================================================= */}
       {activeTab === 'home' && (
         <div className="space-y-6">
+          {/* Automated 24h Collection Reminder Banner (With Preparation Instructions) */}
+          {nextBooking && (
+            <ReminderBanner
+              booking={nextBooking}
+              onOpenPreparation={(b) => {
+                setSelectedPrepBooking(b);
+                setSelectedPrepNotif(null);
+                setIsPrepModalOpen(true);
+              }}
+              onOpenNotifications={() => setIsNotificationModalOpen(true)}
+            />
+          )}
+
           {/* Conditional Priority Alert (PRD C05: Missed collection or unresolved issue replaces promo near top) */}
           {bookings.some((b) => b.status === 'MISSED' || b.status === 'DISPUTED') && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in shadow-xs">
@@ -914,6 +961,36 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                 </div>
               </div>
 
+              {/* Notification & Automated Reminder Settings (PRD C17/C19) */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-[#FEF8EB] text-[#F5BF55] border border-[#F5BF55]/50 flex items-center justify-center font-bold">
+                      <Bell className="w-5 h-5 text-[#202B38]" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900">
+                        {lang === 'en'
+                          ? 'Automated 24h Reminders & SMS Delivery'
+                          : 'স্বয়ংক্রিয় ২৪ ঘণ্টা পূর্বের অ্যালার্ট ও এসএমএস'}
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        {lang === 'en'
+                          ? 'Configure SMS notifications, push alerts, and preparation instructions.'
+                          : 'এসএমএস বিজ্ঞপ্তি, পুশ অ্যালার্ট এবং প্রস্তুতি নির্দেশিকা কনফিগার করুন।'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsNotificationModalOpen(true)}
+                    className="px-3.5 py-1.5 bg-[#25345C] text-white hover:bg-[#1B2644] rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>{lang === 'en' ? 'Manage Alerts' : 'অ্যালার্ট পরিচালনা'}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Help & Support / Dispute Center (Wireframe C18) */}
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
@@ -973,6 +1050,25 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
         isOpen={isDisputeModalOpen}
         bookingId={selectedBookingForDispute}
         onClose={() => setIsDisputeModalOpen(false)}
+      />
+      <NotificationCenterModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        onOpenPreparation={(notif) => {
+          setSelectedPrepNotif(notif);
+          setSelectedPrepBooking(null);
+          setIsPrepModalOpen(true);
+        }}
+      />
+      <PreparationGuidanceModal
+        isOpen={isPrepModalOpen}
+        onClose={() => {
+          setIsPrepModalOpen(false);
+          setSelectedPrepNotif(null);
+          setSelectedPrepBooking(null);
+        }}
+        notification={selectedPrepNotif}
+        booking={selectedPrepBooking}
       />
     </div>
   );

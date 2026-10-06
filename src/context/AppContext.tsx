@@ -38,8 +38,16 @@ import {
   ServiceComplaint,
   ServiceZone,
   SortingTransformation,
-  UserRole
+  UserRole,
+  AppNotification,
+  NotificationSettings
 } from '../types';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  INITIAL_NOTIFICATIONS,
+  generate24HourReminder,
+  evaluateAutomatedReminders
+} from '../services/notificationService';
 
 interface AppContextType {
   role: UserRole;
@@ -73,6 +81,16 @@ interface AppContextType {
   dropOffPoints: DropOffPoint[];
   savedLocations: SavedLocation[];
   orgMembers: OrgMember[];
+
+  // Notifications & Reminders
+  notifications: AppNotification[];
+  notificationSettings: NotificationSettings;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  deleteNotification: (id: string) => void;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
+  triggerManual24hReminderCheck: () => number;
+  trigger24hReminderForBooking: (bookingId: string) => void;
 
   // Toast / System Notification
   activeToast: string | null;
@@ -155,6 +173,83 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>(INITIAL_SAVED_LOCATIONS);
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>(INITIAL_ORG_MEMBERS);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('LOC-01');
+
+  // Notifications & 24h Automated Reminders
+  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notificationSettings, setNotificationSettings] =
+    useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true, status: 'READ' } : n))
+    );
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, read: true, status: 'READ' }))
+    );
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const updateNotificationSettings = (settings: Partial<NotificationSettings>) => {
+    setNotificationSettings((prev) => ({ ...prev, ...settings }));
+    showToast(
+      lang === 'en'
+        ? 'Notification preferences updated!'
+        : 'বিজ্ঞপ্তি সেটিংস হালনাগাদ করা হয়েছে!'
+    );
+  };
+
+  const trigger24hReminderForBooking = (bookingId: string) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking) return;
+
+    const reminder = generate24HourReminder(booking);
+    setNotifications((prev) => [reminder, ...prev]);
+    addAuditLog(
+      'REMINDER_DISPATCHED_24H',
+      'Booking',
+      bookingId,
+      `Automated 24h collection reminder with preparation steps dispatched to ${booking.phone}.`
+    );
+  };
+
+  const triggerManual24hReminderCheck = (): number => {
+    const { newReminders, logs } = evaluateAutomatedReminders(
+      bookings,
+      notifications
+    );
+
+    if (newReminders.length > 0) {
+      setNotifications((prev) => [...newReminders, ...prev]);
+      logs.forEach((log) => {
+        addAuditLog(
+          'AUTO_REMINDER_CHECK',
+          'NotificationService',
+          'SYSTEM',
+          log
+        );
+      });
+    }
+
+    return newReminders.length;
+  };
+
+  // Automated background reminder evaluator
+  useEffect(() => {
+    // Check upon bookings changes or initialization
+    const { newReminders } = evaluateAutomatedReminders(
+      bookings,
+      notifications
+    );
+    if (newReminders.length > 0) {
+      setNotifications((prev) => [...newReminders, ...prev]);
+    }
+  }, [bookings.length]);
 
   const showToast = (msg: string) => {
     setActiveToast(msg);
@@ -240,8 +335,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setPointsLedger((prev) => [ledgerEntry, ...prev]);
 
+    // Generate Automated 24h Reminder Notification with Custom Preparation Steps
+    const reminderNotif = generate24HourReminder(newBooking);
+    setNotifications((prev) => [reminderNotif, ...prev]);
+
     addAuditLog('BOOKING_CREATED', 'Booking', newId, 'Customer booked scheduled clean lane collection.');
-    showToast(`Booking ${newId} confirmed! Collector notified.`);
+    addAuditLog('REMINDER_SCHEDULED_24H', 'NotificationService', reminderNotif.id, `Automated 24h reminder with preparation guidance queued for SMS & In-App delivery.`);
+    showToast(`Booking ${newId} confirmed! 24h reminder & preparation steps sent.`);
     return newBooking;
   };
 
@@ -1152,6 +1252,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         orgMembers,
         selectedLocationId,
         setSelectedLocationId,
+        notifications,
+        notificationSettings,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteNotification,
+        updateNotificationSettings,
+        triggerManual24hReminderCheck,
+        trigger24hReminderForBooking,
         recordDropOffDeposit,
         requestRecurringService,
         addSavedLocation,

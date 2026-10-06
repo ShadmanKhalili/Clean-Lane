@@ -22,7 +22,11 @@ import {
   FileText,
   Search,
   Filter,
-  DollarSign
+  DollarSign,
+  Bell,
+  Smartphone,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 
 export const OperatorDashboard: React.FC = () => {
@@ -34,11 +38,14 @@ export const OperatorDashboard: React.FC = () => {
     auditLogs,
     complaints,
     rewards,
+    notifications,
+    triggerManual24hReminderCheck,
     totalCollectedKg,
     totalAcceptedKg,
     totalProcessedKg,
     totalVerifiedEprKg,
-    lang
+    lang,
+    showToast
   } = useApp();
 
   // 9 Workspaces: Overview, Bookings, Dispatch, Material, Rewards, Customers, Partners, Reports, Settings
@@ -261,6 +268,51 @@ export const OperatorDashboard: React.FC = () => {
                   <span>Hub Scales Online:</span>
                   <span className="font-bold font-mono text-emerald-800">1 (GW-01)</span>
                 </div>
+              </div>
+
+              {/* Automated 24h Reminder Gateway Monitor */}
+              <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                    <Bell className="w-3.5 h-3.5 text-[#F5BF55]" />
+                    <span>24h Reminder Service</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                    Active (Cron)
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">24h Reminders Sent:</span>
+                    <span className="font-bold font-mono text-slate-900">
+                      {notifications.filter((n) => n.type === 'COLLECTION_REMINDER_24H').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">SMS Gateway Rate:</span>
+                    <span className="font-bold font-mono text-emerald-700">99.8%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Prep Checklist Opens:</span>
+                    <span className="font-bold font-mono text-indigo-700">94.2%</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const count = triggerManual24hReminderCheck();
+                    showToast(
+                      count > 0
+                        ? `Auto-Scheduler ran: ${count} 24h reminder(s) dispatched to customers!`
+                        : 'Auto-Scheduler checked: all upcoming collections have reminders active.'
+                    );
+                  }}
+                  className="w-full py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs"
+                >
+                  <Sparkles className="w-3 h-3 text-[#C9F1DC]" />
+                  <span>Run Automated Dispatcher</span>
+                </button>
               </div>
             </div>
           </div>

@@ -2,17 +2,18 @@
 
 @layer base {
   :root {
-    --color-primary: #124B3A;
-    --color-accent: #CBEA70;
-    --color-supporting: #147D79;
-    --color-bg-ivory: #F8F7F1;
-    --color-text-charcoal: #172521;
-    --color-border-warm: #E8E5DA;
+    --color-signature: #25345C;
+    --color-cream: #FFF9F0;
+    --color-mint: #C9F1DC;
+    --color-marigold: #F5BF55;
+    --color-ink: #202B38;
+    --color-slate: #53616D;
+    --color-border: #EDE4D8;
   }
 
   body {
-    background-color: #F8F7F1;
-    color: #172521;
+    background-color: #FFF9F0;
+    color: #202B38;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
