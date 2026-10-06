@@ -23,28 +23,28 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
 
   return (
     <div
-      className={`relative bg-white rounded-[28px] border-2 border-[#25345C] shadow-md overflow-hidden text-[#202B38] ${className}`}
+      className={`relative bg-white rounded-[32px] border-2 border-[#25345C] shadow-md overflow-hidden text-[#202B38] ${className}`}
     >
       {/* Top Ticket Header Bar */}
-      <div className="bg-[#25345C] text-white px-5 sm:px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#C9F1DC] animate-pulse" />
+      <div className="bg-[#25345C] text-white px-5 sm:px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#C9F1DC] animate-pulse" />
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#C9F1DC]">
             {isConfirmationView
               ? lang === 'en'
-                ? 'Appointment Confirmed'
-                : 'বুকিং রসিদ'
+                ? 'Appointment Confirmed ✓'
+                : 'বুকিং রসিদ ✓'
               : lang === 'en'
-              ? 'Upcoming Pickup'
-              : 'আসন্ন সংগ্রহ'}
+              ? 'Upcoming Pickup Ticket'
+              : 'আসন্ন সংগ্রহ রসিদ'}
           </span>
         </div>
-        <span className="text-xs font-mono text-slate-300 font-bold">
+        <span className="text-xs font-mono text-[#C9F1DC] font-bold bg-[#1B2644] px-2.5 py-1 rounded-lg border border-[#C9F1DC]/20">
           #{booking.id}
         </span>
       </div>
 
-      {/* Main Ticket Body */}
+      {/* Main Ticket Upper Section */}
       <div className="p-5 sm:p-6 space-y-4">
         {/* Date & Time Window Highlight */}
         <div className="space-y-1">
@@ -63,54 +63,67 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
           </p>
         </div>
 
-        {/* Selected Material Pills & Illustrations */}
+        {/* Selected Material Cards & Illustrations */}
         <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto py-0.5">
             {booking.materials.map((m) => (
               <div
                 key={m.category}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-xl border border-[#EDE4D8] text-xs font-bold text-[#202B38] shrink-0"
+                className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-[#EDE4D8] text-xs font-bold text-[#202B38] shrink-0 shadow-2xs"
               >
                 <MaterialIllustration category={m.category} size="sm" />
-                <span className="capitalize">{m.category.replace('_', ' ').toLowerCase()}</span>
+                <span className="capitalize">{m.category.replace(/_/g, ' ').toLowerCase()}</span>
               </div>
             ))}
           </div>
 
-          <span className="text-[11px] font-mono text-[#12613F] font-bold bg-[#C9F1DC]/60 px-2 py-0.5 rounded-md shrink-0">
+          <span className="text-[11px] font-mono text-[#12613F] font-bold bg-[#C9F1DC] px-2.5 py-1 rounded-lg shrink-0">
             Clean Stream
           </span>
         </div>
 
         {/* Signature Curved Path Motif (Materials Ready → Collected → Checked) */}
         <div className="py-1">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#53616D] px-2 mb-1">
+          <div className="flex items-center justify-between text-[11px] font-bold text-[#53616D] px-1 mb-1.5">
             <span className="text-[#12613F]">1. Materials ready</span>
-            <span className="text-[#25345C]">2. Collector pickup</span>
+            <span className="text-[#25345C]">2. Doorstep pickup</span>
             <span className="text-[#7A4D00]">3. Hub scale check</span>
           </div>
           {/* Subtle curved pathway SVG */}
-          <svg viewBox="0 0 300 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-4">
+          <svg viewBox="0 0 320 18" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-4">
             <path
-              d="M 10 8 C 60 8, 90 4, 150 4 C 210 4, 240 12, 290 8"
+              d="M 12 9 C 70 9, 100 4, 160 4 C 220 4, 250 14, 308 9"
               stroke="#EDE4D8"
               strokeWidth="2.5"
               strokeLinecap="round"
             />
-            <circle cx="10" cy="8" r="4" fill="#12613F" />
-            <circle cx="150" cy="4" r="4" fill="#25345C" />
-            <circle cx="290" cy="8" r="4" fill="#F5BF55" />
+            <circle cx="12" cy="9" r="4.5" fill="#12613F" />
+            <circle cx="160" cy="4" r="4.5" fill="#25345C" />
+            <circle cx="308" cy="9" r="4.5" fill="#F5BF55" stroke="#25345C" strokeWidth="1.5" />
           </svg>
         </div>
+      </div>
 
+      {/* TICKET PERFORATION & CUTOUT NOTCHES */}
+      <div className="relative flex items-center justify-between my-1">
+        {/* Left Circular Punch Notch */}
+        <div className="w-6 h-6 -ml-3 rounded-full bg-[#FFF9F0] border-r-2 border-[#25345C] shrink-0" />
+        {/* Dashed Perforation Line */}
+        <div className="flex-1 border-t-2 border-dashed border-[#EDE4D8] mx-2" />
+        {/* Right Circular Punch Notch */}
+        <div className="w-6 h-6 -mr-3 rounded-full bg-[#FFF9F0] border-l-2 border-[#25345C] shrink-0" />
+      </div>
+
+      {/* Lower Ticket Stub: Preparation & Scan Code */}
+      <div className="p-5 sm:p-6 bg-[#FAF5EC]/40 space-y-4">
         {/* Preparation Prompt Banner */}
-        <div className="p-3.5 bg-[#FEF8EB] border border-[#F5BF55] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="p-3.5 bg-white border border-[#EDE4D8] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-start sm:items-center gap-2.5">
             <Sparkles className="w-4 h-4 text-[#7A4D00] shrink-0 mt-0.5 sm:mt-0" />
-            <span className="font-semibold text-[#202B38]">
+            <span className="font-medium text-[#202B38]">
               {lang === 'en'
-                ? 'Rinse bottles, flatten boxes & leave bags 15 mins prior.'
-                : 'বোতল পরিষ্কার করুন ও কার্টুন চ্যাপ্টা করে প্রস্তুত রাখুন।'}
+                ? 'Rinse bottles, flatten boxes & place bags outside 15 mins prior.'
+                : 'বোতল পরিষ্কার করুন ও কার্টুন চ্যাপ্টা করে ১৫ মিনিট পূর্বে প্রস্তুত রাখুন।'}
             </span>
           </div>
 
@@ -118,11 +131,30 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
             <button
               type="button"
               onClick={onOpenChecklist}
-              className="px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-colors"
+              className="px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-colors active:scale-95"
             >
               {lang === 'en' ? 'Preparation Checklist' : 'প্রস্তুতি চেকলিস্ট'}
             </button>
           )}
+        </div>
+
+        {/* Barcode & Reference Stamp */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="font-mono text-[11px] text-[#53616D]">
+            <span>DOORSTEP TAG: </span>
+            <strong className="text-[#25345C]">{booking.id}</strong>
+          </div>
+          {/* Subtle simulated barcode glyph */}
+          <div className="flex items-center gap-0.5 opacity-60">
+            <span className="w-0.5 h-6 bg-[#25345C]" />
+            <span className="w-1.5 h-6 bg-[#25345C]" />
+            <span className="w-0.5 h-6 bg-[#25345C]" />
+            <span className="w-1 h-6 bg-[#25345C]" />
+            <span className="w-0.5 h-6 bg-[#25345C]" />
+            <span className="w-1.5 h-6 bg-[#25345C]" />
+            <span className="w-0.5 h-6 bg-[#25345C]" />
+            <span className="w-1 h-6 bg-[#25345C]" />
+          </div>
         </div>
 
         {/* Primary Action */}
@@ -130,7 +162,7 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
           <button
             type="button"
             onClick={onTrackStatus}
-            className="w-full min-h-[48px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+            className="w-full min-h-[50px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:scale-[0.985]"
           >
             <span>{lang === 'en' ? 'Track Live Status' : 'লাইভ ট্র্যাকিং দেখুন'}</span>
             <ChevronRight className="w-4 h-4 text-[#C9F1DC]" />

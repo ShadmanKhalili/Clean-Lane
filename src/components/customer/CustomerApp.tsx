@@ -10,12 +10,14 @@ import { OnboardingFlowModal } from './OnboardingFlowModal';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { DropOffDetailModal } from './DropOffDetailModal';
 import { OrganisationDashboardView } from './OrganisationDashboardView';
-import { speakInstruction } from '../../utils/statusDictionary';
+import { speakInstruction, stopSpeaking } from '../../utils/statusDictionary';
 import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
 import { PreparationGuidanceModal } from '../notifications/PreparationGuidanceModal';
 import { ReminderBanner } from '../notifications/ReminderBanner';
 import { MaterialIllustration } from '../common/MaterialIllustrations';
 import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
+import { EnvironmentalImpactWidget } from '../common/EnvironmentalImpactWidget';
+import { AppointmentTicket } from '../common/AppointmentTicket';
 import { AppNotification } from '../../types';
 import {
   Home,
@@ -101,6 +103,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
   const [selectedBookingForDispute, setSelectedBookingForDispute] = useState<string | undefined>(undefined);
   const [inspectedBooking, setInspectedBooking] = useState<Booking | null>(null);
   const [selectedDropOffPoint, setSelectedDropOffPoint] = useState<DropOffPoint | null>(null);
+  const [isSpeakingAudio, setIsSpeakingAudio] = useState(false);
 
   // Unread notification count
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
@@ -156,6 +159,12 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
 
   // Spoken voice summary for accessibility
   const handleSpeakHomeSummary = () => {
+    if (isSpeakingAudio) {
+      stopSpeaking();
+      setIsSpeakingAudio(false);
+      return;
+    }
+
     const text =
       lang === 'bn'
         ? `সুপ্রভাত। ${
@@ -169,7 +178,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
               : 'No collection currently scheduled. Tap Book a pickup to schedule.'
           } You have ${customerAvailablePoints} available points and ${confirmedKg.toFixed(1)} kg confirmed materials.`;
 
+    setIsSpeakingAudio(true);
     speakInstruction(text, lang);
+    setTimeout(() => setIsSpeakingAudio(false), 7000);
   };
 
   return (
@@ -261,8 +272,20 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
             {/* Spoken Guidance Audio */}
             <button
               onClick={handleSpeakHomeSummary}
-              className="w-10 h-10 rounded-2xl bg-white border border-[#EDE4D8] text-[#25345C] hover:bg-[#FAF5EC] flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-              title={lang === 'en' ? 'Listen to spoken summary' : 'অডিও শুনুন'}
+              className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                isSpeakingAudio
+                  ? 'bg-[#25345C] text-[#C9F1DC] border-[#25345C] ring-2 ring-[#C9F1DC] animate-pulse'
+                  : 'bg-white border-[#EDE4D8] text-[#25345C] hover:bg-[#FAF5EC]'
+              }`}
+              title={
+                lang === 'en'
+                  ? isSpeakingAudio
+                    ? 'Audio speaking (tap to stop)'
+                    : 'Listen to spoken summary'
+                  : isSpeakingAudio
+                  ? 'অডিও চলছে (থামাতে চাপুন)'
+                  : 'অডিও শুনুন'
+              }
               aria-label="Listen"
             >
               <Volume2 className="w-4 h-4" />
@@ -381,85 +404,25 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                 <div className="col-span-12 lg:col-span-7 xl:col-span-8 space-y-6 min-w-0">
                   {/* HERO CASE A: UPCOMING PICKUP IS HERO ("What should I do now?") */}
                   {nextBooking ? (
-                    <section className="bg-white rounded-3xl border-2 border-[#25345C] p-5 sm:p-7 md:p-8 shadow-md space-y-5 relative overflow-hidden">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#FAF5EC] pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#12613F] animate-pulse shrink-0" />
-                          <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#12613F]">
-                            {lang === 'en' ? 'Next Scheduled Pickup' : 'পরবর্তী নির্ধারিত সংগ্রহ'}
-                          </span>
-                        </div>
-                        <span className="text-xs font-mono font-semibold text-[#53616D] bg-[#FAF5EC] px-3 py-1 rounded-xl">
-                          Booking #{nextBooking.id}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="text-xs font-semibold text-[#53616D] block">
-                          {lang === 'en' ? 'Assigned Collection Window' : 'নির্ধারিত সময়সূচি'}
-                        </span>
-                        <h1 className="text-2xl sm:text-3xl xl:text-4xl font-black text-[#25345C] tracking-tight break-words">
-                          {nextBooking.scheduledDate}{' '}
-                          <span className="text-[#12613F] font-bold">
-                            ({nextBooking.scheduledTimeWindow})
-                          </span>
-                        </h1>
-                        <p className="text-xs sm:text-sm text-[#53616D] flex items-center gap-1.5 pt-1">
-                          <MapPin className="w-4 h-4 text-[#25345C] shrink-0" />
-                          <span className="break-words">{nextBooking.address}</span>
-                        </p>
-                      </div>
-
-                      {/* Clean Lane Signature Motif (Materials ready → Collected → Checked) */}
-                      <BrandJourneyDevice currentStep={2} />
-
-                      {/* Automated 24h Preparation Prompt Callout */}
-                      <div className="p-4 bg-[#FEF8EB] border border-[#F5BF55] rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-                        <div className="flex items-start md:items-center gap-3 min-w-0">
-                          <Sparkles className="w-5 h-5 text-[#F5BF55] shrink-0 mt-0.5 md:mt-0" />
-                          <div className="min-w-0">
-                            <span className="font-bold text-[#202B38] block">
-                              {lang === 'en'
-                                ? '24h Preparation Instructions Active'
-                                : '২৪ ঘণ্টার প্রস্তুতি নির্দেশিকা সক্রিয়'}
-                            </span>
-                            <span className="text-[#53616D] text-[11px] leading-relaxed block">
-                              {lang === 'en'
-                                ? 'Rinse bottles, flatten cardboard boxes, and place bags 15 mins before arrival.'
-                                : 'বোতল পরিষ্কার করুন, কার্টুন চ্যাপ্টা করুন এবং ১৫ মিনিট আগে প্রস্তুত রাখুন।'}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedPrepBooking(nextBooking);
-                            setIsPrepModalOpen(true);
-                          }}
-                          className="w-full md:w-auto px-4 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shrink-0 min-h-[44px] flex items-center justify-center shadow-xs"
-                        >
-                          {lang === 'en' ? 'View Checklist' : 'চেকলিস্ট দেখুন'}
-                        </button>
-                      </div>
-
-                      {/* Primary Desktop/Mobile Action Bar (Graceful reflow across screen widths) */}
-                      <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <button
-                          onClick={() => handleOpenTransactionDetail(nextBooking)}
-                          className="flex-1 min-h-[48px] px-5 py-3 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer transform active:scale-[0.99]"
-                        >
-                          <span>{lang === 'en' ? 'Track Live Collection Status' : 'সংগ্রহের লাইভ অগ্রগতি'}</span>
-                          <ChevronRight className="w-4 h-4 text-[#C9F1DC]" />
-                        </button>
-
+                    <div className="space-y-3">
+                      <AppointmentTicket
+                        booking={nextBooking}
+                        onOpenChecklist={() => {
+                          setSelectedPrepBooking(nextBooking);
+                          setIsPrepModalOpen(true);
+                        }}
+                        onTrackStatus={() => handleOpenTransactionDetail(nextBooking)}
+                      />
+                      <div className="flex justify-end pt-1">
                         <button
                           onClick={() => setIsBookingModalOpen(true)}
-                          className="min-h-[48px] px-6 py-3 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                          className="min-h-[44px] px-5 py-2.5 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-2xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
                         >
                           <Plus className="w-4 h-4" />
-                          <span>{lang === 'en' ? 'Book Another Pickup' : 'নতুন পিকআপ'}</span>
+                          <span>{lang === 'en' ? 'Book Another Pickup' : 'নতুন পিকআপ বুক করুন'}</span>
                         </button>
                       </div>
-                    </section>
+                    </div>
                   ) : (
                     /* HERO CASE B: NO UPCOMING PICKUP -> "What would you like collected?" */
                     <section className="bg-white rounded-3xl border border-[#EDE4D8] p-5 sm:p-7 md:p-8 shadow-sm space-y-5">
@@ -587,6 +550,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
                       ))}
                     </div>
                   </div>
+
+                  {/* Verified ESG Circularity & Landfill Diversion Metrics */}
+                  <EnvironmentalImpactWidget />
                 </div>
 
                 {/* RIGHT SIDEBAR (5 cols on lg, 4 cols on xl) - STICKY ON LARGE VIEWPORTS FOR IMMEDIATE REACHABILITY */}
@@ -1288,6 +1254,34 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' })
           </div>
         </div>
       )}
+
+      {/* Mobile Floating Action Dock (Always thumb-reachable on mobile viewports) */}
+      <aside
+        aria-label="Mobile quick actions"
+        className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-[#EDE4D8] px-4 py-2.5 z-30 shadow-lg flex items-center justify-between gap-3"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+            <Gift className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[10px] text-[#53616D] font-mono block uppercase">
+              {lang === 'en' ? 'Available' : 'উপলব্ধ'}
+            </span>
+            <span className="text-sm font-black text-[#202B38] leading-none tabular-nums">
+              {customerAvailablePoints} pts
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsBookingModalOpen(true)}
+          className="flex-1 max-w-[200px] min-h-[46px] px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4 text-[#C9F1DC]" />
+          <span>{lang === 'en' ? 'Book a pickup' : 'পিকআপ বুক'}</span>
+        </button>
+      </aside>
 
       {/* ========================================================================= */}
       {/* ALL MODAL TOUCHPOINTS */}
