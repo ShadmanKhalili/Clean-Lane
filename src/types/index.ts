@@ -78,6 +78,38 @@ export interface ServiceZone {
   assignedEnterprise: string;
 }
 
+export interface DropOffPoint {
+  id: string;
+  name: string;
+  nameBn: string;
+  address: string;
+  zoneId: string;
+  operatingHours: string;
+  acceptedMaterials: MaterialCategory[];
+  operatorName: string;
+  receiptConfirmationMethod: string;
+  accessibilityNotes: string;
+  isCleanLaneApproved: boolean;
+}
+
+export interface SavedLocation {
+  id: string;
+  label: string;
+  address: string;
+  zoneId: string;
+  isDefault: boolean;
+  accessInstructions?: string;
+  status: 'available' | 'limited' | 'unavailable';
+}
+
+export interface OrgMember {
+  id: string;
+  name: string;
+  emailOrPhone: string;
+  role: 'owner' | 'site_manager' | 'building_supervisor' | 'finance_viewer';
+  assignedSite: string;
+}
+
 export type MaterialCategory =
   | 'PET_BOTTLES'
   | 'HDPE_RIGID'
@@ -158,16 +190,19 @@ export interface PickupJob {
   scheduledWindow: string;
   expectedMaterials: MaterialCategory[];
   status: 'PENDING' | 'ACCEPTED' | 'EN_ROUTE' | 'COMPLETED' | 'EXCEPTION';
+  outcome?: 'COLLECTED' | 'PARTIALLY_COLLECTED' | 'CUSTOMER_UNAVAILABLE' | 'CANNOT_ACCESS' | 'MATERIAL_UNSUITABLE';
   exceptionReason?: 'customer_unavailable' | 'inaccessible' | 'contaminated_stream' | 'cancelled_at_door';
   fieldReport?: {
     completedAt: string;
     materialWeights: { category: MaterialCategory; weightKg: number; bagCount: number }[];
     totalWeightKg: number;
-    weightMethod: 'field_hanging_scale' | 'customer_estimate' | 'receiving_scale_delegated';
+    weightMethod: 'field_scale' | 'estimate' | 'not_measured';
     customerAckCode: string;
     batchLotId: string;
     photoEvidenceRecorded: boolean;
     syncStatus: 'synced' | 'pending_sync_offline';
+    uncollectedNotes?: string;
+    contaminationObservation?: string;
   };
 }
 

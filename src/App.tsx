@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/common/Header';
-import { CustomerPortal } from './components/customer/CustomerPortal';
+import { CustomerApp } from './components/customer/CustomerApp';
 import { RewardsStore } from './components/customer/RewardsStore';
 import { CollectorFieldApp } from './components/collector/CollectorFieldApp';
 import { AggregationHub } from './components/aggregator/AggregationHub';
@@ -18,7 +18,7 @@ const MainContent: React.FC = () => {
 
   const renderActiveView = () => {
     if (activeTab === 'rewards') {
-      return <RewardsStore onBackToPortal={() => setActiveTab('overview')} />;
+      return <CustomerApp />;
     }
     if (activeTab === 'traceability') {
       return <ChainOfCustodyView />;
@@ -32,7 +32,7 @@ const MainContent: React.FC = () => {
       case 'customer_household':
       case 'customer_apartment':
       case 'customer_business':
-        return <CustomerPortal onNavigateToRewards={() => setActiveTab('rewards')} />;
+        return <CustomerApp />;
       case 'collector':
         return <CollectorFieldApp />;
       case 'aggregator':
@@ -44,7 +44,7 @@ const MainContent: React.FC = () => {
       case 'brand_partner':
         return <BrandEPRPortal />;
       default:
-        return <CustomerPortal onNavigateToRewards={() => setActiveTab('rewards')} />;
+        return <CustomerApp />;
     }
   };
 

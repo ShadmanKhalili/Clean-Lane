@@ -1,38 +1,45 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  AuditEvent,
-  Booking,
-  BrandCampaign,
-  CustomerRedemption,
-  CustodyEvent,
-  EvidenceLevel,
-  EvidencePackage,
-  MaterialLot,
-  PickupJob,
-  PointsLedgerEntry,
-  ProcessingDisposition,
-  RewardItem,
-  ServiceComplaint,
-  ServiceZone,
-  SortingTransformation,
-  UserRole
-} from '../types';
-import {
   INITIAL_AUDIT_LOGS,
   INITIAL_BOOKINGS,
   INITIAL_BRAND_CAMPAIGNS,
   INITIAL_COMPLAINTS,
   INITIAL_CUSTODY_EVENTS,
+  INITIAL_DROP_OFF_POINTS,
   INITIAL_EVIDENCE_PACKAGES,
   INITIAL_JOBS,
   INITIAL_MATERIAL_LOTS,
+  INITIAL_ORG_MEMBERS,
   INITIAL_POINTS_LEDGER,
   INITIAL_PROCESSING_DISPOSITIONS,
   INITIAL_REDEMPTIONS,
   INITIAL_REWARDS,
+  INITIAL_SAVED_LOCATIONS,
   INITIAL_SERVICE_ZONES,
   INITIAL_SORTING_TRANSFORMATIONS
 } from '../data/mockData';
+import {
+  AuditEvent,
+  Booking,
+  BrandCampaign,
+  CustomerRedemption,
+  CustodyEvent,
+  DropOffPoint,
+  EvidenceLevel,
+  EvidencePackage,
+  MaterialCategory,
+  MaterialLot,
+  OrgMember,
+  PickupJob,
+  PointsLedgerEntry,
+  ProcessingDisposition,
+  RewardItem,
+  SavedLocation,
+  ServiceComplaint,
+  ServiceZone,
+  SortingTransformation,
+  UserRole
+} from '../types';
 
 interface AppContextType {
   role: UserRole;
@@ -43,6 +50,10 @@ interface AppContextType {
   setIsOfflineMode: (offline: boolean) => void;
   offlineQueueCount: number;
   syncOfflineQueue: () => void;
+
+  // Selected Location for Home
+  selectedLocationId: string;
+  setSelectedLocationId: (locId: string) => void;
 
   // Data
   bookings: Booking[];
@@ -59,6 +70,9 @@ interface AppContextType {
   evidencePackages: EvidencePackage[];
   serviceZones: ServiceZone[];
   auditLogs: AuditEvent[];
+  dropOffPoints: DropOffPoint[];
+  savedLocations: SavedLocation[];
+  orgMembers: OrgMember[];
 
   // Toast / System Notification
   activeToast: string | null;
@@ -71,13 +85,19 @@ interface AppContextType {
   completeJob: (
     jobId: string,
     report: {
+      outcome: 'COLLECTED' | 'PARTIALLY_COLLECTED' | 'CUSTOMER_UNAVAILABLE' | 'CANNOT_ACCESS' | 'MATERIAL_UNSUITABLE';
       materialWeights: { category: any; weightKg: number; bagCount: number }[];
       totalWeightKg: number;
-      weightMethod: 'field_hanging_scale' | 'customer_estimate' | 'receiving_scale_delegated';
+      weightMethod: 'field_scale' | 'estimate' | 'not_measured';
       photoEvidenceRecorded: boolean;
+      uncollectedNotes?: string;
+      contaminationObservation?: string;
     }
   ) => void;
   recordJobException: (jobId: string, reason: 'customer_unavailable' | 'inaccessible' | 'contaminated_stream' | 'cancelled_at_door') => void;
+  recordDropOffDeposit: (dropOffPointId: string, category: MaterialCategory, weightKg: number) => void;
+  requestRecurringService: (siteName: string, frequency: 'weekly' | 'biweekly', materials: MaterialCategory[], notes?: string) => void;
+  addSavedLocation: (loc: Omit<SavedLocation, 'id'>) => void;
   verifyHubScaleWeight: (lotId: string, hubWeightKg: number, notes?: string) => void;
   resolveDiscrepancy: (lotId: string, resolutionReason: string) => void;
   commitSorting: (
@@ -130,6 +150,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [evidencePackages, setEvidencePackages] = useState<EvidencePackage[]>(INITIAL_EVIDENCE_PACKAGES);
   const [serviceZones] = useState<ServiceZone[]>(INITIAL_SERVICE_ZONES);
   const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
+  const [dropOffPoints, setDropOffPoints] = useState<DropOffPoint[]>(INITIAL_DROP_OFF_POINTS);
+  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>(INITIAL_SAVED_LOCATIONS);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>(INITIAL_ORG_MEMBERS);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('LOC-01');
 
   const showToast = (msg: string) => {
     setActiveToast(msg);
@@ -239,10 +263,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const completeJob = (
     jobId: string,
     report: {
+      outcome: 'COLLECTED' | 'PARTIALLY_COLLECTED' | 'CUSTOMER_UNAVAILABLE' | 'CANNOT_ACCESS' | 'MATERIAL_UNSUITABLE';
       materialWeights: { category: any; weightKg: number; bagCount: number }[];
       totalWeightKg: number;
-      weightMethod: 'field_hanging_scale' | 'customer_estimate' | 'receiving_scale_delegated';
+      weightMethod: 'field_scale' | 'estimate' | 'not_measured';
       photoEvidenceRecorded: boolean;
+      uncollectedNotes?: string;
+      contaminationObservation?: string;
     }
   ) => {
     const job = jobs.find((j) => j.id === jobId);
@@ -262,7 +289,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         j.id === jobId
           ? {
               ...j,
-              status: 'COMPLETED',
+              status: report.outcome === 'COLLECTED' || report.outcome === 'PARTIALLY_COLLECTED' ? 'COMPLETED' : 'EXCEPTION',
+              outcome: report.outcome,
+              exceptionReason: report.outcome === 'CUSTOMER_UNAVAILABLE' ? 'customer_unavailable' : report.outcome === 'CANNOT_ACCESS' ? 'inaccessible' : report.outcome === 'MATERIAL_UNSUITABLE' ? 'contaminated_stream' : undefined,
               fieldReport: {
                 completedAt: nowIso,
                 materialWeights: report.materialWeights,
@@ -271,73 +300,191 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 customerAckCode: ackCode,
                 batchLotId,
                 photoEvidenceRecorded: report.photoEvidenceRecorded,
-                syncStatus: isOfflineMode ? 'pending_sync_offline' : 'synced'
+                syncStatus: isOfflineMode ? 'pending_sync_offline' : 'synced',
+                uncollectedNotes: report.uncollectedNotes,
+                contaminationObservation: report.contaminationObservation
               }
             }
           : j
       )
     );
 
-    // Update Booking to E1: Collected
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === job.bookingId
-          ? {
-              ...b,
-              status: 'COLLECTED',
-              evidenceLevel: 'E1', // Collector confirmed physical pickup
-              fieldWeightKg: report.totalWeightKg,
-              pointsStatus: 'pending',
-              notes: `Pickup verified by collector ${job.collectorName}. Measured ${report.totalWeightKg} kg.`
-            }
-          : b
-      )
-    );
+    // Update Booking status
+    if (report.outcome === 'COLLECTED' || report.outcome === 'PARTIALLY_COLLECTED') {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === job.bookingId
+            ? {
+                ...b,
+                status: 'COLLECTED',
+                evidenceLevel: 'E1', // Collector confirmed physical pickup
+                fieldWeightKg: report.totalWeightKg,
+                pointsStatus: 'pending',
+                notes: `Pickup verified by collector ${job.collectorName}. Measured ${report.totalWeightKg} kg (${report.weightMethod}). ${report.uncollectedNotes ? `Note: ${report.uncollectedNotes}` : ''}`
+              }
+            : b
+        )
+      );
 
-    // Create MaterialLot
-    const newLot: MaterialLot = {
-      id: batchLotId,
-      sourceBookingId: job.bookingId,
-      sourceJobId: jobId,
-      material: report.materialWeights[0]?.category || 'PET_BOTTLES',
-      primaryCollector: job.collectorName,
-      initialFieldWeightKg: report.totalWeightKg,
-      currentCustodian: 'COLLECTOR',
-      location: `In-transit (Vehicle of ${job.collectorName})`,
-      evidenceLevel: 'E1',
+      // Create MaterialLot
+      const newLot: MaterialLot = {
+        id: batchLotId,
+        sourceBookingId: job.bookingId,
+        sourceJobId: jobId,
+        material: report.materialWeights[0]?.category || 'PET_BOTTLES',
+        primaryCollector: job.collectorName,
+        initialFieldWeightKg: report.totalWeightKg,
+        currentCustodian: 'COLLECTOR',
+        location: `In-transit (Vehicle of ${job.collectorName})`,
+        evidenceLevel: 'E1',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      setLots((prev) => [newLot, ...prev]);
+
+      // Record Custody Event
+      const custodyEv: CustodyEvent = {
+        id: `CUST-EV-${Date.now().toString().slice(-5)}`,
+        lotId: batchLotId,
+        timestamp: nowIso,
+        sender: job.customerAddress,
+        receiver: job.collectorName,
+        location: job.customerAddress,
+        quantityKg: report.totalWeightKg,
+        measurementMethod: report.weightMethod === 'field_scale' ? 'Certified Portable Scale' : report.weightMethod === 'estimate' ? 'Field Visual Estimate' : 'Not measured at doorstep',
+        evidenceLevelResult: 'E1',
+        verifiedBy: `${job.collectorName} (${ackCode})`,
+        signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
+      };
+      setCustodyEvents((prev) => [custodyEv, ...prev]);
+
+      addAuditLog(
+        'COLLECTION_COMPLETED',
+        'MaterialLot',
+        batchLotId,
+        `Field collection logged with weight ${report.totalWeightKg} kg (${report.outcome}). Advancing to Evidence Level E1.`
+      );
+
+      showToast(
+        isOfflineMode
+          ? `Saved on device, not yet synced. Tag: ${batchLotId}`
+          : `Pickup recorded! E1 Collected: ${report.totalWeightKg} kg tagged as ${batchLotId}`
+      );
+    } else {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === job.bookingId
+            ? {
+                ...b,
+                status: 'MISSED',
+                notes: `Collection exception logged by collector: ${report.outcome.replace(/_/g, ' ')}. ${report.uncollectedNotes || ''}`
+              }
+            : b
+        )
+      );
+      addAuditLog('COLLECTION_EXCEPTION', 'PickupJob', jobId, `Exception: ${report.outcome}`);
+      showToast(`Exception recorded: ${report.outcome.replace(/_/g, ' ')}`);
+    }
+  };
+
+  const recordDropOffDeposit = (dropOffPointId: string, category: MaterialCategory, weightKg: number) => {
+    const point = dropOffPoints.find((p) => p.id === dropOffPointId);
+    if (!point) return;
+    const nowIso = new Date().toISOString();
+    const trxId = `CL-DROP-${Date.now().toString().slice(-4)}`;
+    const pts = Math.round(weightKg * 50);
+
+    // Create completed booking record directly at E2: Quantity confirmed (PRD Flow C)
+    const newBooking: Booking = {
+      id: trxId,
+      customerId: 'CUST-H-801',
+      customerName: 'Nasreen Akhter',
+      customerType: 'household',
+      phone: '+880 1712 345678',
+      address: point.address,
+      zoneId: point.zoneId,
+      scheduledDate: nowIso.split('T')[0],
+      scheduledTimeWindow: 'Walk-in Drop-off',
+      isRecurring: false,
+      serviceType: 'DOORSTEP_RECOVERY',
+      materials: [{ category, approximateBandKg: `${weightKg} kg (Drop-off scale)` }],
+      status: 'QUANTITY_CONFIRMED',
+      evidenceLevel: 'E2',
+      confirmedWeightKg: weightKg,
+      serviceFeeBdt: 0,
+      materialPayoutBdt: Math.round(weightKg * 30),
+      earnedPoints: pts,
+      pointsStatus: 'available',
+      notes: `Walk-in drop-off verified at ${point.name}. Verified by ${point.operatorName}.`,
       createdAt: nowIso,
       updatedAt: nowIso
     };
-    setLots((prev) => [newLot, ...prev]);
+    setBookings((prev) => [newBooking, ...prev]);
 
-    // Record Custody Event
-    const custodyEv: CustodyEvent = {
-      id: `CUST-EV-${Date.now().toString().slice(-5)}`,
-      lotId: batchLotId,
-      timestamp: nowIso,
-      sender: job.customerAddress,
-      receiver: job.collectorName,
-      location: job.customerAddress,
-      quantityKg: report.totalWeightKg,
-      measurementMethod: report.weightMethod === 'field_hanging_scale' ? 'Certified Portable Hanging Scale' : 'Field Estimate',
-      evidenceLevelResult: 'E1',
-      verifiedBy: `${job.collectorName} (${ackCode})`,
-      signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
-    };
-    setCustodyEvents((prev) => [custodyEv, ...prev]);
+    // Available points immediately (PRD Flow C step 5)
+    setPointsLedger((prev) => [
+      {
+        id: `PTS-${Date.now().toString().slice(-5)}`,
+        customerId: 'CUST-H-801',
+        timestamp: nowIso,
+        ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
+        sourceEvent: 'DROPOFF_SCALE_VERIFIED',
+        description: `Drop-off at ${point.name}: ${weightKg} kg verified on certified scale.`,
+        type: 'CREDIT',
+        amount: pts,
+        status: 'AVAILABLE',
+        linkedBookingId: trxId
+      },
+      ...prev
+    ]);
 
+    const lotId = `LOT-DROP-${trxId.replace('CL-DROP-', '')}-${category}`;
+    setLots((prev) => [
+      {
+        id: lotId,
+        sourceBookingId: trxId,
+        material: category,
+        primaryCollector: point.operatorName,
+        initialFieldWeightKg: weightKg,
+        verifiedHubWeightKg: weightKg,
+        currentCustodian: 'AGGREGATION_HUB',
+        location: point.name,
+        evidenceLevel: 'E2',
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      ...prev
+    ]);
+
+    addAuditLog('DROPOFF_INTAKE_VERIFIED', 'MaterialLot', lotId, `Drop-off verified at ${point.name}: ${weightKg} kg.`);
+    showToast(`Drop-off receipt confirmed! +${pts} available points credited.`);
+  };
+
+  const requestRecurringService = (
+    siteName: string,
+    frequency: 'weekly' | 'biweekly',
+    materials: MaterialCategory[],
+    notes?: string
+  ) => {
+    const nowIso = new Date().toISOString();
+    const reqId = `REQ-REC-${Date.now().toString().slice(-4)}`;
     addAuditLog(
-      'COLLECTION_COMPLETED',
-      'MaterialLot',
-      batchLotId,
-      `Field collection logged with weight ${report.totalWeightKg} kg. Advancing to Evidence Level E1.`
+      'RECURRING_ARRANGEMENT_REQUESTED',
+      'Organisation',
+      reqId,
+      `Requested recurring arrangement for ${siteName} (${frequency}). Terms awaiting operator review.`
     );
+    showToast(`Service arrangement requested for ${siteName}! Operator reviewing schedule.`);
+  };
 
-    showToast(
-      isOfflineMode
-        ? `Field record saved offline (Queue +1). Batch Tag: ${batchLotId}`
-        : `Job completed! E1 Collected: ${report.totalWeightKg} kg tagged under ${batchLotId}`
-    );
+  const addSavedLocation = (loc: Omit<SavedLocation, 'id'>) => {
+    const newLoc: SavedLocation = {
+      ...loc,
+      id: `LOC-${Date.now().toString().slice(-4)}`
+    };
+    setSavedLocations((prev) => [...prev, newLoc]);
+    addAuditLog('SAVED_LOCATION_ADDED', 'SavedLocation', newLoc.id, `Location added: ${newLoc.label}`);
+    showToast(`Location "${newLoc.label}" added to your account.`);
   };
 
   const recordJobException = (
@@ -759,7 +906,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         totalCollectedKg,
         totalAcceptedKg,
         totalProcessedKg,
-        totalVerifiedEprKg
+        totalVerifiedEprKg,
+        dropOffPoints,
+        savedLocations,
+        orgMembers,
+        selectedLocationId,
+        setSelectedLocationId,
+        recordDropOffDeposit,
+        requestRecurringService,
+        addSavedLocation
       }}
     >
       {children}

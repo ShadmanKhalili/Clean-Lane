@@ -3,13 +3,16 @@ import {
   BrandCampaign,
   CustomerRedemption,
   CustodyEvent,
+  DropOffPoint,
   EvidencePackage,
   MaterialCategoryInfo,
   MaterialLot,
+  OrgMember,
   PickupJob,
   PointsLedgerEntry,
   ProcessingDisposition,
   RewardItem,
+  SavedLocation,
   ServiceComplaint,
   ServiceZone,
   SortingTransformation,
@@ -316,7 +319,7 @@ export const INITIAL_JOBS: PickupJob[] = [
       completedAt: '2026-10-03T12:20:00Z',
       materialWeights: [{ category: 'PET_BOTTLES', weightKg: 14.8, bagCount: 2 }],
       totalWeightKg: 14.8,
-      weightMethod: 'field_hanging_scale',
+      weightMethod: 'field_scale',
       customerAckCode: 'ACK-8942',
       batchLotId: 'LOT-2026-095-PET',
       photoEvidenceRecorded: true,
@@ -671,5 +674,101 @@ export const INITIAL_AUDIT_LOGS: AuditEvent[] = [
     priorValue: 'DRAFT',
     newValue: 'APPROVED_AND_LOCKED',
     reason: 'Signed off by verified independent environmental auditor for Unilever EPR report.'
+  }
+];
+
+export const INITIAL_DROP_OFF_POINTS: DropOffPoint[] = [
+  {
+    id: 'DP-GUL-01',
+    name: 'Gulshan Hub #3 Circular Drop-Off Station',
+    nameBn: 'গুলশান হাব ৩ সার্কুলার ড্রপ-অফ পয়েন্ট',
+    address: 'Plot 18, Road 54, Gulshan-2, Dhaka (Near Lake Park)',
+    zoneId: 'ZONE-GUL-02',
+    operatingHours: 'Sun–Thu: 08:00 AM – 06:00 PM, Fri: 08:00 AM – 12:00 PM',
+    acceptedMaterials: ['PET_BOTTLES', 'HDPE_RIGID', 'CARDBOARD_OCC', 'ALUMINUM_CANS'],
+    operatorName: 'Rahmat Ali (Gulshan Enterprise)',
+    receiptConfirmationMethod: 'Digital platform scale ticket with QR transaction slip',
+    accessibilityNotes: 'Ground floor drive-through lane with helper assistance for bulky cartons',
+    isCleanLaneApproved: true
+  },
+  {
+    id: 'DP-BAN-02',
+    name: 'Banani Road 11 Community Recovery Kiosk',
+    nameBn: 'বনানী ১১ কমিউনিটি রিকভারি কিয়স্ক',
+    address: 'House 55, Road 11, Block D, Banani, Dhaka',
+    zoneId: 'ZONE-BAN-11',
+    operatingHours: 'Daily: 09:00 AM – 08:00 PM',
+    acceptedMaterials: ['PET_BOTTLES', 'ALUMINUM_CANS', 'TETRAPAK_BEVERAGE'],
+    operatorName: 'Shamsul Alam (Banani Collective)',
+    receiptConfirmationMethod: 'Smart deposit receptacle with instant customer phone confirmation',
+    accessibilityNotes: 'Pedestrian sidewalk access, wheelchair ramp available',
+    isCleanLaneApproved: true
+  },
+  {
+    id: 'DP-DHA-03',
+    name: 'Dhanmondi 9A Institutional Drop Station',
+    nameBn: 'ধানমন্ডি ৯এ প্রাতিষ্ঠানিক ড্রপ স্টেশন',
+    address: 'Dhanmondi 9A Society Complex, Dhaka',
+    zoneId: 'ZONE-DHA-9A',
+    operatingHours: 'Sat–Thu: 09:00 AM – 05:00 PM',
+    acceptedMaterials: ['CARDBOARD_OCC', 'PET_BOTTLES', 'HDPE_RIGID'],
+    operatorName: 'Dhanmondi Circular Services',
+    receiptConfirmationMethod: 'Certified hanging scale with physical receipt slip',
+    accessibilityNotes: 'Adjacent to main community gate',
+    isCleanLaneApproved: true
+  }
+];
+
+export const INITIAL_SAVED_LOCATIONS: SavedLocation[] = [
+  {
+    id: 'LOC-01',
+    label: 'Home (Gulshan Apartment)',
+    address: 'House 14, Road 52, Gulshan-2, Dhaka',
+    zoneId: 'ZONE-GUL-02',
+    isDefault: true,
+    accessInstructions: 'Building security will buzz 3rd floor. Leave blue clean-lane sack near elevator.',
+    status: 'available'
+  },
+  {
+    id: 'LOC-02',
+    label: 'Family Home (Dhanmondi)',
+    address: 'House 34, Road 9A, Dhanmondi, Dhaka',
+    zoneId: 'ZONE-DHA-9A',
+    isDefault: false,
+    accessInstructions: 'Gate 2 security booth.',
+    status: 'available'
+  },
+  {
+    id: 'LOC-03',
+    label: 'Studio / Office (Uttara)',
+    address: 'Sector 4, Road 12, Uttara, Dhaka',
+    zoneId: 'ZONE-EXP-UTT',
+    isDefault: false,
+    accessInstructions: 'Expansion zone - pre-registered.',
+    status: 'unavailable'
+  }
+];
+
+export const INITIAL_ORG_MEMBERS: OrgMember[] = [
+  {
+    id: 'MEM-01',
+    name: 'Mr. Kabir Hossain',
+    emailOrPhone: '+880 1819 987654',
+    role: 'building_supervisor' as const,
+    assignedSite: 'Green View Heights (Banani Plot 32)'
+  },
+  {
+    id: 'MEM-02',
+    name: 'Nasreen Akhter',
+    emailOrPhone: '+880 1712 345678',
+    role: 'owner' as const,
+    assignedSite: 'Green View Heights Committee'
+  },
+  {
+    id: 'MEM-03',
+    name: 'Farhan Zahedi',
+    emailOrPhone: '+880 1911 223344',
+    role: 'site_manager' as const,
+    assignedSite: 'Artisan Roastery & Café (Gulshan Road 60)'
   }
 ];
