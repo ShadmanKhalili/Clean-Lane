@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Booking, DropOffPoint, MaterialCategory } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
@@ -11,6 +11,8 @@ import { OnboardingFlowModal } from './OnboardingFlowModal';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { DropOffDetailModal } from './DropOffDetailModal';
 import { OrganisationDashboardView } from './OrganisationDashboardView';
+import { speakInstruction } from '../../utils/statusDictionary';
+import { ContinuousLoopLine } from '../common/ContinuousLoopLine';
 import {
   Home,
   Layers,
@@ -36,7 +38,11 @@ import {
   Sparkles
 } from 'lucide-react';
 
-export const CustomerApp: React.FC = () => {
+interface CustomerAppProps {
+  initialTab?: 'home' | 'services' | 'activity' | 'rewards' | 'account';
+}
+
+export const CustomerApp: React.FC<CustomerAppProps> = ({ initialTab = 'home' }) => {
   const {
     role,
     setRole,
@@ -57,7 +63,13 @@ export const CustomerApp: React.FC = () => {
   } = useApp();
 
   // 5 Destinations: home | services | activity | rewards | account
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'activity' | 'rewards' | 'account'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'activity' | 'rewards' | 'account'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -154,6 +166,36 @@ export const CustomerApp: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'home' && (
         <div className="space-y-6">
+          {/* Conditional Priority Alert (PRD C05: Missed collection or unresolved issue replaces promo near top) */}
+          {bookings.some((b) => b.status === 'MISSED' || b.status === 'DISPUTED') && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-amber-950 block text-sm">
+                    {lang === 'en' ? 'Collection Attention Needed' : 'সংগ্রহ সংক্রান্ত সতর্কতা'}
+                  </span>
+                  <p className="text-amber-800 text-xs mt-0.5">
+                    {lang === 'en'
+                      ? 'A collection was missed or flagged for discrepancy. Dispatch operator is investigating.'
+                      : 'একটি সংগ্রহ সম্পন্ন হতে পারেনি অথবা পর্যালোচনায় রয়েছে।'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const disputed = bookings.find((b) => b.status === 'MISSED' || b.status === 'DISPUTED');
+                  handleReportIssue(disputed?.id || 'CL-BK-001');
+                }}
+                className="min-h-[44px] px-4 py-2 bg-amber-900 text-white hover:bg-amber-950 rounded-xl font-bold text-xs self-start sm:self-auto cursor-pointer"
+              >
+                {lang === 'en' ? 'Get Help with Issue' : 'সহায়তা নিন'}
+              </button>
+            </div>
+          )}
+
           {/* Location Selector & Greeting Bar */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -176,8 +218,27 @@ export const CustomerApp: React.FC = () => {
                 </span>
               </div>
 
-              <div className="text-xs text-slate-500">
-                {lang === 'en' ? 'Zone:' : 'জোন:'} <strong className="text-slate-700">{currentLocation.zoneId}</strong>
+              <div className="flex items-center gap-3">
+                {/* Spoken Guidance Button on Home */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text =
+                      lang === 'bn'
+                        ? `সুপ্রভাত। আপনার পরবর্তী বর্জ্য সংগ্রহ ${nextBooking ? nextBooking.scheduledDate : 'নির্ধারিত নেই'}। আপনার মোট নিশ্চিত বর্জ্য ${confirmedKg.toFixed(1)} কেজি এবং উপলব্ধ পয়েন্ট ${customerAvailablePoints}। নতুন সংগ্রহের জন্য বুক এ পিকআপ বাটন চাপুন।`
+                        : `Good morning. Your next collection is ${nextBooking ? nextBooking.scheduledDate : 'not scheduled'}. You have ${confirmedKg.toFixed(1)} kilograms of confirmed material and ${customerAvailablePoints} available points. Tap Book a pickup to schedule a collection.`;
+                    speakInstruction(text, lang);
+                  }}
+                  className="min-h-[40px] px-3 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 cursor-pointer"
+                  title={lang === 'en' ? 'Listen to summary' : 'বিবরণ শুনুন'}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>{lang === 'en' ? 'Listen' : 'শুনুন'}</span>
+                </button>
+
+                <div className="text-xs text-slate-500">
+                  {lang === 'en' ? 'Zone:' : 'জোন:'} <strong className="text-slate-700">{currentLocation.zoneId}</strong>
+                </div>
               </div>
             </div>
 
@@ -208,74 +269,100 @@ export const CustomerApp: React.FC = () => {
               {nextBooking ? (
                 <button
                   onClick={() => handleOpenTransactionDetail(nextBooking)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold self-start md:self-auto cursor-pointer"
+                  className="min-h-[44px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold self-start md:self-auto cursor-pointer"
                 >
                   View Booking Detail
                 </button>
               ) : null}
             </div>
 
-            {/* PROMINENT "BOOK COLLECTION" PRIMARY ACTION (PRD C05 Requirement) */}
+            {/* PROMINENT "BOOK A PICKUP" PRIMARY ACTION (PRD Section 2 & C05 Requirement) */}
             <div className="pt-2">
               <button
                 onClick={() => setIsBookingModalOpen(true)}
-                className="w-full sm:w-auto px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+                className="w-full sm:w-auto min-h-[48px] px-8 py-3.5 bg-[#124B3A] hover:bg-[#0D382B] text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2.5 shadow-sm cursor-pointer transition-all hover:scale-[1.01]"
               >
-                <Plus className="w-5 h-5 text-emerald-400" />
-                <span>{lang === 'en' ? 'Book Collection' : 'বর্জ্য সংগ্রহ বুকিং করুন'}</span>
+                <Plus className="w-5 h-5 text-[#CBEA70]" />
+                <span>{lang === 'en' ? 'Book a pickup' : 'পিকআপ বুক করুন'}</span>
               </button>
             </div>
           </div>
 
-          {/* Your Circular Activity Card (PRD C05: Confirmed vs Available vs Pending) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          {/* Continuous Loop Signature Banner: "Everyday Circularity" */}
+          <div className="bg-white rounded-3xl border border-[#E8E5DA] p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Your Circular Activity</h2>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#124B3A]" />
+                <span className="text-xs font-bold text-[#124B3A] uppercase tracking-wider font-mono">
+                  {lang === 'en' ? 'Everyday Circular Loop' : 'সার্কুলার লুপ অগ্রগতি'}
+                </span>
+              </div>
+              <span className="text-[11px] text-[#53625C] font-mono">
+                {nextBooking ? (nextBooking.confirmedWeightKg ? 'Stage 3: Verified' : 'Stage 1: Requested') : 'Ready to start'}
+              </span>
+            </div>
+            <ContinuousLoopLine
+              currentStage={nextBooking ? (nextBooking.confirmedWeightKg ? 3 : nextBooking.fieldWeightKg ? 2 : 1) : 1}
+            />
+          </div>
+
+          {/* Your Circular Activity Card (PRD C05: Confirmed vs Available vs Pending) */}
+          <div className="bg-white rounded-3xl border border-[#E8E5DA] p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[#172521]">Your Circular Activity</h2>
+                <p className="text-xs text-[#53625C]">
+                  Verified recovery kilograms and circular reward points.
+                </p>
+              </div>
               <button
                 onClick={() => setActiveTab('rewards')}
-                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                className="min-h-[40px] px-3.5 py-1.5 text-xs font-bold text-[#124B3A] hover:text-[#0D382B] flex items-center gap-1 cursor-pointer bg-[#F2F7E9] hover:bg-[#E4F0D3] rounded-xl border border-[#CBEA70]"
               >
-                View Rewards →
+                <span>View Rewards</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#124B3A]" />
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono">
               {/* Metric 1: Confirmed Material */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-[11px] font-sans text-slate-500 block mb-0.5">
+              <div className="p-4 bg-[#F8F7F1] rounded-2xl border border-[#E8E5DA]">
+                <span className="text-[11px] font-sans text-[#53625C] block mb-0.5">
                   CONFIRMED RECOVERED MATERIAL
                 </span>
-                <span className="text-2xl font-bold text-slate-900 tabular-nums">
+                <span className="text-2xl font-bold text-[#172521] tabular-nums">
                   {confirmedKg.toFixed(1)} kg
                 </span>
-                <span className="text-[10px] font-sans text-slate-400 block mt-1">
+                <span className="text-[10px] font-sans text-[#879690] block mt-1">
                   Scale-verified at hub intake (E2)
                 </span>
               </div>
 
-              {/* Metric 2: Available Points */}
-              <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200/80">
-                <span className="text-[11px] font-sans text-emerald-800 block mb-0.5">
+              {/* Metric 2: Available Points with Fresh Lime highlight */}
+              <div className="p-4 bg-[#F2F7E9] rounded-2xl border border-[#CBEA70]">
+                <span className="text-[11px] font-sans text-[#124B3A] font-bold block mb-0.5">
                   AVAILABLE POINTS
                 </span>
-                <span className="text-2xl font-bold text-emerald-950 tabular-nums">
+                <span className="text-2xl font-bold text-[#124B3A] tabular-nums">
                   {customerAvailablePoints} pts
                 </span>
-                <span className="text-[10px] font-sans text-emerald-700 block mt-1">
+                <span className="text-[10px] font-sans text-[#147D79] block mt-1">
                   Ready to redeem in partner shop
                 </span>
               </div>
 
               {/* Metric 3: Pending Points */}
-              <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80">
-                <span className="text-[11px] font-sans text-amber-800 block mb-0.5">
+              <div className="p-4 bg-[#F8F7F1] rounded-2xl border border-[#E8E5DA]">
+                <span className="text-[11px] font-sans text-[#B46A14] font-bold block mb-0.5">
                   PENDING POINTS HOLD
                 </span>
-                <span className="text-2xl font-bold text-amber-950 tabular-nums">
+                <span className="text-2xl font-bold text-[#B46A14] tabular-nums">
                   {customerPendingPoints} pts
                 </span>
-                <span className="text-[10px] font-sans text-amber-800 block mt-1">
-                  Unlocks after platform scale check
+                <span className="text-[10px] font-sans text-[#53625C] block mt-1 leading-snug">
+                  {lang === 'en'
+                    ? 'Points are pending until material weight and quality are verified at the receiving center.'
+                    : 'একত্রীকরণ কেন্দ্রে ডিজিটাল স্কেলে পরিমাপের পর পয়েন্ট যুক্ত হবে।'}
                 </span>
               </div>
             </div>
@@ -859,6 +946,8 @@ export const CustomerApp: React.FC = () => {
       <NewBookingModal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
+        onOpenRewards={() => setActiveTab('rewards')}
+        onOpenHelp={(bookingId) => handleReportIssue(bookingId)}
       />
       <MaterialGuideModal
         isOpen={isGuideModalOpen}

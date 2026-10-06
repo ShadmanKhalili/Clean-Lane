@@ -18,7 +18,7 @@ const MainContent: React.FC = () => {
 
   const renderActiveView = () => {
     if (activeTab === 'rewards') {
-      return <CustomerApp />;
+      return <CustomerApp initialTab="rewards" />;
     }
     if (activeTab === 'traceability') {
       return <ChainOfCustodyView />;

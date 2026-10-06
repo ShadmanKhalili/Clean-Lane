@@ -172,11 +172,17 @@ export interface Booking {
   updatedAt: string;
   fieldWeightKg?: number;
   confirmedWeightKg?: number;
+  measurementBasis?: 'estimate' | 'field_scale' | 'not_measured';
+  rejectedWeightKg?: number;
+  rejectedReason?: string;
   serviceFeeBdt: number;
   materialPayoutBdt?: number;
   earnedPoints?: number;
   pointsStatus: 'potential' | 'pending' | 'available' | 'reversed' | 'redeemed';
   discrepancyFlag?: boolean;
+  canCancel?: boolean;
+  canReschedule?: boolean;
+  ruleVersionApplied?: string;
 }
 
 export interface PickupJob {
