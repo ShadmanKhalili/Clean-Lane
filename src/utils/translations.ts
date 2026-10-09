@@ -12,10 +12,12 @@ export interface TranslationDictionary {
   myActivity: string;
   services: string;
   account: string;
+  help: string;
   bookPickup: string;
   bookAnotherPickup: string;
   trackLiveStatus: string;
   viewDetails: string;
+  seeDetails: string;
   sortingGuide: string;
   close: string;
   cancel: string;
@@ -34,6 +36,40 @@ export interface TranslationDictionary {
   helpAndSupport: string;
   activeLane: string;
   waitlist: string;
+
+  // Simple Customer Experience Core Tasks
+  arrangeACollection: string;
+  checkACollection: string;
+  useRewards: string;
+  yourNextPickup: string;
+  viewPickup: string;
+  findADropOffPoint: string;
+  seeRewards: string;
+  arrangeRegularCollection: string;
+  regularCollectionSub: string;
+  seeExamples: string;
+  notSure: string;
+  addDetails: string;
+  addANote: string;
+  reviewPickup: string;
+  stillBeingChecked: string;
+  howPointsWork: string;
+  eligibleRewards: string;
+  campaigns: string;
+  reportsAndInvoices: string;
+  serviceFee: string;
+  freeDoorstepCollection: string;
+  provisionalPaymentBasis: string;
+  rewardCondition: string;
+  conditionSummary: string;
+  nextAction: string;
+  weAreCheckingQuantity: string;
+  materialsPickedUp: string;
+  pickupMissedIssue: string;
+  pickupMissedDesc: string;
+  disputesAndReports: string;
+  organisationManagement: string;
+  yourLocation: string;
 
   // New Menu & Navigation items
   moreMenu: string;
@@ -206,13 +242,15 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     appSubtitle: 'Everyday Household Circularity & Doorstep Recovery',
     home: 'Home',
     rewards: 'Rewards',
-    myActivity: 'My Activity',
+    myActivity: 'My activity',
     services: 'Drop-Off & Services',
-    account: 'Account & Sites',
-    bookPickup: 'Book a pickup',
-    bookAnotherPickup: 'Book Another Pickup',
+    account: 'Account',
+    help: 'Help',
+    bookPickup: 'BOOK A PICKUP',
+    bookAnotherPickup: 'Book another pickup',
     trackLiveStatus: 'Track Live Status',
     viewDetails: 'View Details',
+    seeDetails: 'See details',
     sortingGuide: 'Sorting Guide →',
     close: 'Close',
     cancel: 'Cancel',
@@ -231,6 +269,40 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     helpAndSupport: 'Help & Support',
     activeLane: 'Active Lane',
     waitlist: 'Waitlist',
+
+    // Simple Customer Tasks
+    arrangeACollection: 'Arrange a collection',
+    checkACollection: 'Check a collection',
+    useRewards: 'Use rewards',
+    yourNextPickup: 'Your next pickup',
+    viewPickup: 'VIEW PICKUP',
+    findADropOffPoint: 'Find a drop-off point',
+    seeRewards: 'See rewards',
+    arrangeRegularCollection: 'Arrange regular collection',
+    regularCollectionSub: 'Scheduled recurring pickups for residential buildings or businesses',
+    seeExamples: 'See examples',
+    notSure: 'Not sure',
+    addDetails: 'Add details',
+    addANote: 'Add a note',
+    reviewPickup: 'Review pickup',
+    stillBeingChecked: 'Still being checked',
+    howPointsWork: 'How points work',
+    eligibleRewards: 'Eligible rewards',
+    campaigns: 'Campaigns',
+    reportsAndInvoices: 'Reports & Invoices',
+    serviceFee: 'Applicable service fee',
+    freeDoorstepCollection: 'Free doorstep collection (৳0)',
+    provisionalPaymentBasis: 'Provisional reward rate',
+    rewardCondition: 'Reward condition',
+    conditionSummary: 'Points are credited based on certified digital scale weight of clean, dry materials.',
+    nextAction: 'Next',
+    weAreCheckingQuantity: 'We are checking the quantity at the receiving hub.',
+    materialsPickedUp: 'Your materials were picked up.',
+    pickupMissedIssue: 'Your pickup was missed.',
+    pickupMissedDesc: 'Collector was unable to complete the pickup during the scheduled window.',
+    disputesAndReports: 'Disputes & Reports',
+    organisationManagement: 'Organisation & Sites',
+    yourLocation: 'Your location',
 
     moreMenu: 'More Options',
     investorBrief: 'Investor Brief',
@@ -256,13 +328,13 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     prepReminderActive: '24h Preparation Guide Active',
     prepReminderDesc: 'Rinse bottles clean, flatten cardboard boxes, and place bags near your door 15 minutes before the window.',
     viewChecklist: 'View Checklist',
-    rewardsBalance: 'Rewards Balance',
-    availableToRedeem: 'Available to Redeem',
-    pendingHubCheck: 'Pending Hub Scale Check',
+    rewardsBalance: 'Available points',
+    availableToRedeem: 'Available to spend',
+    pendingHubCheck: 'Pending hub scale check',
     totalDiverted: 'Total Material Diverted',
     redeemVouchers: 'Redeem Points for Vouchers',
     serviceAddress: 'Service Address',
-    changeAddress: 'Change Address',
+    changeAddress: 'Change',
     automatedAlerts: 'Automated 24h Reminders',
     viewAll: 'View All',
     approvedStreams: 'Accepted Clean Streams',
@@ -273,12 +345,12 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     showFull6Streams: 'Show full 6-category specifications ▾',
     hideFull6Streams: 'Hide full 6-category specifications ▴',
 
-    step1Title: 'Step 1 of 3: Materials',
-    step1Heading: 'What are you recycling today?',
-    step2Title: 'Step 2 of 3: Schedule',
-    step2Heading: 'When should the collector arrive?',
-    step3Title: 'Step 3 of 3: Review',
-    step3Heading: 'Review Pickup Appointment Ticket',
+    step1Title: 'Step 1 of 3: What do you have?',
+    step1Heading: 'What do you have?',
+    step2Title: 'Step 2 of 3: When should we come?',
+    step2Heading: 'When should we come?',
+    step3Title: 'Step 3 of 3: Check and confirm',
+    step3Heading: 'Check and confirm',
     step4Title: 'Booking Confirmed',
     step4Heading: 'Your Pickup is Confirmed ✓',
     selectMaterialsPrompt: 'Select all clean, dry materials you have prepared.',
@@ -297,63 +369,63 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     noUpfrontPayment: 'Zero fee required. Verified reward points are credited upon scale confirmation.',
     verifiedPointsEarned: 'Estimated Circular Points',
 
-    plasticBottlesTitle: 'Plastic Bottles (PET)',
+    plasticBottlesTitle: 'Plastic bottles',
     plasticBottlesSub: 'Clean water, juice and soft drink bottles',
-    cardboardTitle: 'Cardboard & Paper (OCC)',
-    cardboardSub: 'Clean delivery boxes, packaging cartons and paper boards',
-    cansTitle: 'Cans & Containers (Aluminum & Tin)',
-    cansSub: 'Beverage cans, tin food containers, aerosol cans',
-    hdpeTitle: 'Rigid Plastics (HDPE)',
+    cardboardTitle: 'Paper & cardboard',
+    cardboardSub: 'Delivery boxes, packaging cartons and paper boards',
+    cansTitle: 'Cans & metal',
+    cansSub: 'Beverage cans, tin food containers, metal items',
+    hdpeTitle: 'Rigid plastic containers',
     hdpeSub: 'Shampoo, laundry detergent bottles and milk jugs',
-    polyFilmTitle: 'Clean Poly Film & Bags (LDPE)',
-    polyFilmSub: 'Clean grocery bags, bubble wrap and clear film packaging',
-    tetrapakTitle: 'Beverage Cartons (Tetra Pak)',
+    polyFilmTitle: 'Clean plastic film & bags',
+    polyFilmSub: 'Clean grocery bags, bubble wrap and clear packaging',
+    tetrapakTitle: 'Beverage cartons',
     tetrapakSub: 'Aseptic juice and milk multilayer cartons',
 
-    notifCenterTitle: '24h Notification & Reminder Center',
-    prepGuidanceTitle: 'Material Preparation & Quality Checklist',
+    notifCenterTitle: 'Notifications & Settings',
+    prepGuidanceTitle: 'Material Preparation Checklist',
     prepStep1Title: '1. Rinse and Air Dry',
     prepStep1Desc: 'Empty residual liquids, rinse with water, and let dry thoroughly to prevent mold or odor.',
     prepStep2Title: '2. Flatten & Compact',
-    prepStep2Desc: 'Flatten cardboard delivery boxes and crush plastic bottles to optimize collector cargo volume.',
+    prepStep2Desc: 'Flatten cardboard delivery boxes and crush plastic bottles to optimize collector volume.',
     prepStep3Title: '3. Keep Streams Segregated',
     prepStep3Desc: 'Keep plastics, cardboard, and metals in separate bags for rapid certified scale check.',
     prepStep4Title: '4. Stage at Doorstep',
     prepStep4Desc: 'Place your bagged materials by your door 15 minutes before the arrival window.',
     qualityGuidelines: 'Clean Lane Quality Standards',
     acceptedItems: 'Accepted for Points',
-    rejectedItems: 'Rejected / Contaminated',
+    rejectedItems: 'Excluded Items',
     doorstepProtocol: 'Collector Handover Protocol',
     doorstepProtocolDesc: 'Certified collectors weigh materials on digital hanging scales in your presence and log cryptographic receipts.',
 
-    rewardCatalogTitle: 'Available Circular Rewards',
-    rewardCatalogSub: 'Redeem your verified points for grocery vouchers, mobile recharges, and utility credits.',
+    rewardCatalogTitle: 'Eligible Rewards',
+    rewardCatalogSub: 'Spend your verified points on grocery vouchers, mobile recharges, and bill credits.',
     pointsLedgerTitle: 'Points Ledger & Audit History',
     pointsLedgerSub: 'Immutable transaction logs verified against certified digital scale weights.',
     redeemButton: 'Redeem Voucher',
     morePointsNeeded: 'more points needed',
     funderLabel: 'EPR Funder',
 
-    collectionHistoryTitle: 'Collection History & Receipts',
-    collectionHistorySub: 'Detailed scale weights, chain of custody & evidence levels for every pickup.',
+    collectionHistoryTitle: 'Collection History',
+    collectionHistorySub: 'Certified scale weights, custody chain and evidence for every collection.',
     filterAll: 'All',
     filterUpcoming: 'Upcoming',
     filterCompleted: 'Completed',
     filterAttention: 'Attention',
-    seeReceipt: 'See Receipt & Chain of Custody →',
+    seeReceipt: 'See details →',
     scaleWeight: 'Certified Scale Weight',
     evidencePackage: 'Evidence Level',
 
     disputeCenterTitle: 'Help & Dispute Center',
-    disputeCenterSub: 'Submit an inquiry or report an issue with a recent collection.',
+    disputeCenterSub: 'Submit an inquiry or report an issue with a collection.',
     selectIssueType: 'Select Issue Category',
     issueMissed: 'Collector did not arrive in window',
     issueWeight: 'Scale weight discrepancy',
     issuePoints: 'Reward points delayed or incorrect',
     issueCollector: 'Collector interaction or behavior',
     describeIssue: 'Describe what happened',
-    submitDispute: 'Submit Ticket to Dispatch Operator',
-    disputeReceived: 'Your dispute has been logged. Operator is reviewing audit evidence.',
+    submitDispute: 'Submit Ticket to Dispatch',
+    disputeReceived: 'Your request has been logged. Dispatch operator will contact you shortly.',
 
     verifiedCircularityImpact: 'Verified Circularity Impact',
     divertedFromLandfill: 'diverted from Matuail landfill',
@@ -375,28 +447,30 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     manualLotEntry: 'Or enter lot code manually',
     lotIdentified: 'Lot Identified Successfully',
 
-    viewPreparationChecklist: 'View Preparation Checklist',
+    viewPreparationChecklist: 'Preparation Checklist',
     trackLiveCollection: 'Track Live Status',
     viewScaleCertificate: 'View Scale Certificate',
     recentCollection: 'Recent Collection',
     doorstepSupport: 'Doorstep Support',
     pickupQuestions: 'Questions about your collection?',
-    getHelp: 'Get Help',
+    getHelp: 'Get help',
     selectAddress: 'Select Service Address',
-    addNewAddress: 'Add New Address / Check Area'
+    addNewAddress: 'Add New Address'
   },
   bn: {
     appTitle: 'ক্লিন লেন',
     appSubtitle: 'দৈনন্দিন গৃহস্থালি বর্জ্য ব্যবস্থাপনা ও ডোরস্টেপ রিসাইক্লিং',
     home: 'হোম',
     rewards: 'রিওয়ার্ডস',
-    myActivity: 'কার্যক্রম',
+    myActivity: 'আমার কার্যক্রম',
     services: 'ড্রপ-অফ ও সেবা',
-    account: 'অ্যাকাউন্ট ও সাইট',
+    account: 'অ্যাকাউন্ট',
+    help: 'সহায়তা',
     bookPickup: 'পিকআপ বুক করুন',
     bookAnotherPickup: 'নতুন পিকআপ বুক করুন',
     trackLiveStatus: 'লাইভ অগ্রগতি দেখুন',
     viewDetails: 'বিস্তারিত দেখুন',
+    seeDetails: 'বিস্তারিত দেখুন',
     sortingGuide: 'বাছাই নির্দেশিকা →',
     close: 'বন্ধ করুন',
     cancel: 'বাতিল',
@@ -416,6 +490,40 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     activeLane: 'ক্লিন লেন সক্রিয়',
     waitlist: 'অপেক্ষমাণ লেন',
 
+    // Simple Customer Tasks
+    arrangeACollection: 'বর্জ্য সংগ্রহ বুক করুন',
+    checkACollection: 'সংগ্রহের স্থিতি দেখুন',
+    useRewards: 'রিওয়ার্ড ব্যবহার করুন',
+    yourNextPickup: 'আপনার পরবর্তী সংগ্রহ',
+    viewPickup: 'সংগ্রহ দেখুন',
+    findADropOffPoint: 'ড্রপ-অফ কেন্দ্র খুঁজুন',
+    seeRewards: 'রিওয়ার্ডস দেখুন',
+    arrangeRegularCollection: 'নিয়মিত সংগ্রহের ব্যবস্থা করুন',
+    regularCollectionSub: 'আবাসিক ভবন বা ব্যবসার জন্য সাপ্তাহিক বা পাক্ষিক নির্ধারিত সংগ্রহ',
+    seeExamples: 'উদাহরণ দেখুন',
+    notSure: 'নিশ্চিত নই',
+    addDetails: 'বিস্তারিত তথ্য যোগ করুন',
+    addANote: 'নোট বা নির্দেশনা যোগ করুন',
+    reviewPickup: 'পিকআপ পর্যালোচনা করুন',
+    stillBeingChecked: 'হাবে ওজন যাচাইাধীন',
+    howPointsWork: 'পয়েন্ট যেভাবে কাজ করে',
+    eligibleRewards: 'আপনার উপযুক্ত রিওয়ার্ড',
+    campaigns: 'ক্যাম্পেইন',
+    reportsAndInvoices: 'রিপোর্ট ও ইনভয়েস',
+    serviceFee: 'প্রযোজ্য সার্ভিস চার্জ',
+    freeDoorstepCollection: 'বিনামূল্যে ডোরস্টেপ সংগ্রহ (৳০)',
+    provisionalPaymentBasis: 'সম্ভাব্য পয়েন্ট হার',
+    rewardCondition: 'রিওয়ার্ড শর্তাবলী',
+    conditionSummary: 'শুকনো, পরিষ্কার ও পৃথক করা বর্জ্যের জন্য ডিজিটাল স্কেলে ওজন যাচাই শেষে পয়েন্ট যুক্ত হবে।',
+    nextAction: 'পরবর্তী পদক্ষেপ',
+    weAreCheckingQuantity: 'একত্রীকরণ কেন্দ্রে ডিজিটাল স্কেলে ওজন যাচাই করা হচ্ছে।',
+    materialsPickedUp: 'আপনার বর্জ্য সংগ্রহ করা হয়েছে।',
+    pickupMissedIssue: 'আপনার বর্জ্য সংগ্রহ সম্পন্ন করা যায়নি।',
+    pickupMissedDesc: 'নির্ধারিত সময়ে কালেক্টর সংগ্রহ সম্পন্ন করতে পারেননি। সহায়তা পেতে ক্লিক করুন।',
+    disputesAndReports: 'অভিযোগ ও অডিট রিপোর্ট',
+    organisationManagement: 'প্রতিষ্ঠান ও সাইট ব্যবস্থাপনা',
+    yourLocation: 'আপনার ঠিকানা',
+
     moreMenu: 'আরও বিকল্প ▾',
     investorBrief: 'ইনভেস্টর বিবরণ ও অর্থনীতি',
     fiveStepTour: '৫-ধাপের সার্কুলার সফর',
@@ -431,7 +539,7 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     phonePreview: 'মোবাইল ফ্রেম প্রিভিউ',
     listenAudio: 'অডিও সারাংশ শুনুন',
     audioSpeaking: 'অডিও চলছে (থামাতে চাপুন)',
-    notifications: 'বিজ্ঞপ্তি ও ২৪ ঘণ্টার রিমাইন্ডার',
+    notifications: 'বিজ্ঞপ্তি ও সেটিংস',
 
     nextScheduledPickup: 'পরবর্তী নির্ধারিত সংগ্রহ',
     assignedTimeWindow: 'নির্ধারিত সংগ্রহের সময়সূচি',
@@ -440,13 +548,13 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     prepReminderActive: '২৪ ঘণ্টার প্রস্তুতি নির্দেশিকা সক্রিয়',
     prepReminderDesc: 'বোতল ধুয়ে শুকিয়ে নিন, কার্টুন চ্যাপ্টা করুন এবং কালেক্টর পৌঁছানোর ১৫ মিনিট আগে প্রস্তুত রাখুন।',
     viewChecklist: 'চেকলিস্ট দেখুন',
-    rewardsBalance: 'রিওয়ার্ড ব্যালেন্স',
-    availableToRedeem: 'রিডিমযোগ্য মোট পয়েন্ট',
+    rewardsBalance: 'উপলব্ধ পয়েন্ট',
+    availableToRedeem: 'রিডিমযোগ্য পয়েন্ট',
     pendingHubCheck: 'হাবে ডিজিটাল স্কেলে যাচাইাধীন',
     totalDiverted: 'মোট উদ্ধারকৃত বর্জ্য পুনর্ব্যবহার',
     redeemVouchers: 'ভাউচারে পয়েন্ট রিডিম করুন',
     serviceAddress: 'সেবার ঠিকানা',
-    changeAddress: 'পরিবর্তন করুন',
+    changeAddress: 'পরিবর্তন',
     automatedAlerts: 'স্বয়ংক্রিয় ২৪ ঘণ্টার সতর্কতা',
     viewAll: 'সবগুলো দেখুন',
     approvedStreams: 'অনুমোদিত ক্লিন লেন উপাদান',
@@ -457,12 +565,12 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     showFull6Streams: 'সকল ৬টি ক্যাটাগরির বিস্তারিত বিবরণ দেখুন ▾',
     hideFull6Streams: '৬টি ক্যাটাগরির বিস্তারিত বিবরণ লুকান ▴',
 
-    step1Title: 'ধাপ ১/৩: উপাদান নির্বাচন',
+    step1Title: 'ধাপ ১/৩: কী কী বর্জ্য জমা দেবেন?',
     step1Heading: 'কী কী বর্জ্য জমা দেবেন?',
-    step2Title: 'ধাপ ২/৩: সময়সূচি',
+    step2Title: 'ধাপ ২/৩: কালেক্টর কখন আসবেন?',
     step2Heading: 'কালেক্টর কখন আসবেন?',
-    step3Title: 'ধাপ ৩/৩: রসিদ পর্যালোচনা',
-    step3Heading: 'পিকআপ রসিদ ও বিবরণ',
+    step3Title: 'ধাপ ৩/৩: পর্যালোচনা ও নিশ্চিতকরণ',
+    step3Heading: 'পর্যালোচনা ও নিশ্চিতকরণ',
     step4Title: 'বুকিং সম্পন্ন',
     step4Heading: 'আপনার বুকিং সফল হয়েছে ✓',
     selectMaterialsPrompt: 'আপনার কাছে প্রস্তুত থাকা সমস্ত শুকনো ও পরিষ্কার উপাদান নির্বাচন করুন।',
@@ -481,36 +589,36 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     noUpfrontPayment: 'কোনো ফি দিতে হবে না। ওজন নিশ্চিত হওয়ার সাথে সাথে পয়েন্ট যুক্ত হবে।',
     verifiedPointsEarned: 'সম্ভাব্য অর্জিত রিওয়ার্ড পয়েন্ট',
 
-    plasticBottlesTitle: 'প্লাস্টিকের বোতল (PET)',
+    plasticBottlesTitle: 'প্লাস্টিকের বোতল',
     plasticBottlesSub: 'পানি, জুস ও কোমল পানীয়ের পরিষ্কার বোতল',
-    cardboardTitle: 'কার্টুন ও শক্ত কাগজ (OCC)',
-    cardboardSub: 'ডেলিভারি বক্স, পরিষ্কার প্যাকেজিং ও শক্ত পেপার বোর্ড',
-    cansTitle: 'অ্যালুমিনিয়াম ক্যান ও পাত্র',
+    cardboardTitle: 'কাগজ ও কার্টন',
+    cardboardSub: 'ডেলিভারি বক্স, প্যাকেজিং কার্টন ও পত্রিকা',
+    cansTitle: 'ক্যান ও ধাতব পাত্র',
     cansSub: 'কোমল পানীয়ের ক্যান ও ধাতব খাবারের পাত্র',
-    hdpeTitle: 'কঠিন প্লাস্টিক কনটেইনার (HDPE)',
+    hdpeTitle: 'কঠিন প্লাস্টিক কনটেইনার',
     hdpeSub: 'শ্যাম্পু, ডিটারজেন্ট বোতল ও দুধের জার',
-    polyFilmTitle: 'পরিষ্কার পলি ফিল্ম ও প্যাকেট (LDPE)',
-    polyFilmSub: 'পরিষ্কার গ্রোসারি ব্যাগ, বাবল র‍্যাপ ও প্যাকেজিং ফিল্ম',
-    tetrapakTitle: 'টেট্রা প্যাক পানীয় কার্টুন',
+    polyFilmTitle: 'পরিষ্কার পলি ফিল্ম ও ব্যাগ',
+    polyFilmSub: 'পরিষ্কার গ্রোসারি ব্যাগ ও বাবল র‍্যাপ',
+    tetrapakTitle: 'বেভারেজ কার্টন',
     tetrapakSub: 'জুস ও দুধের মাল্টি-লেয়ার জুস বক্স',
 
-    notifCenterTitle: 'নোটিফিকেশন ও ২৪ ঘণ্টার রিমাইন্ডার সেন্টার',
+    notifCenterTitle: 'বিজ্ঞপ্তি ও সেটিংস',
     prepGuidanceTitle: 'বর্জ্য প্রস্তুতি ও গুণমান চেকলিস্ট',
     prepStep1Title: '১. ধুয়ে পরিষ্কার ও শুকানো',
-    prepStep1Desc: 'ভেতরের অবশিষ্ট তরল ফেলে ভালোভাবে পানি দিয়ে ধুয়ে সম্পূর্ণ শুকিয়ে নিন যাতে কোনো দুর্গন্ধ বা ছত্রাক না হয়।',
+    prepStep1Desc: 'ভেতরের তরল ফেলে পানি দিয়ে ধুয়ে শুকিয়ে নিন যাতে কোনো দুর্গন্ধ না হয়।',
     prepStep2Title: '২. চ্যাপ্টা ও সংকুচিত করা',
-    prepStep2Desc: 'কার্টুন বক্স সম্পূর্ণ চ্যাপ্টা করুন এবং প্লাস্টিকের বোতল চাপ দিয়ে ছোট করুন যাতে কালেক্টরের ভ্যানে কম জায়গা নেয়।',
-    prepStep3Title: '৩. আলাদা ক্যাটাগরিতে ভাগ করা',
-    prepStep3Desc: 'প্লাস্টিক, কাগজ ও ধাতব ক্যান আলাদা ব্যাগে রাখুন যাতে ওজন করার সময় দ্রুত ও নির্ভুল হিসাব করা যায়।',
+    prepStep2Desc: 'কার্টন বক্স চ্যাপ্টা করুন এবং প্লাস্টিকের বোতল চাপ দিয়ে ছোট করুন।',
+    prepStep3Title: '৩. আলাদা ব্যাগে রাখা',
+    prepStep3Desc: 'প্লাস্টিক, কাগজ ও ধাতব ক্যান আলাদা ব্যাগে রাখুন যাতে স্কেলে দ্রুত ওজন করা যায়।',
     prepStep4Title: '৪. দরজার সামনে রাখা',
-    prepStep4Desc: 'কালেক্টর পৌঁছানোর ১৫ মিনিট আগে নির্ধারিত স্থানে ব্যাগ রাখুন অথবা দারোয়ানকে প্রস্তুত থাকতে বলুন।',
+    prepStep4Desc: 'কালেক্টর পৌঁছানোর ১৫ মিনিট আগে নির্ধারিত স্থানে ব্যাগ প্রস্তুত রাখুন।',
     qualityGuidelines: 'ক্লিন লেন মান নিয়ন্ত্রণ নির্দেশিকা',
     acceptedItems: 'পয়েন্টের জন্য অনুমোদিত',
-    rejectedItems: 'অননুমোদিত / বর্জনীয়',
+    rejectedItems: 'বর্জনীয় উপাদান',
     doorstepProtocol: 'কালেক্টর হ্যান্ডওভার প্রটোকল',
-    doorstepProtocolDesc: 'আমাদের সার্টিফাইড কালেক্টর ডিজিটাল ঝুলন্ত স্কেলের মাধ্যমে সরাসরি আপনার সামনে ওজন নিশ্চিত করে ডিজিটাল রসিদ ইস্যু করবেন।',
+    doorstepProtocolDesc: 'আমাদের সার্টিফাইড কালেক্টর ডিজিটাল ঝুলন্ত স্কেলের মাধ্যমে আপনার সামনে ওজন নিশ্চিত করবেন।',
 
-    rewardCatalogTitle: 'উপলব্ধ সার্কুলার রিওয়ার্ড ভাউচার',
+    rewardCatalogTitle: 'উপলব্ধ রিওয়ার্ড ভাউচার',
     rewardCatalogSub: 'আপনার অর্জিত পয়েন্ট দিয়ে মুদি সদাই ভাউচার, মোবাইল রিচার্জ এবং ইউটিলিটি বিল ডিসকাউন্ট নিন।',
     pointsLedgerTitle: 'পয়েন্ট লেজার ও অডিট হিসাব',
     pointsLedgerSub: 'ডিজিটাল স্কেলের পরিমাপ অনুযায়ী সংরক্ষিত অপরিবর্তনীয় অডিট ট্রেইল।',
@@ -518,25 +626,25 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     morePointsNeeded: 'পয়েন্ট প্রয়োজন',
     funderLabel: 'ইপিআর স্পনসর',
 
-    collectionHistoryTitle: 'বর্জ্য সংগ্রহের ইতিহাস ও রসিদ',
+    collectionHistoryTitle: 'বর্জ্য সংগ্রহের ইতিহাস',
     collectionHistorySub: 'প্রতিটি সংগ্রহের নির্ভুল স্কেল ওজন, কাস্টডি চেইন এবং ডিজিটাল প্রমাণাদি।',
     filterAll: 'সকল',
     filterUpcoming: 'আসন্ন',
     filterCompleted: 'সম্পন্ন',
     filterAttention: 'পর্যালোচনাধীন',
-    seeReceipt: 'রসিদ ও কাস্টডি চেইন দেখুন →',
+    seeReceipt: 'বিস্তারিত দেখুন →',
     scaleWeight: 'সার্টিফাইড ডিজিটাল স্কেল ওজন',
     evidencePackage: 'প্রমাণপত্র স্তর',
 
     disputeCenterTitle: 'সহায়তা ও সমস্যা সমাধান কেন্দ্র',
-    disputeCenterSub: 'বর্জ্য সংগ্রহ বা পয়েন্ট সংক্রান্ত যেকোনো সমস্যা সরাসরি আমাদের অপারেটর টিমকে জানান।',
+    disputeCenterSub: 'বর্জ্য সংগ্রহ বা পয়েন্ট সংক্রান্ত যেকোনো সমস্যা সরাসরি আমাদের টিমকে জানান।',
     selectIssueType: 'সমস্যার ধরণ নির্বাচন করুন',
     issueMissed: 'কালেক্টর নির্ধারিত সময়ে পৌঁছাননি',
     issueWeight: 'স্কেলের ওজনে অমিল বা বিতর্ক',
     issuePoints: 'রিওয়ার্ড পয়েন্ট পেতে বিলম্ব হচ্ছে',
     issueCollector: 'কালেক্টরের অনুপযুক্ত আচরণ বা সেবা ত্রুটি',
     describeIssue: 'সমস্যার বিস্তারিত বিবরণ দিন',
-    submitDispute: 'অপারেটরের কাছে টিকেট জমা দিন',
+    submitDispute: 'টিকেট জমা দিন',
     disputeReceived: 'আপনার অভিযোগ গৃহীত হয়েছে। অপারেটর অডিট লগ পর্যালোচনা করে দ্রুত সমাধান জানাবে।',
 
     verifiedCircularityImpact: 'পরিবেশগত সার্কুলার অর্জন',
@@ -559,15 +667,15 @@ export const TRANSLATIONS: Record<'en' | 'bn', TranslationDictionary> = {
     manualLotEntry: 'অথবা ম্যানুয়ালি লট কোড লিখুন',
     lotIdentified: 'লট সফলভাবে শনাক্ত হয়েছে',
 
-    viewPreparationChecklist: 'প্রস্তুতি চেকলিস্ট দেখুন',
+    viewPreparationChecklist: 'প্রস্তুতি চেকলিস্ট',
     trackLiveCollection: 'লাইভ অগ্রগতি দেখুন',
     viewScaleCertificate: 'স্কেল সার্টিফিকেট দেখুন',
     recentCollection: 'সাম্প্রতিক সংগ্রহ',
     doorstepSupport: 'ডোরস্টেপ সহায়তা',
     pickupQuestions: 'সংগ্রহ সংক্রান্ত কোনো প্রশ্ন?',
-    getHelp: 'সাহায্য নিন',
+    getHelp: 'সহায়তা নিন',
     selectAddress: 'সেবার ঠিকানা নির্বাচন করুন',
-    addNewAddress: 'নতুন ঠিকানা যোগ করুন / এলাকা যাচাই'
+    addNewAddress: 'নতুন ঠিকানা যোগ করুন'
   }
 };
 

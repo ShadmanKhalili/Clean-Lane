@@ -1,32 +1,27 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
+import { useTranslation } from '../../utils/translations';
 import {
   ShieldCheck,
   WifiOff,
   Sparkles,
-  Bell,
-  MoreVertical,
-  Compass,
-  Layers,
-  FileCheck2,
   HelpCircle,
-  MapPin,
-  ChevronDown,
+  User,
+  Home,
   Gift,
   Clock,
-  Home,
-  Check,
-  Plus
+  Compass,
+  FileCheck2,
+  ChevronDown
 } from 'lucide-react';
 import { InvestorLoopDemonstrator } from './InvestorLoopDemonstrator';
 import { InvestorShowcaseModal } from './InvestorShowcaseModal';
-import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
-import { PreparationGuidanceModal } from '../notifications/PreparationGuidanceModal';
-import { DisputeModal } from '../customer/DisputeModal';
+import { AccountDrawerModal } from '../customer/AccountDrawerModal';
+import { HelpDrawerModal } from '../customer/HelpDrawerModal';
 import { OnboardingFlowModal } from '../customer/OnboardingFlowModal';
-import { useTranslation } from '../../utils/translations';
-import { AppNotification, Booking } from '../../types';
+import { DisputeModal } from '../customer/DisputeModal';
+import { MaterialGuideModal } from '../customer/MaterialGuideModal';
 
 interface HeaderProps {
   activeTab: string;
@@ -42,48 +37,26 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     isOfflineMode,
     offlineQueueCount,
     syncOfflineQueue,
-    notifications,
     savedLocations,
-    selectedLocationId,
-    setSelectedLocationId,
-    bookings
+    selectedLocationId
   } = useApp();
 
   const t = useTranslation(lang);
 
+  // Header Modals
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+  const [isSortingGuideOpen, setIsSortingGuideOpen] = useState(false);
   const [isDemonstratorOpen, setIsDemonstratorOpen] = useState(false);
   const [isInvestorShowcaseOpen, setIsInvestorShowcaseOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
-  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
-  const [prepModalNotif, setPrepModalNotif] = useState<AppNotification | null>(null);
 
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close more menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMoreMenuOpen(false);
-      }
-    };
-    if (isMoreMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMoreMenuOpen]);
-
-  const unreadNotifCount = notifications.filter((n) => !n.read).length;
-  const currentLocation =
-    savedLocations.find((l) => l.id === selectedLocationId) || savedLocations[0];
+  const isCustomerRole = role.startsWith('customer');
 
   const roleLabels: Record<UserRole, { en: string; bn: string }> = {
     customer_household: { en: 'Household Resident', bn: 'বাসাবাড়ির বাসিন্দা' },
-    customer_apartment: { en: 'Apartment Manager', bn: 'ভবন ব্যবস্থাপনা' },
+    customer_apartment: { en: 'Apartment Committee', bn: 'ভবন ব্যবস্থাপনা' },
     customer_business: { en: 'Business / Café', bn: 'ব্যবসা প্রতিষ্ঠান' },
     collector: { en: 'Field Collector', bn: 'মাঠ সংগ্রাহক' },
     aggregator: { en: 'Aggregation Hub', bn: 'একত্রীকরণ কেন্দ্র' },
@@ -92,11 +65,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     brand_partner: { en: 'Brand / EPR Partner', bn: 'ব্র্যান্ড ও ইপিআর পার্টনার' }
   };
 
-  const isCustomerRole = role.startsWith('customer');
-
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white border-b border-[#E8E5DA] shadow-2xs">
+      <header className="sticky top-0 z-40 bg-white border-b border-[#EDE4D8] shadow-2xs">
         {/* Offline Alert Banner if collector */}
         {isOfflineMode && role === 'collector' && (
           <div className="bg-[#B46A14] text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between">
@@ -117,9 +88,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           </div>
         )}
 
-        {/* Main Top Bar */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
-          {/* Brand Logo & Name */}
+        {/* Top Bar: Brand, 3 Navigation Tabs, Help & Account */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+          {/* Zone 1: Brand Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => setActiveTab('overview')}
@@ -154,22 +125,60 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             </button>
           </div>
 
-          {/* Primary Navigation Tabs (Focused, Uncluttered) */}
-          <nav className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-[#53625C]">
-            {/* Core Tab 1: Home / Main Role Perspective */}
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'overview'
-                  ? 'bg-[#124B3A] text-white shadow-xs font-bold'
-                  : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>
-                {isCustomerRole
-                  ? t.home
-                  : role === 'collector'
+          {/* Zone 2: Three Tabs Only (For Customer View) */}
+          {isCustomerRole ? (
+            <nav className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-[#53625C]">
+              {/* Tab 1: Home */}
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'overview'
+                    ? 'bg-[#124B3A] text-white shadow-xs font-bold'
+                    : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>{t.home}</span>
+              </button>
+
+              {/* Tab 2: Rewards */}
+              <button
+                onClick={() => setActiveTab('rewards')}
+                className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'rewards'
+                    ? 'bg-[#124B3A] text-white shadow-xs font-bold'
+                    : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
+                }`}
+              >
+                <Gift className="w-4 h-4" />
+                <span>{t.rewards}</span>
+              </button>
+
+              {/* Tab 3: My activity */}
+              <button
+                onClick={() => setActiveTab('activity')}
+                className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'activity'
+                    ? 'bg-[#124B3A] text-white shadow-xs font-bold'
+                    : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>{t.myActivity}</span>
+              </button>
+            </nav>
+          ) : (
+            /* Dedicated Navigation for Operational Actors */
+            <nav className="hidden md:flex items-center gap-2 text-sm font-semibold text-[#53625C]">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-[#124B3A] text-white shadow-xs font-bold'
+                    : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
+                }`}
+              >
+                {role === 'collector'
                   ? t.fieldJobs
                   : role === 'aggregator'
                   ? t.hubIntake
@@ -178,338 +187,125 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                   : role === 'brand_partner'
                   ? t.eprCampaigns
                   : t.commandCenter}
-              </span>
-            </button>
+              </button>
 
-            {/* Core Tab 2 for Customer: Rewards */}
-            {isCustomerRole && (
               <button
-                onClick={() => setActiveTab('rewards')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'rewards'
+                onClick={() => setActiveTab('traceability')}
+                className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'traceability'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
                     : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
                 }`}
               >
-                <Gift className="w-3.5 h-3.5" />
-                <span>{t.rewards}</span>
+                <ShieldCheck className="w-4 h-4" />
+                <span>{t.chainOfCustody}</span>
               </button>
-            )}
+            </nav>
+          )}
 
-            {/* Core Tab 3 for Customer: Activity & History */}
-            {isCustomerRole && (
-              <button
-                onClick={() => setActiveTab('activity')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'activity'
-                    ? 'bg-[#124B3A] text-white shadow-xs font-bold'
-                    : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>{t.myActivity}</span>
-              </button>
-            )}
-
-            {/* Common Core Tab: Traceability / Chain of Custody */}
+          {/* Zone 3: Actions - Help & Account (Paired Icons + Labels) */}
+          <div className="flex items-center gap-2">
+            {/* Help Button (In Header) */}
             <button
-              onClick={() => setActiveTab('traceability')}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'traceability'
-                  ? 'bg-[#124B3A] text-white shadow-xs font-bold'
-                  : 'hover:text-[#172521] hover:bg-[#F8F7F1]'
-              }`}
+              onClick={() => setIsHelpOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#FAF5EC] text-xs font-bold text-[#202B38] transition-colors cursor-pointer shadow-2xs"
+              title={t.help}
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{t.chainOfCustody}</span>
-            </button>
-          </nav>
-
-          {/* Right Action Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Customer Service Address Chip (Compact, Clickable) */}
-            {isCustomerRole && currentLocation && (
-              <button
-                onClick={() => setIsAddressModalOpen(true)}
-                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF5EC] hover:bg-[#EDE4D8] border border-[#EDE4D8] text-xs font-medium text-[#25345C] transition-colors cursor-pointer"
-                title={t.selectAddress}
-              >
-                <MapPin className="w-3.5 h-3.5 text-[#12613F] shrink-0" />
-                <span className="truncate max-w-[130px] font-semibold">
-                  {currentLocation.label}
-                </span>
-                <ChevronDown className="w-3 h-3 text-[#53616D]" />
-              </button>
-            )}
-
-            {/* Notification Bell */}
-            <button
-              onClick={() => setIsNotificationsOpen(true)}
-              className="relative p-2 rounded-xl text-[#172521] hover:bg-[#F8F7F1] transition-colors cursor-pointer"
-              title={t.notifications}
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4 text-[#172521]" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute 1.5 top-1.5 right-1.5 w-2 h-2 bg-[#F5BF55] rounded-full ring-2 ring-white animate-pulse" />
-              )}
+              <HelpCircle className="w-4 h-4 text-[#25345C]" />
+              <span className="hidden sm:inline">{t.help}</span>
             </button>
 
-            {/* Role Switcher (Compact, High-Usability) */}
-            <div className="relative">
-              <select
-                value={role}
-                onChange={(e) => {
-                  setRole(e.target.value as UserRole);
-                  setActiveTab('overview');
-                }}
-                className="text-xs font-semibold text-[#172521] bg-[#F8F7F1] hover:bg-[#EFECE3] border border-[#E8E5DA] rounded-xl px-2.5 py-1.5 cursor-pointer focus:ring-2 focus:ring-[#124B3A] transition-colors"
-                aria-label="Select role perspective"
-              >
-                <optgroup label={lang === 'en' ? 'Customer' : 'গ্রাহক'}>
-                  <option value="customer_household">{roleLabels.customer_household[lang]}</option>
-                  <option value="customer_apartment">{roleLabels.customer_apartment[lang]}</option>
-                  <option value="customer_business">{roleLabels.customer_business[lang]}</option>
-                </optgroup>
-                <optgroup label={lang === 'en' ? 'Operations' : 'অপারেশন'}>
-                  <option value="collector">{roleLabels.collector[lang]}</option>
-                  <option value="aggregator">{roleLabels.aggregator[lang]}</option>
-                  <option value="processor">{roleLabels.processor[lang]}</option>
-                </optgroup>
-                <optgroup label={lang === 'en' ? 'Governance & Brand' : 'গভর্ন্যান্স ও ব্র্যান্ড'}>
-                  <option value="operator">{roleLabels.operator[lang]}</option>
-                  <option value="brand_partner">{roleLabels.brand_partner[lang]}</option>
-                </optgroup>
-              </select>
-            </div>
+            {/* Account Button (In Header) */}
+            <button
+              onClick={() => setIsAccountOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25345C] hover:bg-[#1B2644] text-white text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+              title={t.account}
+            >
+              <User className="w-4 h-4 text-[#C9F1DC]" />
+              <span className="hidden sm:inline">{t.account}</span>
+            </button>
 
-            {/* Language Switcher Button */}
+            {/* Language Switcher */}
             <button
               onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}
-              className="px-2 py-1.5 text-xs font-bold rounded-xl border border-[#E8E5DA] bg-white hover:bg-[#F8F7F1] text-[#172521] transition-colors cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#F8F7F1] text-[#172521] transition-colors cursor-pointer"
               title="Switch language / ভাষা পরিবর্তন"
             >
-              {lang === 'en' ? 'বাংলা' : 'English'}
+              {lang === 'en' ? 'বাংলা' : 'EN'}
             </button>
-
-            {/* "More Options ▾" Dropdown Menu (Consolidates advanced/secondary tools) */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                  isMoreMenuOpen
-                    ? 'bg-[#25345C] text-white border-[#25345C]'
-                    : 'bg-white hover:bg-[#F8F7F1] border-[#E8E5DA] text-[#172521]'
-                }`}
-                title={t.moreMenu}
-                aria-label="More options"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-
-              {isMoreMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#EDE4D8] p-2 z-50 animate-fade-in text-xs space-y-1">
-                  <div className="px-3 py-1.5 text-[11px] font-bold text-[#53616D] uppercase tracking-wider border-b border-[#FAF5EC]">
-                    {t.moreMenu}
-                  </div>
-
-                  {/* 5-Step Circularity Tour */}
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      setIsDemonstratorOpen(true);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <Compass className="w-4 h-4 text-[#12613F]" />
-                    <span>{t.fiveStepTour}</span>
-                  </button>
-
-                  {/* Investor Brief & Scale Economics */}
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      setIsInvestorShowcaseOpen(true);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4 text-[#25345C]" />
-                    <span>{t.investorBrief}</span>
-                  </button>
-
-                  {/* Evidence Protocol (E0–E5) */}
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      setActiveTab('evidence_model');
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer"
-                  >
-                    <FileCheck2 className="w-4 h-4 text-[#12613F]" />
-                    <span>{t.evidenceModel}</span>
-                  </button>
-
-                  {/* Drop-Off Hubs & Depots (for customer) */}
-                  {isCustomerRole && (
-                    <button
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        setActiveTab('services');
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer"
-                    >
-                      <Layers className="w-4 h-4 text-[#53616D]" />
-                      <span>{t.services}</span>
-                    </button>
-                  )}
-
-                  {/* Multi-Site & Account Settings (for customer) */}
-                  {isCustomerRole && (
-                    <button
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        setActiveTab('account');
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer"
-                    >
-                      <MapPin className="w-4 h-4 text-[#53616D]" />
-                      <span>{t.account}</span>
-                    </button>
-                  )}
-
-                  {/* Help & Dispute Center */}
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      setIsDisputeModalOpen(true);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left font-semibold text-[#202B38] hover:bg-[#FAF5EC] flex items-center gap-2.5 transition-colors cursor-pointer border-t border-[#FAF5EC] pt-2"
-                  >
-                    <HelpCircle className="w-4 h-4 text-amber-700" />
-                    <span>{t.helpAndSupport}</span>
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
 
-      {/* Address Switcher Modal (accessible from header or customer page) */}
-      {isAddressModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#EDE4D8] pb-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-[#25345C]" />
-                <h3 className="text-base font-bold text-[#202B38]">{t.selectAddress}</h3>
-              </div>
-              <button
-                onClick={() => setIsAddressModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#FAF5EC] flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Account Drawer Modal */}
+      <AccountDrawerModal
+        isOpen={isAccountOpen}
+        onClose={() => setIsAccountOpen(false)}
+        onOpenOnboarding={() => {
+          setIsAccountOpen(false);
+          setIsOnboardingOpen(true);
+        }}
+        onOpenEvidenceModel={() => {
+          setIsAccountOpen(false);
+          setActiveTab('evidence_model');
+        }}
+        onOpenTour={() => {
+          setIsAccountOpen(false);
+          setIsDemonstratorOpen(true);
+        }}
+        onOpenInvestorBrief={() => {
+          setIsAccountOpen(false);
+          setIsInvestorShowcaseOpen(true);
+        }}
+      />
 
-            <div className="space-y-2">
-              {savedLocations.map((loc) => (
-                <div
-                  key={loc.id}
-                  onClick={() => {
-                    setSelectedLocationId(loc.id);
-                    setIsAddressModalOpen(false);
-                  }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    selectedLocationId === loc.id
-                      ? 'bg-[#FAF5EC] border-[#25345C] shadow-xs'
-                      : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/40'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-[#202B38]">{loc.label}</span>
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.2 rounded-md font-bold ${
-                          loc.status === 'available'
-                            ? 'bg-[#C9F1DC] text-[#12613F]'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {loc.status === 'available' ? t.activeLane : t.waitlist}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#53616D]">{loc.address}</p>
-                  </div>
-                  {selectedLocationId === loc.id && (
-                    <Check className="w-4 h-4 text-[#25345C] shrink-0" />
-                  )}
-                </div>
-              ))}
-            </div>
+      {/* Help Drawer Modal */}
+      <HelpDrawerModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        onOpenFileDispute={(bId) => {
+          setIsHelpOpen(false);
+          setIsDisputeOpen(true);
+        }}
+        onOpenSortingGuide={() => {
+          setIsHelpOpen(false);
+          setIsSortingGuideOpen(true);
+        }}
+      />
 
-            <button
-              onClick={() => {
-                setIsAddressModalOpen(false);
-                setIsOnboardingModalOpen(true);
-              }}
-              className="w-full py-2.5 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{t.addNewAddress}</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Onboarding / Add Address Modal */}
+      <OnboardingFlowModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        onProceedToBooking={() => {
+          setIsOnboardingOpen(false);
+          setActiveTab('overview');
+        }}
+      />
 
-      {/* Investor Loop Demonstrator Modal */}
+      {/* Dispute Modal */}
+      <DisputeModal
+        isOpen={isDisputeOpen}
+        onClose={() => setIsDisputeOpen(false)}
+      />
+
+      {/* Sorting Guide Modal */}
+      <MaterialGuideModal
+        isOpen={isSortingGuideOpen}
+        onClose={() => setIsSortingGuideOpen(false)}
+      />
+
+      {/* 5-Step Tour Modal */}
       <InvestorLoopDemonstrator
         isOpen={isDemonstratorOpen}
         onClose={() => setIsDemonstratorOpen(false)}
       />
 
-      {/* Investor Brief & Scale Economics Modal */}
+      {/* Investor Brief Modal */}
       <InvestorShowcaseModal
         isOpen={isInvestorShowcaseOpen}
         onClose={() => setIsInvestorShowcaseOpen(false)}
         onOpenLoopDemonstrator={() => setIsDemonstratorOpen(true)}
-      />
-
-      {/* Notification Center Modal */}
-      <NotificationCenterModal
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        onOpenPreparation={(notif) => {
-          setIsNotificationsOpen(false);
-          setPrepModalNotif(notif);
-        }}
-      />
-
-      {/* Preparation Guidance Modal */}
-      {prepModalNotif && (
-        <PreparationGuidanceModal
-          isOpen={true}
-          notification={prepModalNotif}
-          booking={bookings.find((b) => b.id === prepModalNotif.bookingId) || bookings[0]}
-          onClose={() => setPrepModalNotif(null)}
-        />
-      )}
-
-      {/* Help / Dispute Modal */}
-      <DisputeModal
-        isOpen={isDisputeModalOpen}
-        onClose={() => setIsDisputeModalOpen(false)}
-        bookingId={bookings[0]?.id}
-      />
-
-      {/* Onboarding / Add Address Modal */}
-      <OnboardingFlowModal
-        isOpen={isOnboardingModalOpen}
-        onClose={() => setIsOnboardingModalOpen(false)}
-        onProceedToBooking={() => {
-          setIsOnboardingModalOpen(false);
-          setActiveTab('overview');
-        }}
       />
     </>
   );

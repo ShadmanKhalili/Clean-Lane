@@ -25,10 +25,10 @@ const MainContent: React.FC = () => {
       return <CustomerApp initialTab="activity" onNavigateTab={setActiveTab} />;
     }
     if (activeTab === 'services') {
-      return <CustomerApp initialTab="services" onNavigateTab={setActiveTab} />;
+      return <CustomerApp initialTab="home" onNavigateTab={setActiveTab} />;
     }
     if (activeTab === 'account') {
-      return <CustomerApp initialTab="account" onNavigateTab={setActiveTab} />;
+      return <CustomerApp initialTab="home" onNavigateTab={setActiveTab} />;
     }
     if (activeTab === 'traceability') {
       return <ChainOfCustodyView />;

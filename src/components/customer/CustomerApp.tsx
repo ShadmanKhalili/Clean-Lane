@@ -4,20 +4,14 @@ import { Booking, DropOffPoint, MaterialCategory } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { NewBookingModal } from './NewBookingModal';
+import { CollectionStatusModal } from './CollectionStatusModal';
+import { RecurringServiceModal } from './RecurringServiceModal';
 import { MaterialGuideModal } from './MaterialGuideModal';
 import { DisputeModal } from './DisputeModal';
-import { OnboardingFlowModal } from './OnboardingFlowModal';
-import { TransactionDetailModal } from './TransactionDetailModal';
 import { DropOffDetailModal } from './DropOffDetailModal';
-import { OrganisationDashboardView } from './OrganisationDashboardView';
-import { speakInstruction, stopSpeaking } from '../../utils/statusDictionary';
-import { NotificationCenterModal } from '../notifications/NotificationCenterModal';
-import { PreparationGuidanceModal } from '../notifications/PreparationGuidanceModal';
-import { MaterialIllustration } from '../common/MaterialIllustrations';
-import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
 import { EnvironmentalImpactWidget } from '../common/EnvironmentalImpactWidget';
 import { AppointmentTicket } from '../common/AppointmentTicket';
-import { AppNotification } from '../../types';
+import { MaterialIllustration } from '../common/MaterialIllustrations';
 import { useTranslation } from '../../utils/translations';
 import {
   Home,
@@ -25,23 +19,35 @@ import {
   Clock,
   MapPin,
   HelpCircle,
-  Bell,
-  Sparkles,
-  ChevronRight,
-  ChevronDown,
-  CheckCircle2,
   AlertCircle,
   Plus,
   ArrowRight,
-  Layers,
-  User,
-  Volume2,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Check,
-  CheckCheck
+  CheckCircle2,
+  Calendar,
+  Sparkles,
+  Layers,
+  FileText,
+  Volume2,
+  VolumeX,
+  Leaf,
+  Recycle,
+  Flame,
+  Droplets,
+  Truck,
+  Scale,
+  ShieldCheck,
+  Award,
+  Zap,
+  ExternalLink
 } from 'lucide-react';
+import { speakInstruction, stopSpeaking } from '../../utils/statusDictionary';
 
 interface CustomerAppProps {
-  initialTab?: 'home' | 'rewards' | 'activity' | 'services' | 'account';
+  initialTab?: 'home' | 'rewards' | 'activity';
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -51,8 +57,6 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 }) => {
   const {
     lang,
-    role,
-    setRole,
     bookings,
     pointsLedger,
     rewards,
@@ -63,24 +67,23 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     setSelectedLocationId,
     dropOffPoints,
     redeemReward,
-    notifications,
     showToast
   } = useApp();
 
   const t = useTranslation(lang);
 
-  // Active view tab: home | rewards | activity | services | account
-  const [activeTab, setActiveTab] = useState<'home' | 'rewards' | 'activity' | 'services' | 'account'>(
-    initialTab
+  // 3 Navigation Tabs Only: Home | Rewards | My activity
+  const [activeTab, setActiveTab] = useState<'home' | 'rewards' | 'activity'>(
+    initialTab === 'activity' ? 'activity' : initialTab === 'rewards' ? 'rewards' : 'home'
   );
 
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab === 'activity' ? 'activity' : initialTab === 'rewards' ? 'rewards' : 'home');
     }
   }, [initialTab]);
 
-  const handleTabSwitch = (tab: 'home' | 'rewards' | 'activity' | 'services' | 'account') => {
+  const handleTabSwitch = (tab: 'home' | 'rewards' | 'activity') => {
     setActiveTab(tab);
     if (onNavigateTab) {
       if (tab === 'home') onNavigateTab('overview');
@@ -90,28 +93,65 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
-  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
-  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-  const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
-  const [isAreaSelectorOpen, setIsAreaSelectorOpen] = useState(false);
-  const [selectedPrepNotif, setSelectedPrepNotif] = useState<AppNotification | null>(null);
-  const [selectedPrepBooking, setSelectedPrepBooking] = useState<Booking | null>(null);
-  const [selectedBookingForDispute, setSelectedBookingForDispute] = useState<string | undefined>(undefined);
-  const [inspectedBooking, setInspectedBooking] = useState<Booking | null>(null);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
+  const [isDropOffListOpen, setIsDropOffListOpen] = useState(false);
   const [selectedDropOffPoint, setSelectedDropOffPoint] = useState<DropOffPoint | null>(null);
-  const [isSpeakingAudio, setIsSpeakingAudio] = useState(false);
-  const [showAllStreamsInline, setShowAllStreamsInline] = useState(false);
+  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [selectedBookingForHelp, setSelectedBookingForHelp] = useState<string | undefined>(undefined);
+  const [statusModalBooking, setStatusModalBooking] = useState<Booking | null>(null);
 
-  // Activity filter
+  // Rewards Secondary Views toggle
+  const [activeRewardsSubView, setActiveRewardsSubView] = useState<'spending' | 'history' | 'rules' | 'campaigns'>('spending');
+
+  // Activity filter & Secondary Views toggle
   const [activityFilter, setActivityFilter] = useState<'all' | 'upcoming' | 'completed' | 'attention'>('all');
+  const [showEnvironmentalImpact, setShowEnvironmentalImpact] = useState<boolean>(false);
 
-  // Location object
+  // Current Address
   const currentLocation =
     savedLocations.find((l) => l.id === selectedLocationId) || savedLocations[0];
 
-  // Active Upcoming Booking (For Hero Priority Rule)
+  // Audio instruction state
+  const [isSpeakingAudio, setIsSpeakingAudio] = useState(false);
+
+  const handleToggleAudio = () => {
+    if (isSpeakingAudio) {
+      stopSpeaking();
+      setIsSpeakingAudio(false);
+    } else {
+      setIsSpeakingAudio(true);
+      const text =
+        lang === 'en'
+          ? 'Welcome to Clean Lane. Select clean, dry plastic bottles, cardboard, cans or rigid containers to schedule your verified doorstep recovery.'
+          : 'ক্লিন লেনে স্বাগতম। বাসা থেকে সার্টিফাইড সংগ্রহের জন্য পরিচ্ছন্ন প্লাস্টিক বোতল, কার্টন বা ক্যান বাছাই করে বুকিং করুন।';
+      speakInstruction(text, lang, () => setIsSpeakingAudio(false));
+    }
+  };
+
+  // Selected materials from Home
+  const [homeSelectedCats, setHomeSelectedCats] = useState<MaterialCategory[]>([
+    'PET_BOTTLES',
+    'CARDBOARD_OCC'
+  ]);
+
+  const toggleHomeMaterial = (cat: MaterialCategory) => {
+    if (homeSelectedCats.includes(cat)) {
+      if (homeSelectedCats.length > 1) {
+        setHomeSelectedCats(homeSelectedCats.filter((c) => c !== cat));
+      }
+    } else {
+      setHomeSelectedCats([...homeSelectedCats, cat]);
+    }
+  };
+
+  // Issue / Discrepancy Booking (Attention Rule)
+  const attentionBooking = bookings.find(
+    (b) => b.status === 'MISSED' || b.status === 'DISPUTED'
+  );
+
+  // Active Upcoming Booking (Single Next Task Rule)
   const nextBooking = bookings.find(
     (b) =>
       b.status === 'CONFIRMED' ||
@@ -120,24 +160,13 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
       b.status === 'EN_ROUTE'
   );
 
-  // Latest completed booking (For "Last Result" Card)
-  const lastCompletedBooking = bookings.find(
-    (b) =>
-      b.status === 'COLLECTED' ||
-      b.status === 'QUANTITY_CONFIRMED' ||
-      b.status === 'ENTERED_RECOVERY_CHAIN' ||
-      b.status === 'PROCESSED'
-  );
-
-  // Confirmed material sum
-  const confirmedKg = bookings.reduce((acc, b) => acc + (b.confirmedWeightKg || 0), 0);
-
-  const handleOpenTransactionDetail = (booking: Booking) => {
-    setInspectedBooking(booking);
+  const handleOpenStatus = (b: Booking) => {
+    setStatusModalBooking(b);
+    setIsStatusModalOpen(true);
   };
 
-  const handleReportIssue = (bookingId?: string) => {
-    setSelectedBookingForDispute(bookingId || nextBooking?.id);
+  const handleGetHelp = (bId?: string) => {
+    setSelectedBookingForHelp(bId || attentionBooking?.id || nextBooking?.id);
     setIsDisputeModalOpen(true);
   };
 
@@ -147,7 +176,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
       showToast(
         lang === 'en'
           ? 'Reward voucher redeemed successfully! Check voucher code in activity.'
-          : 'ভাউচার সফলভাবে রিডিম হয়েছে! কোড দেখতে এক্টিভিটি দেখুন।'
+          : 'ভাউচার সফলভাবে রিডিম হয়েছে!'
       );
     } else {
       showToast(
@@ -158,32 +187,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     }
   };
 
-  const handleSpeakHomeSummary = () => {
-    if (isSpeakingAudio) {
-      stopSpeaking();
-      setIsSpeakingAudio(false);
-      return;
-    }
-
-    const text =
-      lang === 'bn'
-        ? `সুপ্রভাত। ${
-            nextBooking
-              ? `আপনার পরবর্তী বর্জ্য সংগ্রহ ${nextBooking.scheduledDate} তারিখে ${nextBooking.scheduledTimeWindow} সময়ে।`
-              : 'বর্তমানে কোনো বর্জ্য সংগ্রহ নির্ধারিত নেই। পিকআপ বুক করতে পিকআপ বুক করুন বাটন চাপুন।'
-          } আপনার মোট উপলব্ধ পয়েন্ট ${customerAvailablePoints} এবং উদ্ধারকৃত বর্জ্য ${confirmedKg.toFixed(1)} কেজি।`
-        : `Good day. ${
-            nextBooking
-              ? `Your next collection is on ${nextBooking.scheduledDate} during ${nextBooking.scheduledTimeWindow}.`
-              : 'No collection currently scheduled. Tap Book a pickup to schedule.'
-          } You have ${customerAvailablePoints} available points and ${confirmedKg.toFixed(1)} kg verified materials.`;
-
-    setIsSpeakingAudio(true);
-    speakInstruction(text, lang);
-    setTimeout(() => setIsSpeakingAudio(false), 7000);
-  };
-
-  // Filtered bookings for Activity Tab
+  // Filtered bookings for Activity
   const filteredBookings = bookings.filter((b) => {
     if (activityFilter === 'all') return true;
     if (activityFilter === 'upcoming') {
@@ -209,393 +213,582 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
   });
 
   return (
-    <div className="w-full space-y-6 pb-20 md:pb-6">
+    <div className="w-full pb-20 md:pb-6">
       {/* ========================================================================= */}
-      {/* CLEAN SUB-BAR: LOCATION INDICATOR & ACCESSIBILITY QUICK AUDIO */}
-      {/* ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDE4D8]">
-        {/* Neighborhood Location Chip */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsAreaSelectorOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#EDE4D8] text-xs font-semibold text-[#202B38] hover:bg-[#FAF5EC] transition-colors shadow-2xs cursor-pointer"
-            title={t.selectAddress}
-          >
-            <MapPin className="w-3.5 h-3.5 text-[#12613F] shrink-0" />
-            <span className="truncate max-w-[200px] sm:max-w-[280px]">
-              {currentLocation.label}
-            </span>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold ${
-                currentLocation.status === 'available'
-                  ? 'bg-[#C9F1DC] text-[#12613F]'
-                  : 'bg-amber-100 text-amber-800'
-              }`}
-            >
-              {currentLocation.status === 'available' ? t.activeLane : t.waitlist}
-            </span>
-            <ChevronDown className="w-3 h-3 text-[#53616D]" />
-          </button>
-        </div>
-
-        {/* Audio Summary / Spoken Guide */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSpeakHomeSummary}
-            className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer shadow-2xs ${
-              isSpeakingAudio
-                ? 'bg-[#25345C] text-[#C9F1DC] border-[#25345C] animate-pulse'
-                : 'bg-white border-[#EDE4D8] text-[#25345C] hover:bg-[#FAF5EC]'
-            }`}
-            title={isSpeakingAudio ? t.audioSpeaking : t.listenAudio}
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>{isSpeakingAudio ? t.audioSpeaking : t.listenAudio}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* TAB 1: HOME (Focused, Uncluttered, Core Job First) */}
+      {/* TAB 1: HOME (Focused, Engaging Circular Front Door)                       */}
       {/* ========================================================================= */}
       {activeTab === 'home' && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Priority Attention Banner if Discrepancy */}
-          {bookings.some((b) => b.status === 'MISSED' || b.status === 'DISPUTED') && (
-            <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-3xl flex items-start justify-between gap-3 text-xs shadow-xs">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-200 text-amber-950 flex items-center justify-center shrink-0 font-bold mt-0.5">
-                  <AlertCircle className="w-4 h-4 text-amber-900" />
-                </div>
-                <div>
-                  <span className="font-bold text-amber-950 block text-sm">
-                    {lang === 'en' ? 'Attention on Collection' : 'সংগ্রহ সংক্রান্ত সতর্কতা'}
-                  </span>
-                  <p className="text-amber-800 text-xs mt-0.5 leading-relaxed">
-                    {lang === 'en'
-                      ? 'A recent pickup was flagged for review. Dispatch operator is investigating.'
-                      : 'একটি সংগ্রহ পর্যালোচনাধীন রয়েছে। অপারেটর অডিট যাচাই করছেন।'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  const disputed = bookings.find((b) => b.status === 'MISSED' || b.status === 'DISPUTED');
-                  handleReportIssue(disputed?.id || 'CL-BK-001');
-                }}
-                className="px-3 py-1.5 bg-amber-900 text-white rounded-xl font-bold text-xs shrink-0 cursor-pointer min-h-[36px]"
+        <div className="w-full max-w-xl lg:max-w-7xl mx-auto space-y-5 animate-fade-in pt-2">
+          {/* Top Bar: Your Location, Audio Guide, & Help */}
+          <div className="flex items-center justify-between text-xs pb-1">
+            <div className="flex items-center gap-1.5 font-bold text-[#202B38] min-w-0">
+              <MapPin className="w-4 h-4 text-[#12613F] shrink-0" />
+              <span className="truncate max-w-[170px] sm:max-w-xs">{currentLocation.label}</span>
+              <span
+                className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                  currentLocation.status === 'available'
+                    ? 'bg-[#C9F1DC] text-[#12613F]'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
               >
-                {t.getHelp}
+                {currentLocation.status === 'available' ? t.activeLane : t.waitlist}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Spoken voice helper pill */}
+              <button
+                type="button"
+                onClick={handleToggleAudio}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-colors cursor-pointer ${
+                  isSpeakingAudio
+                    ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
+                    : 'bg-white border-[#EDE4D8] text-[#53616D] hover:bg-[#FAF5EC]'
+                }`}
+                title={lang === 'en' ? 'Listen to audio tips' : 'অডিও শুনুন'}
+              >
+                {isSpeakingAudio ? (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5 text-rose-600" />
+                    <span>{t.audioSpeaking}</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-[#12613F]" />
+                    <span className="hidden sm:inline">{t.listenAudio}</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => handleGetHelp()}
+                className="text-xs font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>{t.help}</span>
               </button>
             </div>
-          )}
+          </div>
 
-          {/* 12-Column Responsive Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Main Column (8 cols): Primary User Task */}
-            <div className="col-span-12 lg:col-span-7 xl:col-span-8 space-y-6">
-              {/* CORE HERO SECTION */}
-              {nextBooking ? (
-                /* CASE A: User has an upcoming pickup appointment */
+          {/* Responsive 12-Column Grid on Desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            {/* ============================================================== */}
+            {/* LEFT COLUMN: Main Customer Task Flow (7 cols on lg)           */}
+            {/* ============================================================== */}
+            <div className="lg:col-span-7 space-y-5">
+              {/* MAIN TASK PANEL */}
+              {attentionBooking ? (
+                /* CASE C: SOMETHING NEEDS ATTENTION (Replaces main pickup panel) */
+                <div className="p-6 bg-amber-50 border-2 border-amber-300 rounded-3xl space-y-4 shadow-sm text-center">
+                  <div className="w-12 h-12 rounded-full bg-amber-200 text-amber-950 flex items-center justify-center mx-auto">
+                    <AlertCircle className="w-6 h-6 text-amber-900" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-black text-amber-950 tracking-tight">
+                      {t.pickupMissedIssue}
+                    </h2>
+                    <p className="text-xs text-amber-800 max-w-sm mx-auto leading-relaxed">
+                      {t.pickupMissedDesc}
+                    </p>
+                  </div>
+
+                  {/* Single Primary Action */}
+                  <button
+                    onClick={() => handleGetHelp(attentionBooking.id)}
+                    className="w-full min-h-[48px] py-3 bg-amber-900 hover:bg-amber-950 text-white rounded-2xl font-bold text-sm shadow-xs transition-colors cursor-pointer"
+                  >
+                    {t.getHelp}
+                  </button>
+                </div>
+              ) : nextBooking ? (
+                /* CASE B: UPCOMING COLLECTION (Rich Appointment Ticket) */
                 <div className="space-y-3">
                   <AppointmentTicket
                     booking={nextBooking}
-                    onOpenChecklist={() => {
-                      setSelectedPrepBooking(nextBooking);
-                      setIsPrepModalOpen(true);
-                    }}
-                    onTrackStatus={() => handleOpenTransactionDetail(nextBooking)}
+                    onTrackStatus={() => handleOpenStatus(nextBooking)}
+                    onOpenChecklist={() => setIsGuideModalOpen(true)}
                   />
-                  <div className="flex justify-end pt-1">
+
+                  {/* Secondary Action: Book another pickup */}
+                  <div className="text-center pt-1">
                     <button
                       onClick={() => setIsBookingModalOpen(true)}
-                      className="min-h-[40px] px-4 py-2 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-2xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+                      className="text-xs font-bold text-[#25345C] hover:underline cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{t.bookAnotherPickup}</span>
+                      + {t.bookAnotherPickup}
                     </button>
                   </div>
                 </div>
               ) : (
-                /* CASE B: User has no active pickup -> Warm, clear booking invitation */
-                <section className="bg-white rounded-3xl border border-[#EDE4D8] p-6 sm:p-8 shadow-sm space-y-5">
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#12613F] block">
-                      {lang === 'en' ? 'Clean Lane Doorstep Service' : 'ক্লিন লেন ডোরস্টেপ সেবা'}
+                /* CASE A: NO UPCOMING COLLECTION (Tactile Stream Selection & Booking) */
+                <div className="p-5 sm:p-7 bg-white rounded-3xl border border-[#EDE4D8] space-y-5 shadow-xs">
+                  <div className="text-center space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#12613F] bg-[#C9F1DC] px-2.5 py-0.5 rounded-full inline-block">
+                      {lang === 'en' ? 'Doorstep Recycling Recovery' : 'ডোরস্টেপ রিসাইক্লিং রিকভারি'}
                     </span>
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#25345C] tracking-tight">
+                    <h1 className="text-2xl sm:text-3xl font-black text-[#25345C] tracking-tight">
                       {t.whatWouldYouLikeCollected}
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#53616D] max-w-xl leading-relaxed">
-                      {t.whatWouldYouLikeCollectedSub}
+                    <p className="text-xs text-[#53616D] max-w-sm mx-auto leading-relaxed">
+                      {lang === 'en'
+                        ? 'Select clean materials below to schedule verified collection with reward points'
+                        : 'রিওয়ার্ড পয়েন্ট সহ ডোরস্টেপ সংগ্রহের জন্য পরিচ্ছন্ন উপাদানসমূহ বাছাই করুন'}
                     </p>
                   </div>
 
-                  {/* 3 Clear Tactile Material Choices */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
-                    <div
-                      onClick={() => setIsBookingModalOpen(true)}
-                      className="p-4 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
-                    >
-                      <MaterialIllustration
-                        category="PET_BOTTLES"
-                        size="lg"
-                        className="mx-auto group-hover:scale-105 transition-transform"
-                      />
-                      <div>
-                        <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
-                          {lang === 'en' ? 'Plastic Bottles' : 'প্লাস্টিক বোতল'}
-                        </span>
-                        <span className="text-xs text-[#12613F] font-bold">50 pts / kg</span>
-                      </div>
-                    </div>
+                  {/* Tactile 4-Stream Material Selection Grid */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      {
+                        id: 'PET_BOTTLES' as MaterialCategory,
+                        nameEn: 'Plastic bottles',
+                        nameBn: 'প্লাস্টিক বোতল (PET)',
+                        rate: '50 pts/kg'
+                      },
+                      {
+                        id: 'CARDBOARD_OCC' as MaterialCategory,
+                        nameEn: 'Cardboard & boxes',
+                        nameBn: 'কাগজ ও কার্টন (OCC)',
+                        rate: '25 pts/kg'
+                      },
+                      {
+                        id: 'ALUMINUM_CANS' as MaterialCategory,
+                        nameEn: 'Cans & metal',
+                        nameBn: 'ক্যান ও ধাতু',
+                        rate: '100 pts/kg'
+                      },
+                      {
+                        id: 'HDPE_RIGID' as MaterialCategory,
+                        nameEn: 'Rigid containers',
+                        nameBn: 'রিজিড প্লাস্টিক (HDPE)',
+                        rate: '45 pts/kg'
+                      }
+                    ].map((stream) => {
+                      const isSelected = homeSelectedCats.includes(stream.id);
+                      return (
+                        <div
+                          key={stream.id}
+                          onClick={() => toggleHomeMaterial(stream.id)}
+                          className={`p-3 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col items-center text-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-[#FAF5EC] border-[#25345C] shadow-xs ring-1 ring-[#25345C]/20'
+                              : 'bg-[#FAF9F5] border-[#EDE4D8] hover:border-[#25345C]/40 hover:bg-white'
+                          }`}
+                        >
+                          {/* Checkmark badge */}
+                          <span
+                            className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? 'bg-[#12613F] text-white shadow-2xs'
+                                : 'bg-white border border-[#EDE4D8] text-transparent'
+                            }`}
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </span>
 
-                    <div
-                      onClick={() => setIsBookingModalOpen(true)}
-                      className="p-4 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
-                    >
-                      <MaterialIllustration
-                        category="CARDBOARD_OCC"
-                        size="lg"
-                        className="mx-auto group-hover:scale-105 transition-transform"
-                      />
-                      <div>
-                        <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
-                          {lang === 'en' ? 'Cardboard & Paper' : 'কাগজ ও কার্টন'}
-                        </span>
-                        <span className="text-xs text-[#12613F] font-bold">25 pts / kg</span>
-                      </div>
-                    </div>
+                          <MaterialIllustration category={stream.id} size="md" className="shrink-0 my-0.5" />
 
-                    <div
-                      onClick={() => setIsBookingModalOpen(true)}
-                      className="p-4 rounded-3xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C] hover:shadow-md transition-all text-center space-y-2 cursor-pointer group shadow-2xs"
-                    >
-                      <MaterialIllustration
-                        category="ALUMINUM_CANS"
-                        size="lg"
-                        className="mx-auto group-hover:scale-105 transition-transform"
-                      />
-                      <div>
-                        <span className="text-sm font-bold text-[#202B38] block group-hover:text-[#25345C]">
-                          {lang === 'en' ? 'Cans & Containers' : 'ক্যান ও পাত্র'}
-                        </span>
-                        <span className="text-xs text-[#12613F] font-bold">100 pts / kg</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Primary Call-to-Action Button */}
-                  <button
-                    onClick={() => setIsBookingModalOpen(true)}
-                    className="w-full min-h-[50px] px-6 py-3.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer transform active:scale-[0.99]"
-                  >
-                    <span>{t.bookPickup}</span>
-                    <ArrowRight className="w-5 h-5 text-[#C9F1DC]" />
-                  </button>
-                </section>
-              )}
-
-              {/* Verified Environmental Impact (Clean, calm glance with progressive disclosure) */}
-              <EnvironmentalImpactWidget />
-
-              {/* Accepted Clean Streams (Compact Strip + Modal Guide Link) */}
-              <div className="p-5 sm:p-6 bg-white rounded-3xl border border-[#EDE4D8] shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#12613F]" />
-                      <h2 className="text-base font-bold text-[#202B38]">
-                        {t.acceptedCleanStreams}
-                      </h2>
-                    </div>
-                    <p className="text-xs text-[#53616D] mt-0.5">
-                      {t.segregatedRecyclables}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setIsGuideModalOpen(true)}
-                    className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl border border-[#EDE4D8] bg-[#FAF5EC] hover:bg-[#EDE4D8] text-xs font-bold text-[#25345C] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                  >
-                    <span>{t.fullSortingGuide}</span>
-                  </button>
-                </div>
-
-                {/* 4 Streams Quick Glance */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {[
-                    { id: 'PET_BOTTLES', nameEn: 'Plastic Bottles', nameBn: 'প্লাস্টিক বোতল', pts: 50 },
-                    { id: 'CARDBOARD_OCC', nameEn: 'Cardboard & Paper', nameBn: 'কাগজ ও কার্টন', pts: 25 },
-                    { id: 'ALUMINUM_CANS', nameEn: 'Cans & Metal', nameBn: 'ক্যান ও টিন', pts: 100 },
-                    { id: 'TETRAPAK_BEVERAGE', nameEn: 'Beverage Cartons', nameBn: 'টেট্রাপ্যাক প্যাকেট', pts: 40 }
-                  ].map((stream) => (
-                    <div
-                      key={stream.id}
-                      onClick={() => setIsGuideModalOpen(true)}
-                      className="p-3 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] hover:border-[#25345C]/30 flex items-center gap-2.5 cursor-pointer transition-all hover:scale-[1.01]"
-                    >
-                      <MaterialIllustration category={stream.id} size="sm" className="shrink-0" />
-                      <div className="min-w-0">
-                        <span className="font-bold text-xs text-[#202B38] block truncate">
-                          {lang === 'en' ? stream.nameEn : stream.nameBn}
-                        </span>
-                        <span className="text-[10px] font-mono text-[#12613F] font-bold">
-                          {stream.pts} pts/kg
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Inline Toggle for Full 6 Streams */}
-                <div className="pt-1 flex items-center justify-between text-xs border-t border-[#FAF5EC]">
-                  <button
-                    type="button"
-                    onClick={() => setShowAllStreamsInline(!showAllStreamsInline)}
-                    className="text-xs font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>{showAllStreamsInline ? t.hideFull6Streams : t.showFull6Streams}</span>
-                  </button>
-                  <span className="text-[11px] text-[#53616D] font-mono">
-                    Rules 2021 Segregated
-                  </span>
-                </div>
-
-                {showAllStreamsInline && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fade-in">
-                    {Object.values(MATERIAL_TAXONOMY).map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3.5 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex items-start gap-3"
-                      >
-                        <MaterialIllustration category={item.id} size="sm" className="shrink-0 mt-0.5" />
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-xs text-[#202B38] truncate">
-                              {lang === 'en' ? item.name : item.nameBn}
+                          <div className="w-full">
+                            <span className="font-bold text-xs text-[#202B38] block truncate">
+                              {lang === 'en' ? stream.nameEn : stream.nameBn}
                             </span>
-                            <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-md font-bold shrink-0">
-                              {item.rewardPointsPerKg} pts/kg
+                            <span className="text-[10px] font-mono font-bold text-[#12613F] block">
+                              {stream.rate}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#53616D] line-clamp-2 leading-relaxed">
-                            {lang === 'en' ? item.prepInstructions : item.prepInstructionsBn}
-                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Sorting Guide Link */}
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsGuideModalOpen(true)}
+                      className="font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#12613F]" />
+                      <span>{t.seeExamples} ({lang === 'en' ? 'Sorting rules' : 'বাছাই নিয়ম'})</span>
+                    </button>
+
+                    <span className="text-[11px] text-[#53616D]">
+                      {homeSelectedCats.length} {lang === 'en' ? 'selected' : 'বাছাইকৃত'}
+                    </span>
+                  </div>
+
+                  {/* Single Primary Action: Book Pickup */}
+                  <button
+                    type="button"
+                    onClick={() => setIsBookingModalOpen(true)}
+                    className="w-full min-h-[52px] py-4 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-black text-sm tracking-wide shadow-sm transition-all cursor-pointer transform active:scale-[0.99] flex items-center justify-center gap-2"
+                  >
+                    <span>
+                      {lang === 'en'
+                        ? `Book Pickup (${homeSelectedCats.length} Streams)`
+                        : `পিকআপ বুক করুন (${homeSelectedCats.length}টি উপাদান)`}
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-[#C9F1DC]" />
+                  </button>
+
+                  {/* Secondary Action: Find a drop-off point */}
+                  <div className="text-center pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsDropOffListOpen(true)}
+                      className="text-xs font-bold text-[#25345C] hover:underline cursor-pointer"
+                    >
+                      {t.findADropOffPoint} →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile-Only Rewards & Impact cards (hidden on desktop because desktop has dedicated cards on right) */}
+              <div className="lg:hidden space-y-4">
+                {/* Rewards Balance Glance on Mobile */}
+                <div className="p-4 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-2xl border border-[#F5BF55] shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#53616D] block">
+                        {lang === 'en' ? 'Rewards Balance' : 'রিওয়ার্ড ব্যালেন্স'}
+                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <strong className="text-xl font-black text-[#202B38] font-mono">{customerAvailablePoints} pts</strong>
+                        <span className="text-[10px] font-bold text-[#12613F] bg-[#C9F1DC] px-1.5 py-0.2 rounded-full">
+                          {t.availableToRedeem}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleTabSwitch('rewards')}
+                      className="px-3 py-1.5 bg-[#25345C] text-white rounded-xl font-bold text-xs"
+                    >
+                      {t.seeRewards} →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Environmental Impact Glance on Mobile */}
+                <div className="p-3.5 bg-white rounded-2xl border border-[#EDE4D8] flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Leaf className="w-4 h-4 text-[#12613F]" />
+                    <span><strong>142.5 kg</strong> {lang === 'en' ? 'diverted this month' : 'সংগৃহীত বর্জ্য'}</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-[#12613F] font-bold bg-[#C9F1DC] px-2 py-0.5 rounded">
+                    Verified
+                  </span>
+                </div>
+              </div>
+
+              {/* Secondary Recurring & Drop-Off Shortcuts */}
+              <div className="pt-2 border-t border-[#EDE4D8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#53616D]">
+                <button
+                  onClick={() => setIsRecurringModalOpen(true)}
+                  className="hover:text-[#25345C] hover:underline cursor-pointer flex items-center gap-1.5 font-semibold"
+                >
+                  <Recycle className="w-4 h-4 text-[#12613F]" />
+                  <span>{t.arrangeRegularCollection}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsDropOffListOpen(true)}
+                  className="hover:text-[#25345C] hover:underline cursor-pointer flex items-center gap-1.5 font-semibold"
+                >
+                  <MapPin className="w-4 h-4 text-[#25345C]" />
+                  <span>{t.findADropOffPoint}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ============================================================== */}
+            {/* RIGHT COLUMN: Desktop Companion Command Suite (5 cols on lg)   */}
+            {/* ============================================================== */}
+            <div className="hidden lg:block lg:col-span-5 space-y-5">
+              {/* Card 1: Circular Rewards Wallet & Quick Vouchers */}
+              <div className="p-5 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-3xl border border-[#F5BF55] shadow-xs space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#53616D] block">
+                      {lang === 'en' ? 'Circular Rewards Wallet' : 'সার্কুলার রিওয়ার্ড ওয়ালেট'}
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <h3 className="text-3xl font-black text-[#202B38] font-mono">
+                        {customerAvailablePoints}
+                      </h3>
+                      <span className="text-xs font-mono font-bold text-[#53616D]">pts</span>
+                      <span className="text-[10px] font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-full">
+                        {t.availableToRedeem}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleTabSwitch('rewards')}
+                    className="p-2.5 rounded-2xl bg-[#25345C] text-white hover:bg-[#1B2644] transition-colors cursor-pointer shadow-2xs"
+                    title={t.seeRewards}
+                  >
+                    <Gift className="w-5 h-5 text-[#C9F1DC]" />
+                  </button>
+                </div>
+
+                {/* Pending Points Badge */}
+                <div className="p-3 bg-white rounded-2xl border border-[#EDE4D8] flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                    <div>
+                      <span className="font-bold text-[#202B38] block">
+                        {lang === 'en' ? 'Pending hub verification' : 'হাবে ওজন যাচাইাধীন'}
+                      </span>
+                      <span className="text-[11px] text-[#7A4D00]">{t.stillBeingChecked}</span>
+                    </div>
+                  </div>
+                  <span className="font-mono font-bold text-sm text-[#25345C]">+{customerPendingPoints} pts</span>
+                </div>
+
+                {/* Quick Vouchers Glance */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#202B38]">{lang === 'en' ? 'Top Redeemable Vouchers' : 'উপযুক্ত শীর্ষ ভাউচার'}</span>
+                    <button
+                      onClick={() => handleTabSwitch('rewards')}
+                      className="text-[11px] font-bold text-[#25345C] hover:underline"
+                    >
+                      {lang === 'en' ? 'View all' : 'সবগুলো দেখুন'} →
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {rewards.slice(0, 2).map((r) => (
+                      <div
+                        key={r.id}
+                        onClick={() => handleTabSwitch('rewards')}
+                        className="p-3 bg-white rounded-xl border border-[#EDE4D8] hover:border-[#25345C] transition-all cursor-pointer shadow-2xs space-y-1"
+                      >
+                        <span className="font-bold text-xs text-[#202B38] block truncate">
+                          {lang === 'en' ? r.title : r.titleBn}
+                        </span>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-mono font-bold text-[#12613F]">{r.pointsCost} pts</span>
+                          <span className="text-[10px] text-[#53616D]">{r.funder}</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar Column (4 cols): Rewards & Summary */}
-            <div className="col-span-12 lg:col-span-5 xl:col-span-4 space-y-5 lg:sticky lg:top-20">
-              {/* Card 1: Verified Rewards Balance Card */}
-              <div className="p-6 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-3xl border-2 border-[#F5BF55] shadow-xs space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#53616D]">
-                      {t.rewardsBalance}
-                    </span>
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <h2 className="text-3xl sm:text-4xl font-black text-[#202B38] tabular-nums">
-                        {customerAvailablePoints}
-                      </h2>
-                      <span className="text-xs font-bold text-[#12613F] bg-[#C9F1DC] px-2.5 py-0.5 rounded-full">
-                        {t.available}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="w-12 h-12 rounded-2xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold shadow-xs shrink-0">
-                    <Gift className="w-6 h-6" />
-                  </div>
-                </div>
-
-                <div className="p-3.5 bg-white border border-[#EDE4D8] rounded-2xl text-xs space-y-1">
-                  <div className="flex justify-between items-center font-semibold">
-                    <span className="text-[#53616D]">{t.pendingHubCheck}:</span>
-                    <span className="font-mono font-bold text-[#25345C]">
-                      +{customerPendingPoints} pts
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-[#53616D] block">
-                    {confirmedKg.toFixed(1)} {lang === 'en' ? 'kg total verified material' : 'কেজি মোট যাচাইকৃত বর্জ্য'}
-                  </span>
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => handleTabSwitch('rewards')}
-                  className="w-full min-h-[44px] py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+                  className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                 >
-                  <span>{t.redeemVouchers}</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <span>{lang === 'en' ? 'Browse Full Rewards Store' : 'পুরো রিওয়ার্ড ক্যাটালগ দেখুন'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* Card 2: Recent Completed Collection Glance */}
-              {lastCompletedBooking && (
-                <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#FAF5EC]">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-[#12613F]" />
-                      <h3 className="font-bold text-xs text-[#202B38]">
-                        {t.recentCollection}
-                      </h3>
+              {/* Card 2: Pilot Lane Schedule & Assigned Van Dispatch */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#C9F1DC] text-[#12613F] flex items-center justify-center font-bold">
+                      <Truck className="w-4 h-4" />
                     </div>
-                    <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-                      Verified ✓
-                    </span>
+                    <div>
+                      <span className="font-bold text-xs text-[#202B38] block">
+                        {lang === 'en' ? 'Neighborhood Doorstep Run' : 'এলাকার ডোরস্টেপ সংগ্রহ রুট'}
+                      </span>
+                      <span className="text-[11px] text-[#53616D]">
+                        {currentLocation.label.split(',')[0]} Pilot Lane
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-3 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] text-xs space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="font-mono text-[#53616D]">#{lastCompletedBooking.id}</span>
-                      <span className="font-bold text-[#25345C]">{lastCompletedBooking.scheduledDate}</span>
+                  <span className="text-[10px] font-mono font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded">
+                    Active
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#53616D]">{lang === 'en' ? 'Next Collection Slot:' : 'পরবর্তী সময়সূচী:'}</span>
+                    <strong className="text-[#202B38]">Tomorrow 09:00 AM – 11:30 AM</strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#53616D]">{lang === 'en' ? 'Assigned Field Van:' : 'বরাদ্দকৃত মাঠ ভ্যান:'}</span>
+                    <span className="font-mono font-bold text-[#25345C]">Electric Trike #DH-14</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#53616D]">{lang === 'en' ? 'Collector Custodian:' : 'সার্টিফাইড সংগ্রাহক:'}</span>
+                    <span className="text-[#202B38] font-medium">Tariq Hossain (Verified)</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRecurringModalOpen(true)}
+                  className="w-full py-2.5 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] border border-[#EDE4D8] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Recycle className="w-3.5 h-3.5 text-[#12613F]" />
+                  <span>{lang === 'en' ? 'Setup Weekly Recurring Service' : 'সাপ্তাহিক রুটিন সংগ্রহ সেটআপ'}</span>
+                </button>
+              </div>
+
+              {/* Card 3: Certified Neighborhood Circular Impact */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#12613F] flex items-center justify-center font-bold">
+                      <Leaf className="w-4 h-4" />
                     </div>
-                    <div className="flex justify-between items-center font-semibold pt-1 border-t border-[#EDE4D8]">
-                      <span className="text-slate-700">
-                        {lastCompletedBooking.confirmedWeightKg || 6.5} kg verified
+                    <div>
+                      <span className="font-bold text-xs text-[#202B38] block">
+                        {lang === 'en' ? 'Lane Diversion & ESG Impact' : 'লেন সার্কুলার পুনরুদ্ধার প্রভাব'}
                       </span>
-                      <span className="font-mono font-bold text-[#12613F]">
-                        +{lastCompletedBooking.earnedPoints || 325} pts
+                      <span className="text-[11px] text-[#53616D]">
+                        {lang === 'en' ? 'Certified scale verified' : 'ডিজিটাল স্কেলে প্রমাণিত'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-mono font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded">
+                    E2 Audit
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-1">
+                    <div className="flex items-center gap-1 text-[#53616D] text-[11px]">
+                      <Scale className="w-3.5 h-3.5 text-[#12613F]" />
+                      <span>{lang === 'en' ? 'Total Diverted' : 'মোট সংগৃহীত'}</span>
+                    </div>
+                    <span className="font-mono font-black text-lg text-[#25345C] block">142.5 kg</span>
+                    <span className="text-[10px] text-[#12613F] font-bold">100% clean stream</span>
+                  </div>
+
+                  <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-1">
+                    <div className="flex items-center gap-1 text-[#53616D] text-[11px]">
+                      <Flame className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{lang === 'en' ? 'CO₂ Avoided' : 'কার্বন নির্গমন রোধ'}</span>
+                    </div>
+                    <span className="font-mono font-black text-lg text-[#12613F] block">318 kg</span>
+                    <span className="text-[10px] text-[#53616D]">Scope 3 reduction</span>
+                  </div>
+
+                  <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-1">
+                    <div className="flex items-center gap-1 text-[#53616D] text-[11px]">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{lang === 'en' ? 'Energy Saved' : 'বিদ্যুৎ সাশ্রয়'}</span>
+                    </div>
+                    <span className="font-mono font-black text-lg text-[#7A4D00] block">48 kWh</span>
+                    <span className="text-[10px] text-[#53616D]">Virgin replacement</span>
+                  </div>
+
+                  <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-1">
+                    <div className="flex items-center gap-1 text-[#53616D] text-[11px]">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#25345C]" />
+                      <span>{lang === 'en' ? 'Landfill Saved' : 'ল্যান্ডফিল রোধ'}</span>
+                    </div>
+                    <span className="font-mono font-black text-lg text-[#25345C] block">1.4 m³</span>
+                    <span className="text-[10px] text-[#53616D]">Zero dumping</span>
+                  </div>
+                </div>
+
+                {/* Collapsible full ESG widget */}
+                <button
+                  type="button"
+                  onClick={() => setShowEnvironmentalImpact(!showEnvironmentalImpact)}
+                  className="w-full py-2 bg-white hover:bg-[#FAF9F5] border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>{showEnvironmentalImpact ? (lang === 'en' ? 'Hide ESG Analytics' : 'বিশ্লেষণ লুকান') : (lang === 'en' ? 'View Detailed ESG Analytics & Charts' : 'বিস্তারিত চার্ট ও বিশ্লেষণ দেখুন')}</span>
+                  {showEnvironmentalImpact ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+
+                {showEnvironmentalImpact && (
+                  <div className="pt-2 animate-fade-in">
+                    <EnvironmentalImpactWidget defaultExpanded={true} />
+                  </div>
+                )}
+              </div>
+
+              {/* Card 4: Nearby Drop-off Stations & Depots */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold">
+                      <MapPin className="w-4 h-4 text-[#25345C]" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-xs text-[#202B38] block">
+                        {lang === 'en' ? 'Nearby Circular Drop-off Stations' : 'নিকটস্থ ড্রপ-অফ কালেকশন স্টেশন'}
+                      </span>
+                      <span className="text-[11px] text-[#53616D]">
+                        {lang === 'en' ? 'Walk-in self-service depots' : 'স্বয়ং সেবা ড্রপ-অফ কেন্দ্র'}
                       </span>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => handleOpenTransactionDetail(lastCompletedBooking)}
-                    className="w-full py-2 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    onClick={() => setIsDropOffListOpen(true)}
+                    className="text-xs font-bold text-[#25345C] hover:underline"
                   >
-                    <span>{t.viewScaleCertificate}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    {lang === 'en' ? 'All' : 'সব'} →
                   </button>
                 </div>
-              )}
 
-              {/* Card 3: Quick Support Assistance */}
-              <div className="p-4 bg-[#FFF9F0] rounded-3xl border border-[#EDE4D8] flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-white border border-[#EDE4D8] flex items-center justify-center text-[#25345C] shrink-0">
-                    <HelpCircle className="w-4 h-4" />
+                <div className="space-y-2.5">
+                  {dropOffPoints.slice(0, 2).map((point) => (
+                    <div
+                      key={point.id}
+                      className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <strong className="text-[#202B38] block">{point.name}</strong>
+                          <span className="text-[11px] text-[#53616D] block">{point.address}</span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-[#C9F1DC] text-[#12613F] px-1.5 py-0.5 rounded font-bold shrink-0">
+                          {point.operatingHours}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-[#EDE4D8]/80 text-[11px]">
+                        <span className="text-[#53616D]">
+                          {point.acceptedMaterials.length} {lang === 'en' ? 'streams accepted' : 'উপাদান গৃহীত'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDropOffPoint(point);
+                          }}
+                          className="font-bold text-[#25345C] hover:underline cursor-pointer"
+                        >
+                          {lang === 'en' ? 'Guidelines' : 'নির্দেশনা'} →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 5: EPR Brand Partner Campaign */}
+              <div className="p-4 bg-gradient-to-r from-[#FEF8EB] to-[#FFF9F0] rounded-3xl border border-[#F5BF55] flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold shrink-0">
+                    <Sparkles className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <span className="font-bold text-[#202B38] block truncate">
-                      {t.doorstepSupport}
-                    </span>
-                    <span className="text-[11px] text-[#53616D] block truncate">
-                      {t.pickupQuestions}
-                    </span>
+                  <div>
+                    <strong className="text-[#202B38] block">Dhaka Circular Plastic Initiative 2026</strong>
+                    <span className="text-[11px] text-[#7A4D00]">Sponsored by Unilever & Nestlé · 2x points on clean PET</span>
                   </div>
                 </div>
-
                 <button
-                  onClick={() => handleReportIssue(nextBooking?.id)}
-                  className="px-3 py-1.5 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-colors shadow-2xs"
+                  type="button"
+                  onClick={() => handleTabSwitch('rewards')}
+                  className="px-3 py-1.5 bg-[#25345C] text-white rounded-xl font-bold text-xs shrink-0 cursor-pointer"
                 >
-                  {t.getHelp}
+                  Active
                 </button>
               </div>
             </div>
@@ -604,163 +797,389 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: REWARDS (Full Catalogue & Points Ledger) */}
+      {/* TAB 2: REWARDS (Responsive 2-Column Desktop & Clean Mobile)              */}
       {/* ========================================================================= */}
       {activeTab === 'rewards' && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Rewards Summary Banner */}
-          <div className="p-6 sm:p-8 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-3xl border-2 border-[#F5BF55] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#53616D]">
-                {lang === 'en' ? 'Verified Circular Points' : 'যাচাইকৃত সার্কুলার পয়েন্ট'}
-              </span>
-              <div className="flex items-baseline gap-3 mt-1">
-                <h2 className="text-4xl sm:text-5xl font-black text-[#202B38] tabular-nums">
-                  {customerAvailablePoints}
-                </h2>
-                <span className="text-xs font-bold text-[#12613F] bg-[#C9F1DC] px-3 py-1 rounded-full">
-                  {t.availableToRedeem}
-                </span>
-              </div>
-              <p className="text-xs text-[#53616D] mt-2">
-                {lang === 'en'
-                  ? `+${customerPendingPoints} points awaiting hub scale check · ${confirmedKg.toFixed(1)} kg total material diverted`
-                  : `+${customerPendingPoints} পয়েন্ট হাবে যাচাইাধীন · মোট ${confirmedKg.toFixed(1)} কেজি বর্জ্য পুনরুদ্ধার`}
-              </p>
-            </div>
-
-            <div className="w-16 h-16 rounded-3xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-black shadow-md self-start sm:self-auto">
-              <Gift className="w-8 h-8" />
-            </div>
-          </div>
-
-          {/* Reward Catalogue Grid */}
-          <div className="space-y-4">
-            <h3 className="text-base font-bold text-[#202B38]">
-              {t.rewardCatalogTitle}
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rewards.map((item) => {
-                const canAfford = customerAvailablePoints >= item.pointsCost;
-                return (
-                  <div
-                    key={item.id}
-                    className="p-5 rounded-3xl bg-white border border-[#EDE4D8] flex flex-col justify-between space-y-4 shadow-2xs hover:border-[#25345C]/40 transition-all"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-bold bg-[#FAF5EC] text-[#53616D] px-2 py-0.5 rounded-md uppercase">
-                          {item.category}
-                        </span>
-                        <span className="font-mono font-black text-[#12613F] text-sm">
-                          {item.pointsCost} pts
-                        </span>
-                      </div>
-
-                      <h4 className="font-bold text-sm text-[#202B38]">
-                        {lang === 'en' ? item.title : item.titleBn}
-                      </h4>
-                      <p className="text-xs text-[#53616D] leading-relaxed">
-                        {lang === 'en' ? item.description : item.descriptionBn || item.description}
-                      </p>
-                      <span className="text-[11px] text-[#53616D] block font-semibold">
-                        {lang === 'en' ? `Funder: ${item.funder}` : `ইপিআর স্পনসর: ${item.funder}`}
+        <div className="w-full max-w-xl lg:max-w-7xl mx-auto space-y-6 animate-fade-in pt-2">
+          {/* ===================================================================== */}
+          {/* DESKTOP REWARDS VIEW: 2-Column Balanced Dashboard (>= 1024px)         */}
+          {/* ===================================================================== */}
+          <div className="hidden lg:grid grid-cols-12 gap-8 items-start">
+            {/* Left Column (5 cols): Points Balance, Earning Rules, Points History */}
+            <div className="lg:col-span-5 space-y-5">
+              {/* Rewards Wallet Header Card */}
+              <div className="p-6 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-3xl border-2 border-[#F5BF55] shadow-xs space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#53616D] block">
+                      {lang === 'en' ? 'Available Points' : 'উপলব্ধ পয়েন্ট'}
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <h2 className="text-4xl font-black text-[#202B38] font-mono tabular-nums">
+                        {customerAvailablePoints}
+                      </h2>
+                      <span className="text-xs font-bold text-[#12613F] bg-[#C9F1DC] px-2.5 py-0.5 rounded-full">
+                        {t.availableToRedeem}
                       </span>
                     </div>
-
-                    <button
-                      onClick={() => handleRedeem(item.id)}
-                      disabled={!canAfford}
-                      className={`w-full min-h-[44px] rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        canAfford
-                          ? 'bg-[#25345C] hover:bg-[#1B2644] text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                      }`}
-                    >
-                      <Gift className="w-4 h-4 text-[#C9F1DC]" />
-                      <span>
-                        {canAfford
-                          ? t.redeemButton
-                          : `${item.pointsCost - customerAvailablePoints} ${t.morePointsNeeded}`}
-                      </span>
-                    </button>
                   </div>
-                );
-              })}
+
+                  <div className="w-12 h-12 rounded-2xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                    <Gift className="w-6 h-6" />
+                  </div>
+                </div>
+
+                {/* Pending Points Separately with "Still being checked" */}
+                <div className="p-3.5 bg-white rounded-2xl border border-[#EDE4D8] text-xs flex justify-between items-center">
+                  <div>
+                    <span className="text-[#53616D] block font-bold">
+                      {lang === 'en' ? 'Pending Scale Verification:' : 'যাচাইাধীন পয়েন্ট:'}
+                    </span>
+                    <span className="text-[11px] text-[#7A4D00]">
+                      {t.stillBeingChecked}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-[#25345C] text-sm">
+                    +{customerPendingPoints} pts
+                  </span>
+                </div>
+              </div>
+
+              {/* How Points Work (Earning Rules) */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-3.5 shadow-2xs text-xs">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-[#12613F]" />
+                  <span className="font-bold text-[#202B38] text-sm block">{t.howPointsWork}</span>
+                </div>
+                <p className="text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'Points are earned strictly based on the certified digital scale weight of clean, segregated recyclables. Unwashed or contaminated materials are rejected.'
+                    : 'পয়েন্ট সরাসরি ডিজিটাল স্কেলে মেপে পরিষ্কার বর্জ্যের ওজনের ওপর দেওয়া হয়। অপরিচ্ছন্ন বা মিশ্রিত বর্জ্য পয়েন্টের জন্য বিবেচিত হবে না।'}
+                </p>
+
+                <div className="space-y-2">
+                  {[
+                    { name: 'Plastic Bottles (PET)', rate: '50 pts / kg' },
+                    { name: 'Paper & Cardboard (OCC)', rate: '25 pts / kg' },
+                    { name: 'Aluminum Cans & Metal', rate: '100 pts / kg' },
+                    { name: 'Rigid Plastics (HDPE)', rate: '45 pts / kg' }
+                  ].map((r, i) => (
+                    <div key={i} className="p-2.5 bg-[#FAF9F5] rounded-xl flex justify-between items-center">
+                      <span className="font-bold text-[#202B38]">{r.name}</span>
+                      <span className="font-mono font-bold text-[#12613F]">{r.rate}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Points History (Audit Ledger) */}
+              <div className="bg-white rounded-3xl border border-[#EDE4D8] p-5 shadow-2xs space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#202B38] text-sm block">{t.pointsLedgerTitle}</span>
+                  <span className="font-mono text-[10px] text-[#12613F] font-bold bg-[#C9F1DC] px-2 py-0.5 rounded">
+                    Immutable Log
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {pointsLedger.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="p-3 bg-[#FAF9F5] rounded-xl border border-[#EDE4D8] flex items-center justify-between"
+                    >
+                      <div>
+                        <span className="font-bold text-[#202B38] block">{entry.description}</span>
+                        <span className="text-[11px] text-[#53616D] font-mono">
+                          {entry.timestamp.split('T')[0]} · {entry.status}
+                        </span>
+                      </div>
+                      <span
+                        className={`font-mono font-bold text-sm ${
+                          entry.amount > 0 ? 'text-[#12613F]' : 'text-[#202B38]'
+                        }`}
+                      >
+                        {entry.amount > 0 ? `+${entry.amount}` : entry.amount} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column (7 cols): EPR Campaigns & Eligible Vouchers Catalog */}
+            <div className="lg:col-span-7 space-y-5">
+              {/* Active Brand Partner Campaigns Banner */}
+              <div className="p-5 bg-gradient-to-r from-[#FEF8EB] via-white to-[#FFF9F0] border-2 border-[#F5BF55] rounded-3xl space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-[#202B38] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#7A4D00]" />
+                    <span>Dhaka Circular Plastic Initiative 2026</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded">
+                    Active EPR Incentive
+                  </span>
+                </div>
+                <p className="text-xs text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'Sponsored by Unilever & Nestlé. Double points on all clean food-grade PET bottles in your collection lane.'
+                    : 'ইউনিলিভার ও নেসলে স্পনসরড। আপনার লেনে পরিষ্কার পিইটি বোতলে দ্বিগুণ পয়েন্ট প্রযোজ্য।'}
+                </p>
+              </div>
+
+              {/* Vouchers Catalog Grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-[#202B38]">{t.eligibleRewards}</h3>
+                  <span className="text-xs text-[#53616D]">{rewards.length} {lang === 'en' ? 'available vouchers' : 'উপলব্ধ ভাউচার'}</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {rewards.map((item) => {
+                    const canAfford = customerAvailablePoints >= item.pointsCost;
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl bg-white border border-[#EDE4D8] hover:border-[#25345C]/50 transition-all shadow-2xs flex flex-col justify-between gap-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-bold text-xs text-[#202B38] truncate">
+                              {lang === 'en' ? item.title : item.titleBn}
+                            </h4>
+                            <span className="text-[10px] font-mono text-[#12613F] font-bold bg-[#C9F1DC] px-2 py-0.5 rounded shrink-0">
+                              {item.pointsCost} pts
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#53616D] line-clamp-2 leading-relaxed">
+                            {lang === 'en' ? item.description : item.descriptionBn || item.description}
+                          </p>
+                          <span className="text-[10px] text-[#53616D] block font-medium">
+                            Sponsored by {item.funder}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => handleRedeem(item.id)}
+                          disabled={!canAfford}
+                          className={`w-full py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+                            canAfford
+                              ? 'bg-[#25345C] hover:bg-[#1B2644] text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                          }`}
+                        >
+                          {canAfford ? t.redeemButton : `${item.pointsCost - customerAvailablePoints} ${t.morePointsNeeded}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Full Points Ledger Table */}
-          <div className="bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xs space-y-4">
-            <h3 className="text-base font-bold text-[#202B38]">
-              {t.pointsLedgerTitle}
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-[#FAF5EC] text-[#53616D] uppercase font-bold border-y border-[#EDE4D8]">
-                  <tr>
-                    <th className="py-3 px-4">{lang === 'en' ? 'Date' : 'তারিখ'}</th>
-                    <th className="py-3 px-4">{lang === 'en' ? 'Event Description' : 'বিবরণ'}</th>
-                    <th className="py-3 px-4">{lang === 'en' ? 'Status' : 'স্ট্যাটাস'}</th>
-                    <th className="py-3 px-4 text-right">{lang === 'en' ? 'Points' : 'পয়েন্ট'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#FAF5EC] font-mono">
-                  {pointsLedger.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-[#FFF9F0]/60">
-                      <td className="py-3 px-4 text-[#53616D]">
-                        {entry.timestamp.split('T')[0]}
-                      </td>
-                      <td className="py-3 px-4 font-sans text-[#202B38]">
-                        {entry.description}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            entry.status === 'AVAILABLE'
-                              ? 'bg-[#C9F1DC] text-[#12613F]'
-                              : entry.status === 'PENDING'
-                              ? 'bg-amber-100 text-amber-900'
-                              : 'bg-slate-100 text-slate-700'
+          {/* ===================================================================== */}
+          {/* MOBILE REWARDS VIEW: Single Column with Sub-View Switcher (< 1024px)  */}
+          {/* ===================================================================== */}
+          <div className="lg:hidden space-y-5">
+            {/* Rewards Header Card */}
+            <div className="p-6 bg-gradient-to-br from-[#FEF8EB] via-white to-[#FFF9F0] rounded-3xl border-2 border-[#F5BF55] shadow-xs space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#53616D] block">
+                    {lang === 'en' ? 'Available Points' : 'উপলব্ধ পয়েন্ট'}
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <h2 className="text-4xl font-black text-[#202B38] font-mono tabular-nums">
+                      {customerAvailablePoints}
+                    </h2>
+                    <span className="text-xs font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-full">
+                      {t.availableToRedeem}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-12 h-12 rounded-2xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold shrink-0">
+                  <Gift className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Pending Points Separately with "Still being checked" */}
+              <div className="p-3 bg-white rounded-2xl border border-[#EDE4D8] text-xs flex justify-between items-center">
+                <div>
+                  <span className="text-[#53616D] block">
+                    {lang === 'en' ? 'Pending Points:' : 'যাচাইাধীন পয়েন্ট:'}
+                  </span>
+                  <span className="text-[11px] text-[#7A4D00] font-medium">
+                    {t.stillBeingChecked}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-[#25345C] text-sm">
+                  +{customerPendingPoints} pts
+                </span>
+              </div>
+            </div>
+
+            {/* Sub-Views Switcher Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1">
+              {[
+                { id: 'spending', labelEn: 'Eligible Rewards', labelBn: 'উপযুক্ত ভাউচার' },
+                { id: 'history', labelEn: 'Points History', labelBn: 'পয়েন্ট খতিয়ান' },
+                { id: 'rules', labelEn: 'How Points Work', labelBn: 'পয়েন্ট নিয়ম' },
+                { id: 'campaigns', labelEn: 'Campaigns', labelBn: 'ক্যাম্পেইন' }
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setActiveRewardsSubView(v.id as any)}
+                  className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+                    activeRewardsSubView === v.id
+                      ? 'bg-[#25345C] text-white shadow-2xs'
+                      : 'bg-white border border-[#EDE4D8] text-[#53616D] hover:bg-[#FAF5EC]'
+                  }`}
+                >
+                  {lang === 'en' ? v.labelEn : v.labelBn}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile Sub-View 1: Spending */}
+            {activeRewardsSubView === 'spending' && (
+              <div className="space-y-3 animate-fade-in">
+                <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                  {t.eligibleRewards}
+                </span>
+
+                <div className="space-y-3">
+                  {rewards.map((item) => {
+                    const canAfford = customerAvailablePoints >= item.pointsCost;
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl bg-white border border-[#EDE4D8] flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-[#202B38] truncate">
+                              {lang === 'en' ? item.title : item.titleBn}
+                            </span>
+                            <span className="text-[10px] font-mono text-[#12613F] font-bold bg-[#C9F1DC] px-1.5 py-0.2 rounded">
+                              {item.pointsCost} pts
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#53616D] line-clamp-1">
+                            {lang === 'en' ? item.description : item.descriptionBn || item.description}
+                          </p>
+                          <span className="text-[10px] text-[#53616D] block">
+                            Funder: {item.funder}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => handleRedeem(item.id)}
+                          disabled={!canAfford}
+                          className={`px-4 py-2 rounded-xl font-bold text-xs shrink-0 transition-colors cursor-pointer ${
+                            canAfford
+                              ? 'bg-[#25345C] hover:bg-[#1B2644] text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                           }`}
                         >
-                          {entry.status}
+                          {canAfford ? t.redeemButton : `${item.pointsCost - customerAvailablePoints} ${t.morePointsNeeded}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Sub-View 2: History */}
+            {activeRewardsSubView === 'history' && (
+              <div className="bg-white rounded-3xl border border-[#EDE4D8] p-5 shadow-2xs space-y-3 animate-fade-in text-xs">
+                <span className="font-bold text-[#202B38] block">{t.pointsLedgerTitle}</span>
+                <div className="space-y-2">
+                  {pointsLedger.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="p-3 bg-[#FAF9F5] rounded-xl border border-[#EDE4D8] flex items-center justify-between"
+                    >
+                      <div>
+                        <span className="font-bold text-[#202B38] block">{entry.description}</span>
+                        <span className="text-[11px] text-[#53616D] font-mono">
+                          {entry.timestamp.split('T')[0]} · {entry.status}
                         </span>
-                      </td>
-                      <td
-                        className={`py-3 px-4 text-right font-bold ${
-                          entry.amount > 0 ? 'text-[#12613F]' : 'text-slate-800'
+                      </div>
+                      <span
+                        className={`font-mono font-bold text-sm ${
+                          entry.amount > 0 ? 'text-[#12613F]' : 'text-[#202B38]'
                         }`}
                       >
-                        {entry.amount > 0 ? `+${entry.amount}` : entry.amount}
-                      </td>
-                    </tr>
+                        {entry.amount > 0 ? `+${entry.amount}` : entry.amount} pts
+                      </span>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Sub-View 3: Rules */}
+            {activeRewardsSubView === 'rules' && (
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-4 animate-fade-in text-xs">
+                <span className="font-bold text-[#202B38] block">{t.howPointsWork}</span>
+                <p className="text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'Points are earned strictly based on the certified digital scale weight of clean, segregated recyclables. Unwashed or contaminated materials are rejected.'
+                    : 'পয়েন্ট সরাসরি ডিজিটাল স্কেলে মেপে পরিষ্কার বর্জ্যের ওজনের ওপর দেওয়া হয়। অপরিচ্ছন্ন বা মিশ্রিত বর্জ্য পয়েন্টের জন্য বিবেচিত হবে না।'}
+                </p>
+
+                <div className="space-y-2">
+                  {[
+                    { name: 'Plastic Bottles (PET)', rate: '50 pts / kg' },
+                    { name: 'Paper & Cardboard (OCC)', rate: '25 pts / kg' },
+                    { name: 'Aluminum Cans & Metal', rate: '100 pts / kg' },
+                    { name: 'Rigid Plastics (HDPE)', rate: '45 pts / kg' }
+                  ].map((r, i) => (
+                    <div key={i} className="p-2.5 bg-[#FAF9F5] rounded-xl flex justify-between items-center">
+                      <span className="font-bold text-[#202B38]">{r.name}</span>
+                      <span className="font-mono font-bold text-[#12613F]">{r.rate}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Sub-View 4: Campaigns */}
+            {activeRewardsSubView === 'campaigns' && (
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-3 animate-fade-in text-xs">
+                <span className="font-bold text-[#202B38] block">EPR Brand Partner Campaigns</span>
+                <div className="p-3.5 bg-[#FFF9F0] border border-[#F5BF55] rounded-2xl space-y-1.5">
+                  <span className="font-bold text-[#202B38] block">Dhaka Circular Plastic Initiative 2026</span>
+                  <p className="text-[#53616D]">
+                    {lang === 'en'
+                      ? 'Sponsored by Unilever & Nestlé. Double points on all clean food-grade PET bottles.'
+                      : 'ইউনিলিভার ও নেসলে স্পনসরড। পরিষ্কার পিইটি বোতলে দ্বিগুণ পয়েন্ট।'}
+                  </p>
+                  <span className="text-[10px] font-mono text-[#12613F] font-bold block pt-1">
+                    Active in Gulshan & Dhanmondi zones
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: MY ACTIVITY (Chronological Collection Timeline) */}
+      {/* TAB 3: MY ACTIVITY (Responsive 2-Column Desktop & Clean Mobile)           */}
       {/* ========================================================================= */}
       {activeTab === 'activity' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="w-full max-w-xl lg:max-w-7xl mx-auto space-y-6 animate-fade-in pt-2">
+          {/* Header & Filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
             <div>
-              <h2 className="text-xl font-bold text-[#202B38]">
-                {t.collectionHistoryTitle}
-              </h2>
-              <p className="text-xs text-[#53616D]">
-                {t.collectionHistorySub}
-              </p>
+              <h2 className="text-xl font-bold text-[#202B38]">{t.collectionHistoryTitle}</h2>
+              <p className="text-xs text-[#53616D]">{t.collectionHistorySub}</p>
             </div>
 
-            {/* Filter Chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1">
               {[
                 { id: 'all', label: t.filterAll },
                 { id: 'upcoming', label: t.filterUpcoming },
@@ -770,7 +1189,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 <button
                   key={f.id}
                   onClick={() => setActivityFilter(f.id as any)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
                     activityFilter === f.id
                       ? 'bg-[#25345C] text-white shadow-2xs'
                       : 'bg-white border border-[#EDE4D8] text-[#53616D] hover:bg-[#FAF5EC]'
@@ -782,296 +1201,180 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
             </div>
           </div>
 
-          {/* Collections Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredBookings.map((booking) => {
-              const isUpcoming =
-                booking.status === 'CONFIRMED' ||
-                booking.status === 'COLLECTOR_ASSIGNED' ||
-                booking.status === 'REQUESTED';
-
-              return (
-                <div
-                  key={booking.id}
-                  onClick={() => handleOpenTransactionDetail(booking)}
-                  className="p-5 rounded-3xl bg-white border border-[#EDE4D8] hover:border-[#25345C] transition-all space-y-3 shadow-2xs cursor-pointer group flex flex-col justify-between"
-                >
-                  <div className="space-y-2">
+          {/* Desktop 2-Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Column (7 cols): Collection History Cards */}
+            <div className="lg:col-span-7 space-y-3">
+              {filteredBookings.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-3xl border border-[#EDE4D8] text-xs text-[#53616D]">
+                  {lang === 'en' ? 'No collections found in this filter.' : 'এই ফিল্টারে কোনো সংগ্রহ পাওয়া যায়নি।'}
+                </div>
+              ) : (
+                filteredBookings.map((b) => (
+                  <div
+                    key={b.id}
+                    onClick={() => handleOpenStatus(b)}
+                    className="p-4 bg-white rounded-2xl border border-[#EDE4D8] hover:border-[#25345C] transition-all cursor-pointer shadow-2xs space-y-2.5"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-[#25345C]">
-                            #{booking.id}
+                          <span className="font-mono font-bold text-xs text-[#25345C]">
+                            #{b.id}
                           </span>
                           <span
-                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                              isUpcoming
+                            className={`text-[10px] font-mono font-bold px-2 py-0.2 rounded-md ${
+                              b.status === 'CONFIRMED' || b.status === 'COLLECTOR_ASSIGNED' || b.status === 'REQUESTED'
                                 ? 'bg-sky-100 text-sky-800'
-                                : booking.status === 'MISSED' || booking.status === 'DISPUTED'
+                                : b.status === 'MISSED' || b.status === 'DISPUTED'
                                 ? 'bg-amber-100 text-amber-900'
                                 : 'bg-emerald-100 text-emerald-800'
                             }`}
                           >
-                            {booking.status}
+                            {b.status}
                           </span>
                         </div>
-                        <h4 className="text-base font-bold text-[#202B38] mt-1">
-                          {booking.scheduledDate} ({booking.scheduledTimeWindow})
+                        <h4 className="text-sm font-bold text-[#202B38] mt-1">
+                          {b.scheduledDate} ({b.scheduledTimeWindow})
                         </h4>
                       </div>
 
                       <div className="text-right">
-                        <span className="text-sm font-bold text-[#202B38] block tabular-nums">
-                          {booking.confirmedWeightKg
-                            ? `${booking.confirmedWeightKg} kg`
-                            : lang === 'en' ? 'Pending intake' : 'যাচাইাধীন'}
+                        <span className="text-sm font-bold text-[#202B38] font-mono block">
+                          {b.confirmedWeightKg ? `${b.confirmedWeightKg} kg` : lang === 'en' ? 'Pending scale' : 'যাচাইাধীন'}
                         </span>
-                        <EvidenceBadge level={booking.evidenceLevel} />
+                        <EvidenceBadge level={b.evidenceLevel || 'E2'} />
                       </div>
                     </div>
 
-                    <p className="text-xs text-[#53616D] line-clamp-1">
-                      📍 {booking.address}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-[#53616D] pt-3 border-t border-[#FAF5EC]">
-                    <span className="truncate max-w-[220px]">
-                      {booking.materials.map((m) => m.category.replace('_', ' ')).join(', ')}
-                    </span>
-                    <span className="font-bold text-[#25345C] group-hover:underline flex items-center gap-1">
-                      <span>{t.seeReceipt}</span>
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 4: SERVICES & DROP-OFF DEPOTS */}
-      {/* ========================================================================= */}
-      {activeTab === 'services' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-[#202B38]">
-                {lang === 'en' ? 'Drop-Off Hubs & Specialized Services' : 'ড্রপ-অফ কেন্দ্র ও বিশেষ সেবা'}
-              </h2>
-              <p className="text-xs text-[#53616D]">
-                {lang === 'en'
-                  ? 'Self drop-off locations, brand takeback and commercial recovery options'
-                  : 'স্বয়ংক্রিয় ড্রপ-অফ পয়েন্ট, ব্র্যান্ড রিকভারি ও বাণিজ্যিক সেবা'}
-              </p>
-            </div>
-            <button
-              onClick={() => setIsBookingModalOpen(true)}
-              className="px-4 py-2 bg-[#25345C] text-white rounded-xl text-xs font-bold hover:bg-[#1B2644] cursor-pointer"
-            >
-              {t.bookPickup}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dropOffPoints.map((point) => (
-              <div
-                key={point.id}
-                className="p-5 rounded-3xl bg-white border border-[#EDE4D8] space-y-3 shadow-2xs"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm text-[#202B38]">{point.name}</h4>
-                    <p className="text-xs text-[#53616D] mt-0.5">{point.address}</p>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold">
-                    Open {point.operatingHours}
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-[#53616D]">
-                    {lang === 'en' ? 'Accepted Materials:' : 'অনুমোদিত উপাদান:'}
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {point.acceptedMaterials.map((m) => (
-                      <span
-                        key={m}
-                        className="text-[10px] bg-[#FAF5EC] text-[#202B38] px-2 py-0.5 rounded-md font-semibold"
-                      >
-                        {m.replace('_', ' ')}
+                    <div className="flex items-center justify-between text-xs text-[#53616D] pt-2 border-t border-[#FAF5EC]">
+                      <span className="truncate max-w-[200px]">
+                        {b.materials.map((m) => m.category.replace(/_/g, ' ')).join(', ')}
                       </span>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedDropOffPoint(point)}
-                  className="w-full py-2 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  {lang === 'en' ? 'View Depot Guidelines' : 'কেন্দ্রের নিয়মাবলী দেখুন'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 5: ACCOUNT & SITES */}
-      {/* ========================================================================= */}
-      {activeTab === 'account' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#25345C] text-[#C9F1DC] flex items-center justify-center font-bold">
-                <User className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[#202B38]">Nasreen Akhter</h3>
-                <span className="text-xs text-[#53616D]">+880 1712-345678 · Dhaka Clean Lane Pilot</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#53616D]">
-                {lang === 'en' ? 'Account Perspective:' : 'অ্যাকাউন্টের ধরন:'}
-              </span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as any)}
-                className="bg-[#FAF5EC] border border-[#EDE4D8] rounded-xl px-3 py-1.5 text-xs font-bold text-[#202B38] cursor-pointer"
-              >
-                <option value="customer_household">
-                  {lang === 'en' ? 'Household Resident' : 'বাসাবাড়ির বাসিন্দা'}
-                </option>
-                <option value="customer_apartment">
-                  {lang === 'en' ? 'Apartment Committee' : 'ভবন ব্যবস্থাপনা কমিটি'}
-                </option>
-                <option value="customer_business">
-                  {lang === 'en' ? 'Business / Café' : 'ব্যবসা প্রতিষ্ঠান'}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          {/* Organisation Dashboard for Apartment / Commercial */}
-          {(role === 'customer_apartment' || role === 'customer_business') && (
-            <OrganisationDashboardView />
-          )}
-
-          {/* Saved Service Addresses List */}
-          <div className="bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[#202B38]">
-                {lang === 'en' ? 'Saved Collection Addresses' : 'সংরক্ষিত সেবার ঠিকানা'}
-              </h3>
-              <button
-                onClick={() => setIsOnboardingModalOpen(true)}
-                className="px-3.5 py-1.5 bg-[#25345C] text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-[#1B2644]"
-              >
-                {t.addNewAddress}
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {savedLocations.map((loc) => (
-                <div
-                  key={loc.id}
-                  className="p-4 rounded-2xl border border-[#EDE4D8] bg-[#FAF5EC]/40 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-[#202B38]">{loc.label}</span>
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.2 rounded-md font-bold ${
-                          loc.status === 'available'
-                            ? 'bg-[#C9F1DC] text-[#12613F]'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {loc.status === 'available' ? t.activeLane : t.waitlist}
+                      <span className="font-bold text-[#25345C] flex items-center gap-1">
+                        <span>{t.seeDetails}</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </span>
                     </div>
-                    <p className="text-xs text-[#53616D] mt-0.5">{loc.address}</p>
                   </div>
-                  {selectedLocationId === loc.id ? (
-                    <span className="text-xs font-bold text-[#12613F] flex items-center gap-1">
-                      <Check className="w-4 h-4" />
-                      <span>{lang === 'en' ? 'Active' : 'নির্বাচিত'}</span>
+                ))
+              )}
+            </div>
+
+            {/* Right Column (5 cols on lg): Verified Measurement & Custody Audit Trail */}
+            <div className="space-y-5 lg:col-span-5">
+              {/* Custody Standards Card */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-3.5 shadow-2xs text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-[#12613F]" />
+                    <span className="font-bold text-sm text-[#202B38]">
+                      {lang === 'en' ? 'Chain-of-Custody Verification' : 'কাস্টডি চেইন ও অডিট ট্রেইল'}
                     </span>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedLocationId(loc.id)}
-                      className="px-3 py-1 bg-white border border-[#EDE4D8] text-[#25345C] rounded-xl text-xs font-bold hover:bg-[#FAF5EC] cursor-pointer"
-                    >
-                      {lang === 'en' ? 'Select' : 'নির্বাচন'}
-                    </button>
-                  )}
+                  </div>
+                  <EvidenceBadge level="E2" />
                 </div>
-              ))}
+
+                <p className="text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'All collections undergo certified dual-stage measurement: doorstep hanging scale weight verified against hub digital platform scale before batch consolidation.'
+                    : 'প্রতিটি সংগ্রহ দ্বি-স্তরীয় ওজনে সার্টিফাইড: দরজায় ঝুলন্ত স্কেলে ওজন এবং একত্রীকরণ হাবে ডিজিটাল প্ল্যাটফর্ম স্কেলে ওজন মিলিয়ে ব্যাচ প্রস্তুত করা হয়।'}
+                </p>
+
+                <div className="p-3 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#12613F]" />
+                    <span className="text-[#202B38] font-semibold">1. Doorstep Custody: Field Collector Tariq Hossain</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#25345C]" />
+                    <span className="text-[#202B38] font-semibold">2. Hub Aggregation: Dhanmondi Station (Bay 2)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#B46A14]" />
+                    <span className="text-[#202B38] font-semibold">3. Circular Mill: Apex Eco-Flakes Recycler Mill</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Environmental Recovery Totals Widget */}
+              <div className="p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-3 shadow-2xs">
+                <span className="font-bold text-sm text-[#202B38] block">
+                  {lang === 'en' ? 'Environmental Recovery Totals' : 'পুনরুদ্ধার ও পরিবেশগত প্রভাব'}
+                </span>
+                <EnvironmentalImpactWidget defaultExpanded={true} />
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MOBILE FLOATING ACTION DOCK (Thumb Reachable) */}
+      {/* MOBILE 3-TAB THUMB NAVIGATION DOCK                                        */}
       {/* ========================================================================= */}
       <aside
-        aria-label="Mobile quick actions"
-        className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-[#EDE4D8] px-4 py-2.5 z-30 shadow-lg flex items-center justify-between gap-3"
+        aria-label="Mobile navigation"
+        className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-[#EDE4D8] px-6 py-2.5 z-30 shadow-lg flex items-center justify-around"
       >
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleTabSwitch('home')}
-            className={`p-2 rounded-xl flex flex-col items-center gap-0.5 ${
-              activeTab === 'home' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
-            }`}
-          >
-            <Home className="w-4 h-4" />
-            <span className="text-[10px]">{t.home}</span>
-          </button>
-
-          <button
-            onClick={() => handleTabSwitch('rewards')}
-            className={`p-2 rounded-xl flex flex-col items-center gap-0.5 ${
-              activeTab === 'rewards' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
-            }`}
-          >
-            <Gift className="w-4 h-4" />
-            <span className="text-[10px]">{t.rewards}</span>
-          </button>
-
-          <button
-            onClick={() => handleTabSwitch('activity')}
-            className={`p-2 rounded-xl flex flex-col items-center gap-0.5 ${
-              activeTab === 'activity' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span className="text-[10px]">{t.myActivity}</span>
-          </button>
-        </div>
+        <button
+          onClick={() => handleTabSwitch('home')}
+          className={`flex flex-col items-center gap-1 text-xs transition-colors cursor-pointer ${
+            activeTab === 'home' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-[11px]">{t.home}</span>
+        </button>
 
         <button
-          onClick={() => setIsBookingModalOpen(true)}
-          className="flex-1 max-w-[180px] min-h-[44px] px-3.5 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+          onClick={() => handleTabSwitch('rewards')}
+          className={`flex flex-col items-center gap-1 text-xs transition-colors cursor-pointer ${
+            activeTab === 'rewards' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
+          }`}
         >
-          <Plus className="w-4 h-4 text-[#C9F1DC]" />
-          <span>{t.bookPickup}</span>
+          <Gift className="w-5 h-5" />
+          <span className="text-[11px]">{t.rewards}</span>
+        </button>
+
+        <button
+          onClick={() => handleTabSwitch('activity')}
+          className={`flex flex-col items-center gap-1 text-xs transition-colors cursor-pointer ${
+            activeTab === 'activity' ? 'text-[#12613F] font-bold' : 'text-[#53616D]'
+          }`}
+        >
+          <Clock className="w-5 h-5" />
+          <span className="text-[11px]">{t.myActivity}</span>
         </button>
       </aside>
 
       {/* ========================================================================= */}
-      {/* ALL MODAL TOUCHPOINTS */}
+      {/* ALL MODAL TOUCHPOINTS                                                     */}
       {/* ========================================================================= */}
       <NewBookingModal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
         onOpenRewards={() => handleTabSwitch('rewards')}
-        onOpenHelp={(bookingId) => handleReportIssue(bookingId)}
+        onOpenHelp={(bId) => handleGetHelp(bId)}
+        onOpenRecurring={() => setIsRecurringModalOpen(true)}
+        initialSelectedCats={homeSelectedCats}
+      />
+
+      <CollectionStatusModal
+        booking={statusModalBooking}
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+        onGetHelp={(bId) => handleGetHelp(bId)}
+      />
+
+      <RecurringServiceModal
+        isOpen={isRecurringModalOpen}
+        onClose={() => setIsRecurringModalOpen(false)}
+      />
+
+      <DisputeModal
+        isOpen={isDisputeModalOpen}
+        bookingId={selectedBookingForHelp}
+        onClose={() => setIsDisputeModalOpen(false)}
       />
 
       <MaterialGuideModal
@@ -1079,118 +1382,64 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
         onClose={() => setIsGuideModalOpen(false)}
       />
 
-      <OnboardingFlowModal
-        isOpen={isOnboardingModalOpen}
-        onClose={() => setIsOnboardingModalOpen(false)}
-        onProceedToBooking={() => setIsBookingModalOpen(true)}
-      />
+      {/* Drop-off points discovery list */}
+      {isDropOffListOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xl max-w-lg w-full space-y-4 max-h-[85vh] overflow-y-auto text-xs">
+            <div className="flex items-center justify-between border-b border-[#EDE4D8] pb-3">
+              <h3 className="text-base font-bold text-[#202B38]">{t.findADropOffPoint}</h3>
+              <button
+                onClick={() => setIsDropOffListOpen(false)}
+                className="w-8 h-8 rounded-xl bg-[#FAF5EC] flex items-center justify-center text-[#53616D] cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-      <TransactionDetailModal
-        booking={inspectedBooking}
-        isOpen={Boolean(inspectedBooking)}
-        onClose={() => setInspectedBooking(null)}
-        onReportIssue={handleReportIssue}
-      />
+            <div className="space-y-3">
+              {dropOffPoints.map((point) => (
+                <div
+                  key={point.id}
+                  className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#EDE4D8] space-y-2"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-xs text-[#202B38]">{point.name}</h4>
+                      <p className="text-[11px] text-[#53616D]">{point.address}</p>
+                    </div>
+                    <span className="text-[10px] font-mono bg-[#C9F1DC] text-[#12613F] px-2 py-0.5 rounded font-bold">
+                      Open {point.operatingHours}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {point.acceptedMaterials.map((m) => (
+                      <span key={m} className="text-[10px] bg-white border border-[#EDE4D8] px-2 py-0.5 rounded font-medium">
+                        {m.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedDropOffPoint(point);
+                    }}
+                    className="w-full py-2 bg-white hover:bg-[#EDE4D8] border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    View Guidelines
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <DropOffDetailModal
         point={selectedDropOffPoint}
         isOpen={Boolean(selectedDropOffPoint)}
         onClose={() => setSelectedDropOffPoint(null)}
       />
-
-      <DisputeModal
-        isOpen={isDisputeModalOpen}
-        bookingId={selectedBookingForDispute}
-        onClose={() => setIsDisputeModalOpen(false)}
-      />
-
-      <NotificationCenterModal
-        isOpen={isNotificationModalOpen}
-        onClose={() => setIsNotificationModalOpen(false)}
-        onOpenPreparation={(notif) => {
-          setSelectedPrepNotif(notif);
-          setSelectedPrepBooking(null);
-          setIsPrepModalOpen(true);
-        }}
-      />
-
-      <PreparationGuidanceModal
-        isOpen={isPrepModalOpen}
-        onClose={() => {
-          setIsPrepModalOpen(false);
-          setSelectedPrepNotif(null);
-          setSelectedPrepBooking(null);
-        }}
-        notification={selectedPrepNotif}
-        booking={selectedPrepBooking}
-      />
-
-      {/* Address Switcher Modal */}
-      {isAreaSelectorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#EDE4D8] pb-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-[#25345C]" />
-                <h3 className="text-base font-bold text-[#202B38]">{t.selectAddress}</h3>
-              </div>
-              <button
-                onClick={() => setIsAreaSelectorOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#FAF5EC] flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {savedLocations.map((loc) => (
-                <div
-                  key={loc.id}
-                  onClick={() => {
-                    setSelectedLocationId(loc.id);
-                    setIsAreaSelectorOpen(false);
-                  }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    selectedLocationId === loc.id
-                      ? 'bg-[#FAF5EC] border-[#25345C] shadow-xs'
-                      : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/40'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-[#202B38]">{loc.label}</span>
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.2 rounded-md font-bold ${
-                          loc.status === 'available'
-                            ? 'bg-[#C9F1DC] text-[#12613F]'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {loc.status === 'available' ? t.activeLane : t.waitlist}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#53616D]">{loc.address}</p>
-                  </div>
-                  {selectedLocationId === loc.id && (
-                    <Check className="w-4 h-4 text-[#25345C] shrink-0" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                setIsAreaSelectorOpen(false);
-                setIsOnboardingModalOpen(true);
-              }}
-              className="w-full py-2.5 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{t.addNewAddress}</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

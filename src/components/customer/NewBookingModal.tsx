@@ -19,799 +19,706 @@ import {
   HelpCircle,
   Check,
   Building,
-  Info
+  Info,
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 import { speakInstruction, stopSpeaking } from '../../utils/statusDictionary';
 import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
 import { MaterialIllustration } from '../common/MaterialIllustrations';
+import { useTranslation } from '../../utils/translations';
 
 interface NewBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenRewards?: () => void;
   onOpenHelp?: (bookingId: string) => void;
+  onOpenRecurring?: () => void;
+  initialSelectedCats?: MaterialCategory[];
 }
 
 export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   isOpen,
   onClose,
   onOpenRewards,
-  onOpenHelp
+  onOpenHelp,
+  onOpenRecurring,
+  initialSelectedCats
 }) => {
-  const { lang, role, serviceZones, savedLocations, selectedLocationId, createBooking } = useApp();
+  const { lang, savedLocations, selectedLocationId, createBooking, showToast } = useApp();
+  const t = useTranslation(lang);
 
-  // 4 Steps:
-  // Step 1: R03 Material choice (picture first, words second)
-  // Step 2: R04 Time selection (appointment)
-  // Step 3: R05 Review (a receipt before commitment)
-  // Step 4: R06 Confirmation (reassuring, not over-celebratory)
+  // 3 Core Steps + Post-confirmation screen
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Address State
   const currentLocation =
     savedLocations.find((l) => l.id === selectedLocationId) || savedLocations[0];
   const [address, setAddress] = useState(currentLocation?.address || 'House 14, Road 52, Gulshan-2, Dhaka');
-  const [selectedZone, setSelectedZone] = useState(currentLocation?.zoneId || 'ZONE-GUL-02');
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
 
-  // Selected Material Categories
-  const [selectedCats, setSelectedCats] = useState<MaterialCategory[]>([
-    'PET_BOTTLES',
-    'CARDBOARD_OCC'
-  ]);
+  // Step 1: Materials
+  const [selectedCats, setSelectedCats] = useState<MaterialCategory[]>(
+    initialSelectedCats && initialSelectedCats.length > 0 ? initialSelectedCats : ['PET_BOTTLES', 'CARDBOARD_OCC']
+  );
 
-  // Examples Sheet Modal State
+  React.useEffect(() => {
+    if (initialSelectedCats && initialSelectedCats.length > 0) {
+      setSelectedCats(initialSelectedCats);
+    }
+  }, [initialSelectedCats]);
+  const [approxQuantity, setApproxQuantity] = useState<'small' | 'standard' | 'large' | 'not_sure'>('standard');
+  const [showAddDetails, setShowAddDetails] = useState(false);
+  const [exactWeightEstimate, setExactWeightEstimate] = useState<string>('');
+  const [materialNotes, setMaterialNotes] = useState<string>('');
   const [showExamplesModal, setShowExamplesModal] = useState(false);
+  const [selectedExampleCat, setSelectedExampleCat] = useState<MaterialCategory | null>(null);
 
-  // Power User Exact Details toggle
-  const [showExactDetails, setShowExactDetails] = useState(false);
-  const [quantityBand, setQuantityBand] = useState<'normal' | 'large'>('normal');
-
-  // Step 2: Date & Window
-  const [scheduledDay, setScheduledDay] = useState<'today' | 'tomorrow' | 'thursday'>('tomorrow');
+  // Step 2: Schedule & Access
+  const [scheduledDay, setScheduledDay] = useState<'today' | 'tomorrow' | 'day_after'>('tomorrow');
   const [scheduledWindow, setScheduledWindow] = useState<'morning' | 'afternoon'>('morning');
-  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showAddNote, setShowAddNote] = useState(false);
   const [accessNote, setAccessNote] = useState('');
 
   // Step 3 & 4 Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
 
-  // Audio Voice
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
   if (!isOpen) return null;
 
-  // Material item definitions with recognizable, friendly representations
+  // Material Choices with large illustrations and examples
   const materialChoices: Array<{
     id: MaterialCategory;
     titleEn: string;
     titleBn: string;
     subtitleEn: string;
     subtitleBn: string;
-    tag: string;
-    tagBn?: string;
-    illustrationIcon: string;
+    rateEn: string;
+    rateBn: string;
     acceptedList: string[];
-    acceptedListBn?: string[];
+    acceptedListBn: string[];
     rejectedList: string[];
-    rejectedListBn?: string[];
+    rejectedListBn: string[];
   }> = [
     {
       id: 'PET_BOTTLES',
       titleEn: 'Plastic bottles',
       titleBn: 'প্লাস্টিকের বোতল (PET)',
-      subtitleEn: 'Water, soft drinks, edible oil bottles',
+      subtitleEn: 'Water, juice & soft drink bottles',
       subtitleBn: 'খাবার পানি, জুস ও কোমল পানীয়ের পরিষ্কার বোতল',
-      tag: 'Most common',
-      tagBn: 'সবচেয়ে জনপ্রিয়',
-      illustrationIcon: '🧴',
-      acceptedList: ['Clear water bottles', 'Soft drink bottles', 'Mustard/edible oil containers'],
+      rateEn: '50 pts / kg',
+      rateBn: '৫০ পয়েন্ট / কেজি',
+      acceptedList: ['Clear water bottles', 'Soft drink bottles', 'Clean cooking oil bottles'],
       acceptedListBn: ['স্বচ্ছ পানির বোতল', 'কোমল পানীয়ের বোতল', 'ভোজ্য তেলের বোতল'],
-      rejectedList: ['Foil snack wrappers', 'Plastic grocery bags', 'Unwashed pesticide jugs'],
+      rejectedList: ['Foil snack packets', 'Thin grocery bags', 'Unwashed pesticide jugs'],
       rejectedListBn: ['চিপসের ফয়েল প্যাকেট', 'পাতলা পলিথিন ব্যাগ', 'কীটনাশকের জার']
     },
     {
       id: 'CARDBOARD_OCC',
       titleEn: 'Paper & cardboard',
       titleBn: 'কাগজ ও কার্টন (OCC)',
-      subtitleEn: 'Delivery boxes, packaging cartons, newspapers',
-      subtitleBn: 'ডেলিভারি পার্সেল বক্স, কার্টন ও পত্রিকা',
-      tag: 'Easy to stack',
-      tagBn: 'সহজে স্তূপযোগ্য',
-      illustrationIcon: '📦',
-      acceptedList: ['Brown shipping boxes', 'Cereal packaging', 'Clean white paper bundles'],
-      acceptedListBn: ['শিপিং কার্টুন বক্স', 'খাবারের প্যাকেট বক্স', 'পরিষ্কার সাদা কাগজের বান্ডিল'],
-      rejectedList: ['Wet paper', 'Pizza boxes with grease', 'Plastic-laminated paper'],
-      rejectedListBn: ['ভেজা কাগজ', 'তেলযুক্ত পিৎজা বক্স', 'প্লাস্টিক ল্যামিনেটেড কাগজ']
+      subtitleEn: 'Delivery boxes, packaging cartons',
+      subtitleBn: 'ডেলিভারি পার্সেল বক্স, কার্টন ও শক্ত কাগজ',
+      rateEn: '25 pts / kg',
+      rateBn: '২৫ পয়েন্ট / কেজি',
+      acceptedList: ['Flattened delivery boxes', 'Clean packing cartons', 'Newspapers & books'],
+      acceptedListBn: ['চ্যাপ্টা ডেলিভারি কার্টন', 'পরিষ্কার প্যাকিং বক্স', 'পত্রিকা ও খাতা'],
+      rejectedList: ['Food-stained pizza boxes', 'Waxed juice cups', 'Wet moldy paper'],
+      rejectedListBn: ['তেলযুক্ত পিজা বক্স', 'ওয়াক্সড কাগজের কাপ', 'ভেজা বা ছত্রাকযুক্ত কাগজ']
+    },
+    {
+      id: 'ALUMINUM_CANS',
+      titleEn: 'Cans & metal',
+      titleBn: 'ক্যান ও ধাতব পাত্র',
+      subtitleEn: 'Beverage cans, tin food containers',
+      subtitleBn: 'কোমল পানীয়ের ক্যান ও ধাতব খাবারের পাত্র',
+      rateEn: '100 pts / kg',
+      rateBn: '১০০ পয়েন্ট / কেজি',
+      acceptedList: ['Aluminum soda cans', 'Canned food tins', 'Clean aerosol cans'],
+      acceptedListBn: ['অ্যালুমিনিয়াম সোডা ক্যান', 'খাবারের টিনের কৌটা', 'পরিষ্কার স্প্রে ক্যান'],
+      rejectedList: ['Battery cells', 'Paint drums with residue', 'Sharp razor blades'],
+      rejectedListBn: ['ব্যাটারি সেল', 'রংযুক্ত ড্রাম', 'ধারালো ব্লেড']
     },
     {
       id: 'HDPE_RIGID',
-      titleEn: 'Other packaging containers',
-      titleBn: 'অন্যান্য পরিচ্ছন্ন পাত্র (HDPE/ক্যান)',
-      subtitleEn: 'Shampoo bottles, detergent jugs, metal soda cans',
-      subtitleBn: 'শ্যাম্পুর বোতল, ডিটারজেন্ট পাত্র ও ধাতব ক্যান',
-      tag: 'Clean & dry only',
-      tagBn: 'শুকনো ও পরিষ্কার',
-      illustrationIcon: '🥫',
-      acceptedList: ['Detergent jugs', 'Soda cans', 'Clean cosmetics tubs'],
-      acceptedListBn: ['ডিটারজেন্ট কন্টেইনার', 'কোমল পানীয়ের অ্যালুমিনিয়াম ক্যান', 'পরিষ্কার প্রসাধন পাত্র'],
-      rejectedList: ['Hazardous chemicals', 'Medical waste', 'Motor oil cans'],
-      rejectedListBn: ['ঝুঁকিপূর্ণ রাসায়নিক পাত্র', 'মেডিকেল বর্জ্য', 'মবিল/লুব্রিকেন্ট ক্যান']
+      titleEn: 'Rigid containers',
+      titleBn: 'কঠিন প্লাস্টিক (HDPE)',
+      subtitleEn: 'Shampoo, detergent & milk jugs',
+      subtitleBn: 'শ্যাম্পু, ডিটারজেন্ট বোতল ও দুধের জার',
+      rateEn: '45 pts / kg',
+      rateBn: '৪৫ পয়েন্ট / কেজি',
+      acceptedList: ['Detergent jugs', 'Shampoo & conditioner bottles', 'Hard plastic buckets'],
+      acceptedListBn: ['ডিটারজেন্ট জার', 'শ্যাম্পুর বোতল', 'কঠিন প্লাস্টিক বালতি'],
+      rejectedList: ['Soft tubes', 'PVC plumbing pipes', 'Styrofoam foam'],
+      rejectedListBn: ['টুথপেস্টের নরম টিউব', 'পিভিসি পাইপ', 'কর্কশীট ফোম']
     }
   ];
 
-  const handleToggleCat = (catId: MaterialCategory) => {
-    if (selectedCats.includes(catId)) {
+  const toggleMaterial = (cat: MaterialCategory) => {
+    if (selectedCats.includes(cat)) {
       if (selectedCats.length > 1) {
-        setSelectedCats(selectedCats.filter((c) => c !== catId));
+        setSelectedCats(selectedCats.filter((c) => c !== cat));
       }
     } else {
-      setSelectedCats([...selectedCats, catId]);
+      setSelectedCats([...selectedCats, cat]);
     }
   };
 
-  const getDayDisplay = () => {
-    if (scheduledDay === 'today') {
-      return {
-        label: lang === 'en' ? 'Today (Tue, Oct 6)' : 'আজ (মঙ্গলবার, ৬ অক্টোবর)',
-        date: '2026-10-06'
-      };
-    }
-    if (scheduledDay === 'tomorrow') {
-      return {
-        label: lang === 'en' ? 'Tomorrow (Wed, Oct 7)' : 'আগামীকাল (বুধবার, ৭ অক্টোবর)',
-        date: '2026-10-07'
-      };
-    }
-    return {
-      label: lang === 'en' ? 'Thursday (Oct 8)' : 'বৃহস্পতিবার (৮ অক্টোবর)',
-      date: '2026-10-08'
-    };
-  };
-
-  const getWindowDisplay = () => {
-    if (scheduledWindow === 'morning') {
-      return lang === 'en' ? 'Morning · 9 am–12 pm' : 'সকাল · ৯:০০ - ১২:০০';
-    }
-    return lang === 'en' ? 'Afternoon · 1 pm–4 pm' : 'দুপুর · ১:০০ - ৪:০০';
-  };
-
-  const handleVoice = () => {
-    if (isSpeaking) {
-      stopSpeaking();
-      setIsSpeaking(false);
-      return;
-    }
-    let text = '';
-    if (currentStep === 1) {
-      text =
-        lang === 'bn'
-          ? 'কী কী বর্জ্য সংগ্রহ করাতে চান তা স্পর্শ করে নির্বাচন করুন। যেমন প্লাস্টিক বোতল বা কার্টন।'
-          : 'Tap everything you want collected. Plastic bottles, paper and cardboard, or other containers.';
-    } else if (currentStep === 2) {
-      text =
-        lang === 'bn'
-          ? 'সংগ্রহের সুবিধাজনক সময় বেছে নিন। সকাল নয়টা থেকে বারোটা অথবা দুপুর একটা থেকে চারটা।'
-          : 'Choose when our collector should come. Morning 9am to 12pm or Afternoon 1pm to 4pm.';
-    } else if (currentStep === 3) {
-      text =
-        lang === 'bn'
-          ? 'বুকিংয়ের তথ্য পর্যালোচনা করুন এবং নিশ্চিত করুন।'
-          : 'Review where, when, and what we will collect. Then confirm your pickup.';
-    }
-    setIsSpeaking(true);
-    speakInstruction(text, lang);
-    setTimeout(() => setIsSpeaking(false), 6000);
-  };
-
-  const handleConfirm = () => {
-    if (isSubmitting) return;
+  const handleConfirmBooking = () => {
     setIsSubmitting(true);
-
-    const bookingMaterials = selectedCats.map((cat) => ({
-      category: cat,
-      approximateBandKg: quantityBand === 'large' ? '15-30 kg' : '2-10 kg'
-    }));
-
-    const dateInfo = getDayDisplay();
-    const newBooking = createBooking({
-      customerId:
-        role === 'customer_apartment'
-          ? 'CUST-APT-402'
-          : role === 'customer_business'
-          ? 'CUST-BIZ-511'
-          : 'CUST-H-801',
-      customerName:
-        role === 'customer_apartment'
-          ? 'Green View Heights Committee'
-          : role === 'customer_business'
-          ? 'Artisan Roastery & Café'
-          : 'Shadman Khalili',
-      customerType:
-        role === 'customer_apartment'
-          ? 'apartment'
-          : role === 'customer_business'
-          ? 'business'
-          : 'household',
-      phone: '+880 1712 345678',
-      address,
-      zoneId: selectedZone,
-      accessInstructions: accessNote,
-      scheduledDate: dateInfo.date,
-      scheduledTimeWindow: getWindowDisplay(),
-      isRecurring: false,
-      serviceType: role === 'customer_business' ? 'COMMERCIAL_BATCH' : 'DOORSTEP_RECOVERY',
-      materials: bookingMaterials,
-      serviceFeeBdt: role === 'customer_business' ? 150 : 0,
-      notes: accessNote
-    });
-
-    setCreatedBookingId(newBooking.id);
     setTimeout(() => {
+      const scheduledDateStr =
+        scheduledDay === 'today'
+          ? 'Today'
+          : scheduledDay === 'tomorrow'
+          ? 'Tomorrow'
+          : 'Day After Tomorrow';
+
+      const windowStr =
+        scheduledWindow === 'morning' ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM';
+
+      const newB = createBooking({
+        customerId: 'CL-CUST-8841',
+        customerName: 'Nasreen Akhter',
+        phone: '+880 1712-345678',
+        customerType: 'household',
+        zoneId: currentLocation.zoneId || 'ZONE-DHAN-01',
+        address: address,
+        scheduledDate: scheduledDateStr,
+        scheduledTimeWindow: windowStr,
+        isRecurring: false,
+        serviceType: 'DOORSTEP_RECOVERY',
+        materials: selectedCats.map((cat) => ({
+          category: cat,
+          approximateBandKg: approxQuantity === 'small' ? '1-3 kg' : approxQuantity === 'large' ? '10+ kg' : '3-8 kg'
+        })),
+        accessInstructions: accessNote,
+        serviceFeeBdt: 0
+      });
+
+      setCreatedBookingId(newB.id);
       setIsSubmitting(false);
       setCurrentStep(4);
-    }, 350);
+      showToast(
+        lang === 'en'
+          ? 'Pickup confirmed! Preparation reminder is ready.'
+          : 'পিকআপ নিশ্চিত হয়েছে! প্রস্তুতি নির্দেশিকা সক্রিয় করা হয়েছে।'
+      );
+    }, 600);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[94vh] flex flex-col border border-[#EDE4D8] overflow-hidden text-[#202B38]">
-        {/* Top Header */}
+        {/* Top Header Bar */}
         <div className="px-6 py-4 border-b border-[#EDE4D8] bg-[#FFF9F0] flex items-center justify-between shrink-0">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#53616D] font-mono">
-              {currentStep === 1 && (lang === 'en' ? 'Step 1 of 3: Materials' : 'ধাপ ১/৩: উপকরণ')}
-              {currentStep === 2 && (lang === 'en' ? 'Step 2 of 3: Time' : 'ধাপ ২/৩: সময়')}
-              {currentStep === 3 && (lang === 'en' ? 'Step 3 of 3: Review' : 'ধাপ ৩/৩: পর্যালোচনা')}
-              {currentStep === 4 && (lang === 'en' ? 'Booking Confirmed' : 'বুকিং সম্পন্ন')}
-            </span>
-            <h2 className="text-lg font-bold text-[#25345C] leading-tight">
-              {currentStep === 1 && (lang === 'en' ? 'What do you have?' : 'কী কী উপকরণ আছে?')}
-              {currentStep === 2 && (lang === 'en' ? 'When should we come?' : 'কখন আসবেন কালেক্টর?')}
-              {currentStep === 3 && (lang === 'en' ? 'Your pickup receipt' : 'পিকআপ রসিদ')}
-              {currentStep === 4 && (lang === 'en' ? "You're booked ✓" : 'আপনার বুকিং সম্পন্ন ✓')}
-            </h2>
-          </div>
-
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleVoice}
-              className={`min-h-[40px] px-2.5 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
-                isSpeaking ? 'bg-[#F5BF55] text-[#202B38]' : 'bg-white text-[#53616D] hover:bg-[#EDE4D8]'
-              }`}
-              title="Spoken audio instructions"
-            >
-              {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-[#25345C]" />}
-            </button>
-
-            <button
-              onClick={onClose}
-              type="button"
-              className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-[#53616D] hover:text-[#202B38] hover:bg-[#EDE4D8] cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {currentStep > 1 && currentStep < 4 && (
+              <button
+                type="button"
+                onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
+                className="w-8 h-8 rounded-xl bg-white border border-[#EDE4D8] flex items-center justify-center text-[#53616D] hover:bg-[#FAF5EC] cursor-pointer mr-1"
+                title="Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div>
+              <span className="text-[10px] font-mono text-[#53616D] uppercase block">
+                {currentStep < 4
+                  ? `${lang === 'en' ? 'Step' : 'ধাপ'} ${currentStep} of 3`
+                  : lang === 'en' ? 'Confirmed' : 'নিশ্চিত'}
+              </span>
+              <h3 className="text-base font-bold text-[#25345C]">
+                {currentStep === 1
+                  ? t.step1Heading
+                  : currentStep === 2
+                  ? t.step2Heading
+                  : currentStep === 3
+                  ? t.step3Heading
+                  : t.step4Heading}
+              </h3>
+            </div>
           </div>
+
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-white border border-[#EDE4D8] flex items-center justify-center text-[#53616D] hover:bg-[#FAF5EC] cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Modal Scroll Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs text-[#202B38]">
-          {/* ===================================================================== */}
-          {/* STEP 1: R03 MATERIAL CHOICE (Picture first, words second) */}
-          {/* ===================================================================== */}
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-5 text-xs text-[#202B38] flex-1">
+          {/* ========================================================================= */}
+          {/* STEP 1: WHAT DO YOU HAVE? */}
+          {/* ========================================================================= */}
           {currentStep === 1 && (
-            <div className="space-y-4">
-              <p className="text-sm font-semibold text-[#53616D]">
-                {lang === 'en'
-                  ? 'Tap everything you want collected.'
-                  : 'সংগ্রহ করতে চান এমন সব উপকরণে চাপ দিন।'}
-              </p>
+            <div className="space-y-5 animate-fade-in">
+              <div className="space-y-1">
+                <p className="text-xs text-[#53616D]">
+                  {t.selectMaterialsPrompt}
+                </p>
+              </div>
 
-              {/* Picture-led Material Cards */}
-              <div className="space-y-3">
+              {/* Material Cards with Large Picture & Short Labels */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {materialChoices.map((item) => {
                   const isSelected = selectedCats.includes(item.id);
                   return (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      onClick={() => handleToggleCat(item.id)}
-                      className={`w-full p-4 rounded-2xl border text-left cursor-pointer transition-all flex items-center justify-between min-h-[56px] ${
+                      onClick={() => toggleMaterial(item.id)}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex items-start gap-3.5 ${
                         isSelected
-                          ? 'border-[#25345C] bg-[#EDF1F9] ring-2 ring-[#25345C]/15 shadow-xs'
-                          : 'border-[#EDE4D8] bg-white hover:bg-[#FFF9F0]'
+                          ? 'bg-[#FAF5EC] border-[#25345C] shadow-xs'
+                          : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/30'
                       }`}
                     >
-                      <div className="flex items-center gap-3.5">
-                        {/* Bespoke clean-line SVG illustration */}
-                        <div
-                          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                            isSelected ? 'bg-white shadow-2xs' : 'bg-[#FFF9F0]'
-                          }`}
-                        >
-                          <MaterialIllustration category={item.id} size="md" />
-                        </div>
-
-                        <div>
-                          <span className="text-sm font-bold text-[#202B38] block leading-snug">
+                      <MaterialIllustration category={item.id} size="md" className="shrink-0 mt-0.5" />
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-xs text-[#202B38] truncate">
                             {lang === 'en' ? item.titleEn : item.titleBn}
                           </span>
-                          <span className="text-xs text-[#53616D] block mt-0.5">
-                            {lang === 'en' ? item.subtitleEn : item.subtitleBn}
-                          </span>
-                          <span className="text-[10px] font-mono text-[#12613F] font-semibold mt-1 inline-block bg-[#C9F1DC] px-2 py-0.2 rounded-md">
-                            {lang === 'en' ? item.tag : item.tagBn || item.tag}
-                          </span>
+                          {isSelected && (
+                            <span className="w-5 h-5 rounded-full bg-[#12613F] text-white flex items-center justify-center shrink-0">
+                              <Check className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
+                        <p className="text-[11px] text-[#53616D] leading-tight">
+                          {lang === 'en' ? item.subtitleEn : item.subtitleBn}
+                        </p>
+                        <span className="text-[10px] font-mono font-bold text-[#12613F] block pt-1">
+                          {lang === 'en' ? item.rateEn : item.rateBn}
+                        </span>
                       </div>
-
-                      {/* Selection Check Circle */}
-                      <div
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? 'border-[#25345C] bg-[#25345C] text-white'
-                            : 'border-[#EDE4D8] bg-white'
-                        }`}
-                      >
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
 
-              {/* "Not sure what this is? See examples" sheet trigger */}
-              <div className="pt-1 flex items-center justify-between">
+              {/* See Examples Link */}
+              <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
                   onClick={() => setShowExamplesModal(true)}
                   className="text-xs font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <HelpCircle className="w-4 h-4 text-[#25345C]" />
-                  <span>{lang === 'en' ? 'Not sure what this is? See examples' : 'বুঝতে পারছেন না? উদাহরণ দেখুন'}</span>
-                </button>
-
-                {/* Power User: Add Exact Details */}
-                <button
-                  type="button"
-                  onClick={() => setShowExactDetails(!showExactDetails)}
-                  className="text-[11px] text-[#53616D] hover:text-[#202B38] cursor-pointer"
-                >
-                  {showExactDetails ? 'Hide details' : 'More options'}
+                  <Info className="w-3.5 h-3.5 text-[#12613F]" />
+                  <span>{t.seeExamples} (Accepted & Excluded items)</span>
                 </button>
               </div>
 
-              {/* Power User Exact Details (progressive disclosure) */}
-              {showExactDetails && (
-                <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] space-y-2 animate-fade-in text-xs">
-                  <span className="font-bold text-[#202B38] block">Approximate Volume</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQuantityBand('normal')}
-                      className={`p-2.5 rounded-xl border text-center font-semibold cursor-pointer ${
-                        quantityBand === 'normal'
-                          ? 'bg-[#25345C] text-white'
-                          : 'bg-white text-[#53616D] border-[#EDE4D8]'
-                      }`}
-                    >
-                      Standard (1–3 bags)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQuantityBand('large')}
-                      className={`p-2.5 rounded-xl border text-center font-semibold cursor-pointer ${
-                        quantityBand === 'large'
-                          ? 'bg-[#25345C] text-white'
-                          : 'bg-white text-[#53616D] border-[#EDE4D8]'
-                      }`}
-                    >
-                      Bulk / Large Sack
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===================================================================== */}
-          {/* STEP 2: R04 TIME SELECTION (Appointment, not dispatch management) */}
-          {/* ===================================================================== */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm font-semibold text-[#53616D]">
-                {lang === 'en'
-                  ? 'Choose a convenient day and time for collection.'
-                  : 'বর্জ্য সংগ্রহের সুবিধাজনক দিন ও সময় বেছে নিন।'}
-              </p>
-
-              {/* Day Selection (Today, Tomorrow, Another day) */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-bold text-[#202B38] uppercase tracking-wider font-mono block">
-                  Select Day
+              {/* Approximate Quantity */}
+              <div className="p-4 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2.5">
+                <span className="font-bold text-xs text-[#202B38] block">
+                  {lang === 'en' ? 'Approximate quantity' : 'আনুমানিক পরিমাণ'}
                 </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'today', labelEn: 'Today', labelBn: 'আজ', date: 'Tue, Oct 6' },
-                    { id: 'tomorrow', labelEn: 'Tomorrow', labelBn: 'আগামীকাল', date: 'Wed, Oct 7' },
-                    { id: 'thursday', labelEn: 'Thursday', labelBn: 'বৃহস্পতিবার', date: 'Thu, Oct 8' }
-                  ].map((d) => (
+                    { id: 'small', labelEn: 'Small (~2 kg)', labelBn: 'ছোট ব্যাগ (~২ কেজি)' },
+                    { id: 'standard', labelEn: 'Standard (~6 kg)', labelBn: 'মাঝারি (~৬ কেজি)' },
+                    { id: 'large', labelEn: 'Large (10+ kg)', labelBn: 'বড় বস্তা (১০+ কেজি)' },
+                    { id: 'not_sure', labelEn: 'Not sure', labelBn: 'নিশ্চিত নই' }
+                  ].map((q) => (
                     <button
-                      key={d.id}
+                      key={q.id}
                       type="button"
-                      onClick={() => setScheduledDay(d.id as any)}
-                      className={`p-3 rounded-2xl border text-center cursor-pointer min-h-[52px] transition-all ${
-                        scheduledDay === d.id
-                          ? 'border-[#25345C] bg-[#EDF1F9] ring-2 ring-[#25345C]/15 font-bold text-[#25345C]'
-                          : 'border-[#EDE4D8] bg-white text-[#53616D] hover:bg-[#FFF9F0]'
+                      onClick={() => setApproxQuantity(q.id as any)}
+                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
+                        approxQuantity === q.id
+                          ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs'
+                          : 'bg-white text-[#53616D] border-[#EDE4D8]'
                       }`}
                     >
-                      <span className="block text-xs font-bold">
-                        {lang === 'en' ? d.labelEn : d.labelBn}
-                      </span>
-                      <span className="block text-[10px] text-[#53616D] font-mono mt-0.5">{d.date}</span>
+                      {lang === 'en' ? q.labelEn : q.labelBn}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Time Slots (Morning 9 am–12 pm, Afternoon 1 pm–4 pm) */}
-              <div className="space-y-1.5 pt-2">
-                <span className="text-xs font-bold text-[#202B38] uppercase tracking-wider font-mono block">
-                  Select Time Slot
-                </span>
-                <div className="space-y-2">
-                  {[
-                    {
-                      id: 'morning',
-                      titleEn: 'Morning · 9 am–12 pm',
-                      titleBn: 'সকাল · ৯:০০ - ১২:০০',
-                      descEn: 'Collector Tariq on primary morning sweep'
-                    },
-                    {
-                      id: 'afternoon',
-                      titleEn: 'Afternoon · 1 pm–4 pm',
-                      titleBn: 'দুপুর · ১:০০ - ৪:০০',
-                      descEn: 'Collector Kamrul on afternoon corridor run'
-                    }
-                  ].map((slot) => {
-                    const isSelected = scheduledWindow === slot.id;
-                    return (
-                      <button
-                        key={slot.id}
-                        type="button"
-                        onClick={() => setScheduledWindow(slot.id as any)}
-                        className={`w-full p-4 rounded-2xl border text-left cursor-pointer min-h-[52px] flex items-center justify-between transition-all ${
-                          isSelected
-                            ? 'border-[#25345C] bg-[#EDF1F9] ring-2 ring-[#25345C]/15'
-                            : 'border-[#EDE4D8] bg-white hover:bg-[#FFF9F0]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Clock
-                            className={`w-4 h-4 ${isSelected ? 'text-[#25345C]' : 'text-[#8896A4]'}`}
-                          />
-                          <div>
-                            <span className="font-bold text-xs sm:text-sm text-[#202B38] block">
-                              {lang === 'en' ? slot.titleEn : slot.titleBn}
-                            </span>
-                            <span className="text-[11px] text-[#53616D]">{slot.descEn}</span>
-                          </div>
-                        </div>
+              {/* Collapsible "Add details" */}
+              <div className="border-t border-[#FAF5EC] pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDetails(!showAddDetails)}
+                  className="text-xs font-bold text-[#53616D] hover:text-[#202B38] flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>{t.addDetails} (Photos, exact weights & notes)</span>
+                  {showAddDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
 
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? 'border-[#25345C] bg-[#25345C] text-white' : 'border-[#EDE4D8]'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
-                      </button>
-                    );
-                  })}
+                {showAddDetails && (
+                  <div className="mt-3 p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-3 animate-fade-in">
+                    <div>
+                      <label className="font-semibold text-[11px] text-[#53616D] block mb-1">
+                        {lang === 'en' ? 'Exact weight estimate (optional kg)' : 'সুনির্দিষ্ট আনুমানিক কেজি (ঐচ্ছিক)'}
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 5.5"
+                        value={exactWeightEstimate}
+                        onChange={(e) => setExactWeightEstimate(e.target.value)}
+                        className="w-full bg-[#FAF5EC] border border-[#EDE4D8] rounded-xl p-2 text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-[11px] text-[#53616D] block mb-1">
+                        {lang === 'en' ? 'Special material note' : 'উপাদান সংক্রান্ত বিশেষ মন্তব্য'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Cardboard boxes are flattened and tied with string"
+                        value={materialNotes}
+                        onChange={(e) => setMaterialNotes(e.target.value)}
+                        className="w-full bg-[#FAF5EC] border border-[#EDE4D8] rounded-xl p-2 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Single Primary Action */}
+              <button
+                type="button"
+                onClick={() => setCurrentStep(2)}
+                className="w-full min-h-[48px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <span>{t.next}</span>
+                <ArrowRight className="w-4 h-4 text-[#C9F1DC]" />
+              </button>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 2: WHEN SHOULD WE COME? */}
+          {/* ========================================================================= */}
+          {currentStep === 2 && (
+            <div className="space-y-5 animate-fade-in">
+              {/* Saved Address with "Change" Button */}
+              <div className="p-4 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#202B38]">
+                    <MapPin className="w-3.5 h-3.5 text-[#12613F]" />
+                    <span>{t.serviceAddress}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingAddress(!isEditingAddress)}
+                    className="text-xs font-bold text-[#25345C] hover:underline cursor-pointer"
+                  >
+                    {isEditingAddress ? (lang === 'en' ? 'Done' : 'ঠিক আছে') : t.changeAddress}
+                  </button>
+                </div>
+
+                {isEditingAddress ? (
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full bg-white border border-[#25345C] rounded-xl p-2.5 text-xs font-medium"
+                  />
+                ) : (
+                  <p className="text-xs text-[#53616D] font-medium">{address}</p>
+                )}
+              </div>
+
+              {/* Available Dates */}
+              <div className="space-y-2">
+                <span className="font-bold text-xs text-[#202B38] block">
+                  {t.chooseDay}
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'today', labelEn: 'Today', labelBn: 'আজ' },
+                    { id: 'tomorrow', labelEn: 'Tomorrow', labelBn: 'আগামীকাল' },
+                    { id: 'day_after', labelEn: 'Day After', labelBn: 'পরশু' }
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setScheduledDay(d.id as any)}
+                      className={`p-3 rounded-2xl border text-center font-bold text-xs transition-all cursor-pointer ${
+                        scheduledDay === d.id
+                          ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs'
+                          : 'bg-white text-[#53616D] border-[#EDE4D8] hover:bg-[#FAF5EC]'
+                      }`}
+                    >
+                      {lang === 'en' ? d.labelEn : d.labelBn}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Power-user Depth: More Pickup Options */}
-              <div className="pt-2">
-                {!showMoreOptions ? (
+              {/* Time Windows */}
+              <div className="space-y-2">
+                <span className="font-bold text-xs text-[#202B38] block">
+                  {t.assignedTimeWindow}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setShowMoreOptions(true)}
-                    className="text-xs font-semibold text-[#25345C] hover:underline cursor-pointer"
+                    onClick={() => setScheduledWindow('morning')}
+                    className={`p-3.5 rounded-2xl border text-left font-bold text-xs transition-all cursor-pointer ${
+                      scheduledWindow === 'morning'
+                        ? 'bg-[#FAF5EC] border-[#25345C] text-[#25345C]'
+                        : 'bg-white border-[#EDE4D8] text-[#53616D]'
+                    }`}
                   >
-                    + Add access note for collector
+                    <div className="flex items-center justify-between">
+                      <span>{t.morningSlot}</span>
+                      {scheduledWindow === 'morning' && <Check className="w-4 h-4 text-[#12613F]" />}
+                    </div>
                   </button>
-                ) : (
-                  <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] space-y-1.5 animate-fade-in">
-                    <label className="font-bold text-[#202B38] block text-xs">
-                      Access Instructions (Gate intercom, security desk)
-                    </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setScheduledWindow('afternoon')}
+                    className={`p-3.5 rounded-2xl border text-left font-bold text-xs transition-all cursor-pointer ${
+                      scheduledWindow === 'afternoon'
+                        ? 'bg-[#FAF5EC] border-[#25345C] text-[#25345C]'
+                        : 'bg-white border-[#EDE4D8] text-[#53616D]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{t.afternoonSlot}</span>
+                      {scheduledWindow === 'afternoon' && <Check className="w-4 h-4 text-[#12613F]" />}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Collapsible "Add a note" for gate/building access */}
+              <div className="border-t border-[#FAF5EC] pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddNote(!showAddNote)}
+                  className="text-xs font-bold text-[#53616D] hover:text-[#202B38] flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>{t.addANote} (Gate or building instructions)</span>
+                  {showAddNote ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+
+                {showAddNote && (
+                  <div className="mt-2 animate-fade-in">
                     <textarea
                       rows={2}
                       value={accessNote}
                       onChange={(e) => setAccessNote(e.target.value)}
-                      placeholder="e.g. Leave sacks with building reception guard..."
-                      className="w-full bg-white border border-[#EDE4D8] rounded-xl p-2.5 text-xs text-[#202B38]"
+                      placeholder={t.accessPlaceholder}
+                      className="w-full bg-[#FAF5EC] border border-[#EDE4D8] rounded-xl p-2.5 text-xs text-[#202B38]"
                     />
                   </div>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* ===================================================================== */}
-          {/* STEP 3: R05 REVIEW (A receipt before commitment) */}
-          {/* ===================================================================== */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <p className="text-xs text-[#53616D]">
-                {lang === 'en'
-                  ? 'Here is your collection summary. You can change any item before booking.'
-                  : 'আপনার সংগ্রহের বিবরণ। বুকিং নিশ্চিত করার আগে পরিবর্তন করতে পারবেন।'}
-              </p>
-
-              {/* WHERE */}
-              <div className="p-4 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-start justify-between gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#53616D] font-mono block">
-                    WHERE
-                  </span>
-                  <p className="font-bold text-[#202B38] text-xs sm:text-sm">{address}</p>
-                  <p className="text-[11px] text-[#53616D]">{selectedZone} Clean Lane</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-2.5 py-1 text-xs font-bold text-[#25345C] hover:underline cursor-pointer shrink-0"
-                >
-                  Change
-                </button>
-              </div>
-
-              {/* WHAT */}
-              <div className="p-4 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#53616D] font-mono block">
-                    WHAT
-                  </span>
-                  <p className="font-bold text-[#202B38] text-xs sm:text-sm">
-                    {selectedCats
-                      .map((c) => materialChoices.find((m) => m.id === c)?.titleEn)
-                      .join(', ')}
-                  </p>
-                  <p className="text-[11px] text-[#53616D]">
-                    {quantityBand === 'large' ? 'Bulk / Large volume' : 'Standard household bags'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="px-2.5 py-1 text-xs font-bold text-[#25345C] hover:underline cursor-pointer shrink-0"
-                >
-                  Change
-                </button>
-              </div>
-
-              {/* WHEN */}
-              <div className="p-4 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-start justify-between gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#53616D] font-mono block">
-                    WHEN
-                  </span>
-                  <p className="font-bold text-[#202B38] text-xs sm:text-sm">
-                    {getDayDisplay().label}
-                  </p>
-                  <p className="text-[11px] text-[#53616D]">{getWindowDisplay()}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-2.5 py-1 text-xs font-bold text-[#25345C] hover:underline cursor-pointer shrink-0"
-                >
-                  Change
-                </button>
-              </div>
-
-              {/* Commercial & Points Terms */}
-              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2 text-xs">
-                <div className="flex justify-between items-center text-[#202B38]">
-                  <span className="font-medium">You pay:</span>
-                  <span className="font-bold text-[#12613F] font-mono">
-                    {role === 'customer_business' ? '৳150 (Commercial Batch)' : 'No collection fee (Pilot Free)'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-[#202B38] pt-2 border-t border-[#EDE4D8]">
-                  <span className="font-medium">You may earn:</span>
-                  <span className="font-bold text-[#7A4D00] font-mono">
-                    Points after materials are checked
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#53616D] pt-1">
-                  Final reward points and payouts unlock automatically after certified digital scale weighing at the receiving center.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ===================================================================== */}
-          {/* STEP 4: R06 CONFIRMATION (Reassuring, not over-celebratory) */}
-          {/* ===================================================================== */}
-          {currentStep === 4 && (
-            <div className="space-y-5 text-center py-2">
-              {/* Reassuring Confirmation Header */}
-              <div className="w-14 h-14 rounded-full bg-[#C9F1DC] text-[#12613F] flex items-center justify-center mx-auto shadow-2xs">
-                <CheckCircle2 className="w-7 h-7 text-[#12613F]" />
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-bold text-[#25345C]">
-                  {lang === 'en' ? "You're booked ✓" : 'আপনার বুকিং সম্পন্ন হয়েছে ✓'}
-                </h3>
-                <p className="text-sm font-semibold text-[#202B38] mt-1">
-                  We'll come {getDayDisplay().label.split('(')[0]}, {getWindowDisplay().split('·')[1]}.
-                </p>
-                <p className="text-xs font-mono text-[#53616D] mt-1">
-                  Reference: <strong className="text-[#25345C]">{createdBookingId || 'CL-BK-9281'}</strong>
-                </p>
-              </div>
-
-              {/* 3-Part Brand Journey Sequence */}
-              <div className="pt-1">
-                <BrandJourneyDevice currentStep={2} size="standard" />
-              </div>
-
-              {/* Preparation Reminder */}
-              <div className="p-4 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] text-left text-xs space-y-1.5">
-                <span className="font-bold text-[#25345C] uppercase tracking-wider text-[10px] font-mono block">
-                  Before we arrive:
-                </span>
-                <p className="text-[#202B38] font-medium leading-relaxed">
-                  Keep the selected materials clean, dry, and separate. Leave bags with reception or place them outside your door before {getWindowDisplay().split('–')[0].split('·')[1] || '9 am'}.
-                </p>
-              </div>
-
-              {/* Primary Actions (R06) */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
-                {onOpenRewards && (
+              {/* Arrange Regular Collection Link */}
+              {onOpenRecurring && (
+                <div className="p-3 bg-[#FAF5EC] rounded-2xl border border-[#EDE4D8] flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-[#202B38] block">{t.arrangeRegularCollection}</span>
+                    <span className="text-[11px] text-[#53616D]">{t.regularCollectionSub}</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       onClose();
-                      onOpenRewards();
+                      onOpenRecurring();
                     }}
-                    className="w-full min-h-[48px] px-5 py-3 rounded-2xl border border-[#EDE4D8] bg-white hover:bg-[#FFF9F0] text-[#25345C] text-xs font-bold cursor-pointer transition-all"
+                    className="px-3 py-1.5 bg-white border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs hover:bg-[#EDE4D8] cursor-pointer"
                   >
-                    See rewards catalogue
+                    {lang === 'en' ? 'Setup' : 'সেটআপ'}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full min-h-[48px] px-6 py-3 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl text-xs sm:text-sm font-bold cursor-pointer shadow-xs transition-all"
-                >
-                  Back to Home
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+                </div>
+              )}
 
-        {/* ========================================================================= */}
-        {/* STICKY BOTTOM ACTION BAR (Steps 1, 2, 3) */}
-        {/* ========================================================================= */}
-        {currentStep < 4 && (
-          <div className="p-4 sm:p-5 border-t border-[#EDE4D8] bg-white flex items-center justify-between gap-3 shrink-0">
-            {currentStep > 1 ? (
-              <button
-                type="button"
-                onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
-                className="min-h-[48px] px-4 py-2.5 rounded-2xl border border-[#EDE4D8] text-xs font-bold text-[#53616D] hover:bg-[#FFF9F0] flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back</span>
-              </button>
-            ) : (
-              <div />
-            )}
-
-            {currentStep === 1 && (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="w-full sm:w-auto min-h-[48px] px-7 py-3 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-4 h-4 text-[#C9F1DC]" />
-              </button>
-            )}
-
-            {currentStep === 2 && (
+              {/* Single Primary Action */}
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                className="w-full sm:w-auto min-h-[48px] px-7 py-3 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
+                className="w-full min-h-[48px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
               >
-                <span>Choose this time</span>
+                <span>{t.reviewPickup}</span>
                 <ArrowRight className="w-4 h-4 text-[#C9F1DC]" />
               </button>
-            )}
+            </div>
+          )}
 
-            {currentStep === 3 && (
+          {/* ========================================================================= */}
+          {/* STEP 3: CHECK AND CONFIRM (ONLY ESSENTIALS) */}
+          {/* ========================================================================= */}
+          {currentStep === 3 && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="p-5 bg-[#FAF9F5] rounded-3xl border border-[#EDE4D8] space-y-4 shadow-2xs">
+                {/* 1. Address */}
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                    {t.addressLabel}
+                  </span>
+                  <p className="text-xs font-bold text-[#202B38]">{address}</p>
+                </div>
+
+                {/* 2. Materials */}
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                    {lang === 'en' ? 'Selected Materials' : 'নির্বাচিত উপাদানসমূহ'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedCats.map((cat) => (
+                      <span
+                        key={cat}
+                        className="px-2.5 py-1 bg-white border border-[#EDE4D8] rounded-xl text-xs font-bold text-[#202B38]"
+                      >
+                        {cat.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Date & Time Window */}
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                    {t.assignedTimeWindow}
+                  </span>
+                  <p className="text-sm font-black text-[#25345C]">
+                    {scheduledDay === 'today'
+                      ? 'Today'
+                      : scheduledDay === 'tomorrow'
+                      ? 'Tomorrow'
+                      : 'Day After Tomorrow'}{' '}
+                    · {scheduledWindow === 'morning' ? t.morningSlot : t.afternoonSlot}
+                  </p>
+                </div>
+
+                {/* 4. Applicable Service Fee */}
+                <div className="flex justify-between items-center pt-2 border-t border-[#EDE4D8]">
+                  <span className="font-semibold text-xs text-[#53616D]">{t.serviceFee}:</span>
+                  <span className="font-bold text-xs text-[#12613F]">{t.freeDoorstepCollection}</span>
+                </div>
+
+                {/* 5. Provisional Material Payment / Reward Basis */}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-[#53616D]">{t.provisionalPaymentBasis}:</span>
+                  <span className="font-mono font-bold text-[#25345C]">~50 pts / kg verified</span>
+                </div>
+
+                {/* 6. Short Reward Condition */}
+                <div className="p-3 bg-white rounded-xl border border-[#EDE4D8] text-[11px] text-[#53616D]">
+                  <span className="font-bold text-[#202B38] block">{t.rewardCondition}:</span>
+                  <span>{t.conditionSummary}</span>
+                </div>
+              </div>
+
+              {/* Single Primary Action: Confirm Pickup */}
               <button
                 type="button"
+                onClick={handleConfirmBooking}
                 disabled={isSubmitting}
-                onClick={handleConfirm}
-                className={`w-full sm:w-auto min-h-[48px] px-8 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all ${
-                  isSubmitting
-                    ? 'bg-[#53616D] text-white cursor-not-allowed'
-                    : 'bg-[#25345C] hover:bg-[#1B2644] text-white'
-                }`}
+                className="w-full min-h-[50px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span>Booking pickup...</span>
+                  <span>{lang === 'en' ? 'Confirming pickup...' : 'নিশ্চিত করা হচ্ছে...'}</span>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 text-[#C9F1DC]" />
-                    <span>Confirm pickup</span>
+                    <span>{t.confirm}</span>
+                    <Check className="w-4 h-4 text-[#C9F1DC]" />
                   </>
                 )}
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 4: CONFIRMATION & APPOINTMENT TICKET */}
+          {/* ========================================================================= */}
+          {currentStep === 4 && (
+            <div className="space-y-5 animate-fade-in text-center">
+              <div className="w-14 h-14 rounded-full bg-[#C9F1DC] text-[#12613F] flex items-center justify-center mx-auto shadow-xs">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-xl font-black text-[#202B38]">
+                  {t.step4Heading}
+                </h4>
+                <p className="text-xs text-[#53616D] font-mono">
+                  {lang === 'en' ? `Booking Reference: #${createdBookingId || 'CL-BK-9182'}` : `বুকিং কোড: #${createdBookingId || 'CL-BK-9182'}`}
+                </p>
+              </div>
+
+              {/* Preparation Reminder Card */}
+              <div className="p-4 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] text-left space-y-2 text-xs">
+                <span className="font-bold text-[#202B38] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#12613F]" />
+                  <span>{t.prepReminderActive}</span>
+                </span>
+                <p className="text-[#53616D] leading-relaxed">
+                  {t.prepReminderDesc}
+                </p>
+              </div>
+
+              {/* Single Primary Action */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full min-h-[48px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm shadow-xs transition-colors cursor-pointer"
+              >
+                {lang === 'en' ? 'Done' : 'সম্পন্ন'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* "Yes, these / No, not these" Visual Examples Modal */}
+      {/* Examples Modal (Accepted vs Excluded items) */}
       {showExamplesModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-[#EDE4D8] space-y-4 text-xs text-[#202B38]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#EDE4D8]">
-              <h3 className="text-base font-bold text-[#25345C]">
-                Accepted & Excluded Materials
-              </h3>
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-[#EDE4D8] p-6 shadow-2xl max-w-md w-full space-y-4 max-h-[85vh] overflow-y-auto text-xs">
+            <div className="flex items-center justify-between border-b border-[#EDE4D8] pb-3">
+              <h4 className="text-base font-bold text-[#202B38]">{t.sortingGuide}</h4>
               <button
+                type="button"
                 onClick={() => setShowExamplesModal(false)}
-                className="p-1 rounded-xl hover:bg-[#FFF9F0] text-[#53616D]"
+                className="w-8 h-8 rounded-xl bg-[#FAF5EC] flex items-center justify-center text-[#53616D]"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
             <div className="space-y-4">
-              {/* YES THESE */}
-              <div className="p-3.5 bg-[#E8FAF1] rounded-2xl border border-[#C9F1DC] space-y-2">
-                <span className="font-bold text-[#12613F] text-xs flex items-center gap-1.5">
-                  <Check className="w-4 h-4" />
-                  <span>YES, WE COLLECT THESE:</span>
-                </span>
-                <ul className="space-y-1 text-[#202B38] pl-5 list-disc">
-                  <li>Clean plastic water, juice, and edible oil bottles</li>
-                  <li>Dry delivery cartons, shipping boxes, packaging cardboard</li>
-                  <li>Clean shampoo bottles, detergent jugs, and metal soda cans</li>
-                </ul>
-              </div>
-
-              {/* NO NOT THESE */}
-              <div className="p-3.5 bg-[#FFF0F0] rounded-2xl border border-[#FFD5D5] space-y-2">
-                <span className="font-bold text-[#D32F2F] text-xs flex items-center gap-1.5">
-                  <X className="w-4 h-4" />
-                  <span>NO, WE CANNOT COLLECT:</span>
-                </span>
-                <ul className="space-y-1 text-[#202B38] pl-5 list-disc">
-                  <li>Wet kitchen or food waste</li>
-                  <li>Hazardous chemical or battery containers</li>
-                  <li>Medical or biological waste</li>
-                </ul>
-              </div>
+              {materialChoices.map((item) => (
+                <div key={item.id} className="p-3.5 bg-[#FAF9F5] rounded-2xl border border-[#EDE4D8] space-y-2">
+                  <span className="font-bold text-xs text-[#202B38] block">
+                    {lang === 'en' ? item.titleEn : item.titleBn}
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="space-y-1">
+                      <span className="font-bold text-[#12613F] block">✓ {t.acceptedItems}:</span>
+                      {(lang === 'en' ? item.acceptedList : item.acceptedListBn).map((acc, i) => (
+                        <div key={i} className="text-[#53616D] leading-tight">• {acc}</div>
+                      ))}
+                    </div>
+                    <div className="space-y-1">
+                      <span className="font-bold text-rose-700 block">✗ {t.rejectedItems}:</span>
+                      {(lang === 'en' ? item.rejectedList : item.rejectedListBn).map((rej, i) => (
+                        <div key={i} className="text-[#53616D] leading-tight">• {rej}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <button
+              type="button"
               onClick={() => setShowExamplesModal(false)}
-              className="w-full min-h-[44px] bg-[#25345C] text-white font-bold rounded-2xl cursor-pointer"
+              className="w-full py-2.5 bg-[#25345C] text-white rounded-xl font-bold text-xs"
             >
-              Got it, return to booking
+              {t.close}
             </button>
           </div>
         </div>

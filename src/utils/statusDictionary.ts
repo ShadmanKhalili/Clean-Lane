@@ -137,8 +137,9 @@ export function getCustomerStatusLabel(status: string, lang: 'en' | 'bn'): strin
  * Audio / Spoken Guidance Helper
  * Uses Web Speech API where available, fallback graceful
  */
-export function speakInstruction(text: string, lang: 'en' | 'bn'): void {
+export function speakInstruction(text: string, lang: 'en' | 'bn', onEnd?: () => void): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (onEnd) onEnd();
     return;
   }
   try {
@@ -146,9 +147,13 @@ export function speakInstruction(text: string, lang: 'en' | 'bn'): void {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
     utterance.rate = 0.95; // Slightly slower for clarity
+    if (onEnd) {
+      utterance.onend = () => onEnd();
+      utterance.onerror = () => onEnd();
+    }
     window.speechSynthesis.speak(utterance);
   } catch {
-    // Ignore speech errors gracefully
+    if (onEnd) onEnd();
   }
 }
 
