@@ -32,9 +32,9 @@
   select:focus-visible,
   textarea:focus-visible,
   a:focus-visible {
-    outline: none;
-    ring: 2px solid #25345C;
-    ring-offset: 2px;
+    outline: 2px solid #25345C;
+    outline-offset: 2px;
+    border-radius: 6px;
   }
 }
 
