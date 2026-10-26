@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { usePersistentState, clearAllPersistedState } from '../hooks/usePersistentState';
 import {
   INITIAL_AUDIT_LOGS,
   INITIAL_BOOKINGS,
@@ -96,6 +97,9 @@ interface AppContextType {
   activeToast: string | null;
   showToast: (msg: string) => void;
 
+  // Demo session persistence
+  resetDemoData: () => void;
+
   // Actions
   createBooking: (newBooking: Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'evidenceLevel' | 'status' | 'pointsStatus'>) => Booking;
   cancelBooking: (bookingId: string, reason: string) => void;
@@ -149,35 +153,36 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<UserRole>('customer_household');
-  const [lang, setLang] = useState<'en' | 'bn'>('en');
+  const [role, setRole] = usePersistentState<UserRole>('cleanlane:role', 'customer_household');
+  const [lang, setLang] = usePersistentState<'en' | 'bn'>('cleanlane:lang', 'en');
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
   const [activeToast, setActiveToast] = useState<string | null>(null);
 
-  const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
-  const [jobs, setJobs] = useState<PickupJob[]>(INITIAL_JOBS);
-  const [lots, setLots] = useState<MaterialLot[]>(INITIAL_MATERIAL_LOTS);
-  const [custodyEvents, setCustodyEvents] = useState<CustodyEvent[]>(INITIAL_CUSTODY_EVENTS);
-  const [sortingTransformations, setSortingTransformations] = useState<SortingTransformation[]>(INITIAL_SORTING_TRANSFORMATIONS);
-  const [processingDispositions, setProcessingDispositions] = useState<ProcessingDisposition[]>(INITIAL_PROCESSING_DISPOSITIONS);
-  const [pointsLedger, setPointsLedger] = useState<PointsLedgerEntry[]>(INITIAL_POINTS_LEDGER);
-  const [rewards, setRewards] = useState<RewardItem[]>(INITIAL_REWARDS);
-  const [redemptions, setRedemptions] = useState<CustomerRedemption[]>(INITIAL_REDEMPTIONS);
-  const [complaints, setComplaints] = useState<ServiceComplaint[]>(INITIAL_COMPLAINTS);
-  const [campaigns, setCampaigns] = useState<BrandCampaign[]>(INITIAL_BRAND_CAMPAIGNS);
-  const [evidencePackages, setEvidencePackages] = useState<EvidencePackage[]>(INITIAL_EVIDENCE_PACKAGES);
+  // All mutable demo collections persist across page reloads via localStorage.
+  const [bookings, setBookings] = usePersistentState<Booking[]>('cleanlane:bookings', INITIAL_BOOKINGS);
+  const [jobs, setJobs] = usePersistentState<PickupJob[]>('cleanlane:jobs', INITIAL_JOBS);
+  const [lots, setLots] = usePersistentState<MaterialLot[]>('cleanlane:lots', INITIAL_MATERIAL_LOTS);
+  const [custodyEvents, setCustodyEvents] = usePersistentState<CustodyEvent[]>('cleanlane:custodyEvents', INITIAL_CUSTODY_EVENTS);
+  const [sortingTransformations, setSortingTransformations] = usePersistentState<SortingTransformation[]>('cleanlane:sortingTransformations', INITIAL_SORTING_TRANSFORMATIONS);
+  const [processingDispositions, setProcessingDispositions] = usePersistentState<ProcessingDisposition[]>('cleanlane:processingDispositions', INITIAL_PROCESSING_DISPOSITIONS);
+  const [pointsLedger, setPointsLedger] = usePersistentState<PointsLedgerEntry[]>('cleanlane:pointsLedger', INITIAL_POINTS_LEDGER);
+  const [rewards, setRewards] = usePersistentState<RewardItem[]>('cleanlane:rewards', INITIAL_REWARDS);
+  const [redemptions, setRedemptions] = usePersistentState<CustomerRedemption[]>('cleanlane:redemptions', INITIAL_REDEMPTIONS);
+  const [complaints, setComplaints] = usePersistentState<ServiceComplaint[]>('cleanlane:complaints', INITIAL_COMPLAINTS);
+  const [campaigns, setCampaigns] = usePersistentState<BrandCampaign[]>('cleanlane:campaigns', INITIAL_BRAND_CAMPAIGNS);
+  const [evidencePackages, setEvidencePackages] = usePersistentState<EvidencePackage[]>('cleanlane:evidencePackages', INITIAL_EVIDENCE_PACKAGES);
   const [serviceZones] = useState<ServiceZone[]>(INITIAL_SERVICE_ZONES);
-  const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
-  const [dropOffPoints, setDropOffPoints] = useState<DropOffPoint[]>(INITIAL_DROP_OFF_POINTS);
-  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>(INITIAL_SAVED_LOCATIONS);
-  const [orgMembers, setOrgMembers] = useState<OrgMember[]>(INITIAL_ORG_MEMBERS);
-  const [selectedLocationId, setSelectedLocationId] = useState<string>('LOC-01');
+  const [auditLogs, setAuditLogs] = usePersistentState<AuditEvent[]>('cleanlane:auditLogs', INITIAL_AUDIT_LOGS);
+  const [dropOffPoints, setDropOffPoints] = usePersistentState<DropOffPoint[]>('cleanlane:dropOffPoints', INITIAL_DROP_OFF_POINTS);
+  const [savedLocations, setSavedLocations] = usePersistentState<SavedLocation[]>('cleanlane:savedLocations', INITIAL_SAVED_LOCATIONS);
+  const [orgMembers, setOrgMembers] = usePersistentState<OrgMember[]>('cleanlane:orgMembers', INITIAL_ORG_MEMBERS);
+  const [selectedLocationId, setSelectedLocationId] = usePersistentState<string>('cleanlane:selectedLocation', 'LOC-01');
 
   // Notifications & 24h Automated Reminders
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = usePersistentState<AppNotification[]>('cleanlane:notifications', INITIAL_NOTIFICATIONS);
   const [notificationSettings, setNotificationSettings] =
-    useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+    usePersistentState<NotificationSettings>('cleanlane:notificationSettings', DEFAULT_NOTIFICATION_SETTINGS);
 
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) =>
@@ -256,6 +261,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTimeout(() => {
       setActiveToast((current) => (current === msg ? null : current));
     }, 4000);
+  };
+
+  // Clears all persisted demo data and restores the pristine seed dataset.
+  const resetDemoData = () => {
+    clearAllPersistedState();
+    setBookings(INITIAL_BOOKINGS);
+    setJobs(INITIAL_JOBS);
+    setLots(INITIAL_MATERIAL_LOTS);
+    setCustodyEvents(INITIAL_CUSTODY_EVENTS);
+    setSortingTransformations(INITIAL_SORTING_TRANSFORMATIONS);
+    setProcessingDispositions(INITIAL_PROCESSING_DISPOSITIONS);
+    setPointsLedger(INITIAL_POINTS_LEDGER);
+    setRewards(INITIAL_REWARDS);
+    setRedemptions(INITIAL_REDEMPTIONS);
+    setComplaints(INITIAL_COMPLAINTS);
+    setCampaigns(INITIAL_BRAND_CAMPAIGNS);
+    setEvidencePackages(INITIAL_EVIDENCE_PACKAGES);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setDropOffPoints(INITIAL_DROP_OFF_POINTS);
+    setSavedLocations(INITIAL_SAVED_LOCATIONS);
+    setOrgMembers(INITIAL_ORG_MEMBERS);
+    setSelectedLocationId('LOC-01');
+    setNotifications(INITIAL_NOTIFICATIONS);
+    setNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+    setIsOfflineMode(false);
+    setOfflineQueueCount(0);
+    showToast(
+      lang === 'en'
+        ? 'Demo data has been reset to its original state.'
+        : 'ডেমো তথ্য পূর্বাবস্থায় ফিরিয়ে আনা হয়েছে।'
+    );
   };
 
   const addAuditLog = (
@@ -1229,6 +1265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         auditLogs,
         activeToast,
         showToast,
+        resetDemoData,
         createBooking,
         cancelBooking,
         acceptJob,

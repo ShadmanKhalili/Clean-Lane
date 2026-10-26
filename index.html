@@ -9,13 +9,36 @@
     <meta property="og:description" content="Multi-sided waste recovery, circular rewards, collector operations, and chain-of-custody traceability platform for clean lane pilots." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      /* Inline skeleton to avoid a blank white flash while the JS bundle boots */
+      #boot-skeleton { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #FAF9F5; z-index: 999; transition: opacity 190ms ease; }
+      #boot-skeleton .boot-mark { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #C9F1DC; border-top-color: #12613F; animation: boot-spin 0.8s linear infinite; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot-skeleton .boot-mark { animation-duration: 1.6s; } }
+    </style>
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="boot-skeleton" aria-hidden="true"><div class="boot-mark"></div></div>
+    <script type="module">
+      // Remove the boot skeleton once React has mounted its first paint.
+      const skeleton = document.getElementById('boot-skeleton');
+      const removeSkeleton = () => {
+        if (!skeleton) return;
+        skeleton.style.opacity = '0';
+        setTimeout(() => skeleton.remove(), 200);
+      };
+      new MutationObserver((_, obs) => {
+        if (document.getElementById('root')?.childElementCount > 0) { removeSkeleton(); obs.disconnect(); }
+      }).observe(document.getElementById('root'), { childList: true });
+      // Safety net: never keep the skeleton longer than 6s even on failure.
+      setTimeout(removeSkeleton, 6000);
+      import('/src/main.tsx');
+    </script>
   </body>
 </html>
 
