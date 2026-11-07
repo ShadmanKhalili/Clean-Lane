@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
  * snapshots are then ignored instead of crashing the app with a stale schema.
  */
 // v2: custody records gained real hash-chain seals.
-export const STORAGE_VERSION = 2;
+// v3: seed gained full custody journeys for the demo lots.
+export const STORAGE_VERSION = 3;
 export const STORAGE_PREFIX = `cleanlane:v${STORAGE_VERSION}:`;
 
 const read = <T,>(key: string, fallback: T): T => {

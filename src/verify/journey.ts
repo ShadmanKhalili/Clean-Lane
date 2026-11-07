@@ -255,7 +255,7 @@ export const buildLotJourney = ({ lotId, lots, events, sortings, dispositions }:
     facts: {
       weightKg: lot.verifiedHubWeightKg ?? lot.initialFieldWeightKg,
       weightKind: lot.verifiedHubWeightKg !== undefined ? 'hub' : 'door',
-      place: first?.where ?? lot.location,
+      place: first?.where ?? 'Dhaka',
       stage,
       evidence: disp.length ? 'E4' : lot.evidenceLevel,
       recycled

@@ -409,6 +409,86 @@ export const INITIAL_MATERIAL_LOTS: MaterialLot[] = [
 ];
 
 export const INITIAL_CUSTODY_EVENTS: CustodyEvent[] = [
+  // Full journey of the Green View Heights cardboard lot (sealed by sealAll at load).
+  {
+    id: 'CUST-EV-92-1',
+    lotId: 'LOT-2026-092-OCC',
+    timestamp: '2026-09-22T10:15:00Z',
+    sender: 'Green View Heights Committee (Apartment)',
+    receiver: 'Tariq Hossain (Authorized Collector)',
+    location: 'Green View Heights, Road 11, Banani',
+    quantityKg: 46.5,
+    measurementMethod: 'Certified Portable Hanging Scale (Model HS-50)',
+    evidenceLevelResult: 'E1',
+    verifiedBy: 'Tariq Hossain (Verified ID #TH-882)',
+    signatureOrHash: ''
+  },
+  {
+    id: 'CUST-EV-92-2',
+    lotId: 'LOT-2026-092-OCC',
+    timestamp: '2026-09-22T15:40:00Z',
+    sender: 'Tariq Hossain (Collector)',
+    receiver: 'Rahmat Ali (Gulshan Hub #3 Weighmaster)',
+    location: 'Gulshan Aggregation Hub #3 (Scale #GW-01)',
+    quantityKg: 45.8,
+    measurementMethod: 'Certified Platform Floor Scale (OIML R76 Class III)',
+    evidenceLevelResult: 'E2',
+    verifiedBy: 'Rahmat Ali (Weighmaster)',
+    signatureOrHash: ''
+  },
+  {
+    id: 'CUST-EV-92-3',
+    lotId: 'LOT-2026-092-OCC',
+    timestamp: '2026-09-23T09:10:00Z',
+    sender: 'Gulshan Aggregation Hub #3',
+    receiver: 'Meghna Paper & Pulp Recycling Line 2',
+    location: 'Gulshan Aggregation Hub #3 (Dispatch Bay)',
+    quantityKg: 45.8,
+    measurementMethod: 'Dispatch manifest against certified hub weight',
+    evidenceLevelResult: 'E3',
+    verifiedBy: 'Rahmat Ali (Weighmaster)',
+    signatureOrHash: ''
+  },
+  {
+    id: 'CUST-EV-92-4',
+    lotId: 'LOT-2026-092-OCC',
+    timestamp: '2026-09-23T14:00:00Z',
+    sender: 'Hub transport (Truck DH-METRO-11)',
+    receiver: 'Meghna Paper & Pulp Intake Desk',
+    location: 'Meghna Industrial Park, Narayanganj',
+    quantityKg: 45.8,
+    measurementMethod: 'Mill weighbridge on receipt',
+    evidenceLevelResult: 'E3',
+    verifiedBy: 'Shirin Akter (Mill Intake Supervisor)',
+    signatureOrHash: ''
+  },
+  {
+    id: 'CUST-EV-92-5',
+    lotId: 'LOT-2026-092-OCC',
+    timestamp: '2026-09-25T11:45:00Z',
+    sender: 'Meghna Pulping Line 2',
+    receiver: 'Finished goods (recycled liner board)',
+    location: 'Meghna Industrial Park, Narayanganj',
+    quantityKg: 43.1,
+    measurementMethod: 'Output yield per disposition certificate CERT-DISP-MEGHNA-2026-4491',
+    evidenceLevelResult: 'E4',
+    verifiedBy: 'Meghna QA (certificate CERT-DISP-MEGHNA-2026-4491)',
+    signatureOrHash: ''
+  },
+  // Sorting output A, baled at the hub after SORT-TR-2026-095.
+  {
+    id: 'CUST-EV-95A-1',
+    lotId: 'LOT-SORT-095-A',
+    timestamp: '2026-10-04T11:05:00Z',
+    sender: 'Gulshan Hub #3 Sorting Line',
+    receiver: 'Gulshan Hub #3 Bale Store',
+    location: 'Gulshan Aggregation Hub #3 (Bale Store)',
+    quantityKg: 12.4,
+    measurementMethod: 'Certified Platform Floor Scale (OIML R76 Class III)',
+    evidenceLevelResult: 'E2',
+    verifiedBy: 'Rahmat Ali (Senior Sorter)',
+    signatureOrHash: ''
+  },
   {
     id: 'CUST-EV-95-1',
     lotId: 'LOT-2026-095-PET',

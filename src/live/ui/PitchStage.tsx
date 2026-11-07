@@ -64,7 +64,7 @@ export const PitchStage: React.FC = () => {
     () => (STAGE_TEST ? { ...live, book: (i) => (live.bookings.length >= 14 ? Promise.resolve(live.bookings[0]) : live.book({ ...i, simulated: false })) } : live),
     [live]
   );
-  useAudienceSimulator(simLive, simulating, 3000);
+  useAudienceSimulator(simLive, simulating, 2200);
   const liveRef = useRef(live);
   liveRef.current = live;
   useEffect(() => {
