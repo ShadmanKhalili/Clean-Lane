@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, TrendingUp, Sparkles, Droplets, Trees, ChevronDown, ChevronUp, Leaf } from 'lucide-react';
+import { ShieldCheck, TrendingUp, Droplets, Trees, ChevronDown, ChevronUp, Leaf } from 'lucide-react';
+import { impactForKg } from '../customer/impact';
+import { useCustomerData } from '../customer/useCustomerData';
 
 interface EnvironmentalImpactWidgetProps {
   className?: string;
@@ -17,17 +19,18 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
   defaultExpanded = false
 }) => {
   const { bookings, lang } = useApp();
+  const { confirmedKg: myKg, customer } = useCustomerData();
   const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded);
-  const [viewScope, setViewScope] = useState<'household' | 'pilot_zone'>('household');
+  const [viewScope, setViewScope] = useState<'mine' | 'network'>('mine');
 
-  // Sum verified weight across customer bookings
-  const householdKg = bookings.reduce((sum, b) => sum + (b.confirmedWeightKg || 0), 0) || 18.5;
-  const activeKg = viewScope === 'household' ? householdKg : householdKg * 142 + 2850;
-
-  // Real environmental equivalencies
-  const co2AvoidedKg = (activeKg * 1.82).toFixed(1);
-  const plasticBottlesEquivalent = Math.round(activeKg * 24.5);
-  const landfillSpaceSavedM3 = (activeKg * 0.0032).toFixed(2);
+  // Hub-scale-confirmed mass only. "Mine" is the signed-in customer; "network" is every customer in the demo data.
+  const networkKg = bookings.reduce((sum, b) => sum + (b.status === 'CANCELLED' || b.status === 'MISSED' ? 0 : b.confirmedWeightKg || 0), 0);
+  const activeKg = viewScope === 'mine' ? myKg : networkKg;
+  const { co2eKg, landfillM3, bottles } = impactForKg(activeKg);
+  const co2AvoidedKg = co2eKg.toFixed(1);
+  const plasticBottlesEquivalent = bottles;
+  const landfillSpaceSavedM3 = landfillM3.toFixed(2);
+  const isOrg = customer.customerType === 'apartment' || customer.customerType === 'business';
 
   return (
     <div
@@ -45,14 +48,20 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
                 {lang === 'en' ? 'Verified Circularity Impact' : 'পরিবেশগত সার্কুলার অর্জন'}
               </span>
               <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC] px-2 py-0.2 rounded-md font-bold">
-                E3 Certified
+                {lang === 'en' ? 'Hub-scale confirmed' : 'হাব স্কেলে নিশ্চিত'}
               </span>
             </div>
-            <p className="text-xs text-[#53616D] truncate mt-0.5">
-              <strong className="text-[#12613F] font-mono">{householdKg.toFixed(1)} kg</strong>{' '}
-              {lang === 'en' ? 'diverted from Matuail' : 'বর্জ্য অপসারিত'} ·{' '}
-              <strong className="text-[#25345C] font-mono">{(householdKg * 1.82).toFixed(1)} kg</strong>{' '}
-              CO₂e {lang === 'en' ? 'avoided' : 'সাশ্রয়'}
+            <p className="text-xs text-[#53616D] mt-0.5">
+              {myKg > 0 ? (
+                <>
+                  <strong className="text-[#12613F] font-mono">{myKg.toFixed(1)} kg</strong> {lang === 'en' ? 'diverted from landfill' : 'ল্যান্ডফিল থেকে সরানো'} ·{' '}
+                  <strong className="text-[#25345C] font-mono">≈ {impactForKg(myKg).co2eKg.toFixed(1)} kg</strong> CO₂e {lang === 'en' ? 'avoided' : 'সাশ্রয়'}
+                </>
+              ) : lang === 'en' ? (
+                'Your impact appears here after your first weighed pickup.'
+              ) : (
+                'প্রথম ওজন করা পিকআপের পর আপনার প্রভাব এখানে দেখা যাবে।'
+              )}
             </p>
           </div>
         </div>
@@ -60,6 +69,7 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
           className="self-start sm:self-auto px-3.5 py-2 rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#FAF5EC] text-xs font-bold text-[#25345C] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs shrink-0 active:scale-95"
         >
           <span>
@@ -94,25 +104,27 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
             <div className="flex items-center gap-1 p-1 bg-[#FFF9F0] border border-[#EDE4D8] rounded-2xl text-xs font-semibold self-start sm:self-auto">
               <button
                 type="button"
-                onClick={() => setViewScope('household')}
+                onClick={() => setViewScope('mine')}
+                aria-pressed={viewScope === 'mine'}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                  viewScope === 'household'
+                  viewScope === 'mine'
                     ? 'bg-[#25345C] text-white shadow-2xs'
                     : 'text-[#53616D] hover:text-[#202B38]'
                 }`}
               >
-                {lang === 'en' ? 'My Household' : 'আমার বাসা'}
+                {isOrg ? (lang === 'en' ? 'My site' : 'আমাদের সাইট') : lang === 'en' ? 'My household' : 'আমার বাসা'}
               </button>
               <button
                 type="button"
-                onClick={() => setViewScope('pilot_zone')}
+                onClick={() => setViewScope('network')}
+                aria-pressed={viewScope === 'network'}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                  viewScope === 'pilot_zone'
+                  viewScope === 'network'
                     ? 'bg-[#25345C] text-white shadow-2xs'
                     : 'text-[#53616D] hover:text-[#202B38]'
                 }`}
               >
-                {lang === 'en' ? 'Gulshan-2 Pilot Zone' : 'গুলশান-২ পাইলট'}
+                {lang === 'en' ? 'All Clean Lane customers' : 'সব ক্লিন লেন গ্রাহক'}
               </button>
             </div>
           </div>
@@ -134,7 +146,7 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
                 <span className="text-xs font-bold text-[#53616D] ml-1">kg</span>
               </div>
               <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? '100% kept out of Matuail dump' : 'মাতুয়াইল ল্যান্ডফিল থেকে অপসারিত'}
+                {lang === 'en' ? 'Kept out of the landfill' : 'ল্যান্ডফিল থেকে সরানো'}
               </span>
             </div>
 
@@ -172,7 +184,7 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
                 <span className="text-xs font-bold text-[#53616D] ml-1">units</span>
               </div>
               <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? 'Sent to certified flakes mill' : 'অনুমোদিত ফ্লেক্স মিলে প্রেরিত'}
+                {lang === 'en' ? 'Approx. 500 ml bottles of material' : 'আনুমানিক ৫০০ মি.লি. বোতলের সমপরিমাণ'}
               </span>
             </div>
 
@@ -196,16 +208,10 @@ export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps>
             </div>
           </div>
 
-          {/* Unboxed Subtle Footer Notice */}
-          <div className="pt-2 border-t border-[#FAF5EC] flex flex-wrap items-center justify-between gap-2 text-xs text-[#53616D]">
-            <div className="flex items-center gap-2">
-              <span>Audited by Clean Lane Hub Scales</span>
-              <span aria-hidden="true">·</span>
-              <span>EPR Co-funded by Pran & Unilever</span>
-            </div>
-            <span className="text-[11px] font-mono font-semibold text-[#12613F]">
-              Verified Chain of Custody (E3 Standard)
-            </span>
+          <div className="pt-2 border-t border-[#FAF5EC] text-xs text-[#53616D]">
+            {lang === 'en'
+              ? 'Based on weights confirmed at Clean Lane hub scales. Cancelled and missed pickups are excluded.'
+              : 'ক্লিন লেন হাব স্কেলে নিশ্চিত ওজনের ভিত্তিতে। বাতিল ও ছুটে যাওয়া পিকআপ বাদ।'}
           </div>
         </div>
       )}

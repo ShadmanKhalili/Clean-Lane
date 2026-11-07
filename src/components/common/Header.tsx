@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { UserRole } from '../../types';
+import { AppNotification, UserRole } from '../../types';
 import { useTranslation } from '../../utils/translations';
 import {
   ShieldCheck,
@@ -13,7 +13,8 @@ import {
   Clock,
   Compass,
   FileCheck2,
-  ChevronDown
+  ChevronDown,
+  Bell
 } from 'lucide-react';
 import { USER_ROLES } from '../../routing';
 
@@ -24,6 +25,8 @@ const AccountDrawerModal = lazy(() => import('../customer/AccountDrawerModal').t
 const HelpDrawerModal = lazy(() => import('../customer/HelpDrawerModal').then((m) => ({ default: m.HelpDrawerModal })));
 const OnboardingFlowModal = lazy(() => import('../customer/OnboardingFlowModal').then((m) => ({ default: m.OnboardingFlowModal })));
 const DisputeModal = lazy(() => import('../customer/DisputeModal').then((m) => ({ default: m.DisputeModal })));
+const NotificationCenterModal = lazy(() => import('../notifications/NotificationCenterModal').then((m) => ({ default: m.NotificationCenterModal })));
+const PreparationGuidanceModal = lazy(() => import('../notifications/PreparationGuidanceModal').then((m) => ({ default: m.PreparationGuidanceModal })));
 const MaterialGuideModal = lazy(() => import('../customer/MaterialGuideModal').then((m) => ({ default: m.MaterialGuideModal })));
 
 interface HeaderProps {
@@ -41,7 +44,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     offlineQueueCount,
     syncOfflineQueue,
     savedLocations,
-    selectedLocationId
+    selectedLocationId,
+    notifications,
+    currentCustomer
   } = useApp();
 
   const t = useTranslation(lang);
@@ -54,6 +59,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const [isSortingGuideOpen, setIsSortingGuideOpen] = useState(false);
   const [isDemonstratorOpen, setIsDemonstratorOpen] = useState(false);
   const [isInvestorShowcaseOpen, setIsInvestorShowcaseOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [prepNotification, setPrepNotification] = useState<AppNotification | null>(null);
+  const unreadCount = notifications.filter((n) => n.customerId === currentCustomer.id && !n.read).length;
 
   const isCustomerRole = role.startsWith('customer');
 
@@ -240,6 +248,31 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               <span className="hidden sm:inline">{t.help}</span>
             </button>
 
+            {/* Notifications bell (customers) */}
+            {isCustomerRole && (
+              <button
+                type="button"
+                onClick={() => setIsNotificationsOpen(true)}
+                className="relative flex items-center justify-center w-9 h-9 rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#FAF5EC] transition-colors cursor-pointer shadow-2xs"
+                title={lang === 'en' ? 'Notifications' : 'বিজ্ঞপ্তি'}
+                aria-label={
+                  lang === 'en'
+                    ? `Notifications, ${unreadCount} unread`
+                    : `বিজ্ঞপ্তি, ${unreadCount}টি অপঠিত`
+                }
+              >
+                <Bell className="w-4 h-4 text-[#25345C]" aria-hidden="true" />
+                {unreadCount > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Account Button (In Header) */}
             <button
               onClick={() => setIsAccountOpen(true)}
@@ -354,6 +387,19 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             isOpen={isDisputeOpen}
             onClose={() => setIsDisputeOpen(false)}
           />
+        )}
+
+        {/* Notification Center */}
+        {isNotificationsOpen && (
+          <NotificationCenterModal
+            isOpen={isNotificationsOpen}
+            onClose={() => setIsNotificationsOpen(false)}
+            onOpenPreparation={(n) => setPrepNotification(n)}
+          />
+        )}
+
+        {prepNotification && (
+          <PreparationGuidanceModal isOpen notification={prepNotification} onClose={() => setPrepNotification(null)} />
         )}
 
         {/* Sorting Guide Modal */}

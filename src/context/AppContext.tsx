@@ -11,6 +11,7 @@ import {
   payoutForWeight,
   pointsForWeight,
   releasePendingHolds,
+  estimateHeldPoints,
   SCALE_TOLERANCE_PERCENT
 } from '../domain/rules';
 import {
@@ -60,6 +61,7 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   INITIAL_NOTIFICATIONS,
   generate24HourReminder,
+  isWithinReminderWindow,
   evaluateAutomatedReminders
 } from '../services/notificationService';
 
@@ -364,7 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nowIso = new Date().toISOString();
 
     // Calculate approximate points hold
-    const estPoints = 150; // base reward calculation
+    const estPoints = estimateHeldPoints(data.materials);
     const newBooking: Booking = {
       ...data,
       id: newId,
@@ -411,12 +413,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPointsLedger((prev) => [ledgerEntry, ...prev]);
 
     // Generate Automated 24h Reminder Notification with Custom Preparation Steps
-    const reminderNotif = generate24HourReminder(newBooking);
-    setNotifications((prev) => [reminderNotif, ...prev]);
-
+    // Only queue the 24h reminder when the pickup is today or tomorrow; later
+    // bookings are picked up by the automated evaluator when they enter the window.
     addAuditLog('BOOKING_CREATED', 'Booking', newId, 'Customer booked scheduled clean lane collection.');
-    addAuditLog('REMINDER_SCHEDULED_24H', 'NotificationService', reminderNotif.id, `Automated 24h reminder with preparation guidance queued for SMS & In-App delivery.`);
-    showToast(`Booking ${newId} confirmed! 24h reminder & preparation steps sent.`);
+    const reminderDue = isWithinReminderWindow(newBooking.scheduledDate);
+    if (reminderDue) {
+      const reminderNotif = generate24HourReminder(newBooking);
+      setNotifications((prev) => [reminderNotif, ...prev]);
+      addAuditLog('REMINDER_SCHEDULED_24H', 'NotificationService', reminderNotif.id, `Automated 24h reminder with preparation guidance queued for SMS & In-App delivery.`);
+    }
+    showToast(
+      reminderDue
+        ? `Booking ${newId} confirmed! Reminder & preparation steps sent.`
+        : `Booking ${newId} confirmed! We'll remind you the day before.`
+    );
     return newBooking;
   };
 
@@ -427,6 +437,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setJobs((prev) =>
       prev.map((j) => (j.bookingId === bookingId ? { ...j, status: 'EXCEPTION', exceptionReason: 'cancelled_at_door' } : j))
     );
+    // Points held for this booking can no longer be earned.
+    setPointsLedger((prev) => releasePendingHolds(prev, bookingId, `released: booking cancelled`));
     addAuditLog('BOOKING_CANCELLED', 'Booking', bookingId, reason);
     showToast(`Booking ${bookingId} has been cancelled.`);
   };

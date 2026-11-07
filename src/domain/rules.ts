@@ -77,9 +77,28 @@ export const computePointBalances = (ledger: PointsLedgerEntry[], customerId: st
 };
 
 /** Marks a booking's pending hold as settled once its real credit is issued. */
-export const releasePendingHolds = (ledger: PointsLedgerEntry[], bookingId: string): PointsLedgerEntry[] =>
+export const releasePendingHolds = (
+  ledger: PointsLedgerEntry[],
+  bookingId: string,
+  note = 'settled by hub scale confirmation'
+): PointsLedgerEntry[] =>
   ledger.map((e) =>
     e.type === 'PENDING_HOLD' && e.status === 'PENDING' && e.linkedBookingId === bookingId
-      ? { ...e, status: 'REVERSED' as const, description: `${e.description} (settled by hub scale confirmation)` }
+      ? { ...e, status: 'REVERSED' as const, description: `${e.description} (${note})` }
       : e
   );
+
+/**
+ * Midpoint of a weight band such as "2-5 kg", "5–15 kg", "<2 kg", "15+ kg" or "3.5 kg".
+ * Unparseable bands count as 0 so an estimate never invents weight.
+ */
+export const bandMidpointKg = (band: string): number => {
+  const nums = (band.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+  if (nums.length === 0) return 0;
+  if (nums.length >= 2) return (nums[0] + nums[1]) / 2;
+  return nums[0];
+};
+
+/** Points held while a booking awaits hub verification: estimated weight x doorstep rate. */
+export const estimateHeldPoints = (bands: { approximateBandKg: string }[]): number =>
+  pointsForWeight(bands.reduce((a, m) => a + bandMidpointKg(m.approximateBandKg), 0));

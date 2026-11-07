@@ -143,3 +143,17 @@ describe('lot lifecycle', () => {
     expect(intakeLots([parent, child]).map((l) => l.id)).toEqual(['L1']);
   });
 });
+
+import { bandMidpointKg, estimateHeldPoints } from '../domain/rules';
+
+describe('held points estimate', () => {
+  it('parses common band formats', () => {
+    expect(bandMidpointKg('2-5 kg')).toBe(3.5);
+    expect(bandMidpointKg('5–15 kg')).toBe(10);
+    expect(bandMidpointKg('3.5 kg (Drop-off scale)')).toBe(3.5);
+    expect(bandMidpointKg('unknown')).toBe(0);
+  });
+  it('sums bands at the doorstep rate', () => {
+    expect(estimateHeldPoints([{ approximateBandKg: '2-5 kg' }, { approximateBandKg: '1-3 kg' }])).toBe(248);
+  });
+});

@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  X,
   Sparkles,
   CheckCircle2,
   AlertTriangle,
@@ -17,6 +16,8 @@ import {
 import { AppNotification, Booking, MaterialCategory } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
 import { useApp } from '../../context/AppContext';
+import { Modal } from '../common/Modal';
+import { formatBookingDate } from '../customer/dates';
 
 interface PreparationGuidanceModalProps {
   isOpen: boolean;
@@ -35,7 +36,13 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [speaking, setSpeaking] = useState(false);
 
-  if (!isOpen) return null;
+  // Stop any read-aloud when the guide is closed/unmounted.
+  useEffect(
+    () => () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    },
+    []
+  );
 
   // Derive guidance from notification or booking
   const prep = notification?.preparationInstructions || {
@@ -148,40 +155,39 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#FFF9F0] border border-[#EDE4D8] rounded-3xl shadow-2xl overflow-hidden my-6">
-        {/* Header */}
-        <div className="px-6 py-5 bg-[#25345C] text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#C9F1DC] text-[#12613F] flex items-center justify-center font-bold">
-              <FileCheck2 className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9F1DC]">
-                {lang === 'en' ? 'Automated 24h Guide' : 'স্বয়ংক্রিয় ২৪ ঘণ্টার নির্দেশিকা'}
-              </span>
-              <h2 className="text-lg font-bold">
-                {lang === 'en'
-                  ? 'Collection Preparation Instructions'
-                  : 'বর্জ্য সংগ্রহের প্রস্তুতি নির্দেশিকা'}
-              </h2>
-            </div>
-          </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={lang === 'en' ? 'Collection preparation instructions' : 'বর্জ্য সংগ্রহের প্রস্তুতি নির্দেশিকা'}
+      description={lang === 'en' ? 'Get ready in a few minutes for full points' : 'কয়েক মিনিটের প্রস্তুতিতেই পূর্ণ পয়েন্ট নিশ্চিত'}
+      closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+      footer={<div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-[#53616D]">
+            {completedSteps.length === prep.steps.length
+              ? lang === 'en'
+                ? 'All steps completed! You are ready for pickup.'
+                : 'সব প্রস্তুতি সম্পন্ন! আপনি সংগ্রহের জন্য প্রস্তুত।'
+              : lang === 'en'
+              ? 'Complete the checklist before collector arrival.'
+              : 'কালেক্টর আসার আগেই প্রস্তুতি শেষ করুন।'}
+          </span>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="px-5 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors shrink-0"
           >
-            <X className="w-4 h-4" />
+            {lang === 'en' ? 'Got it, I am ready' : 'বুঝেছি, প্রস্তুত'}
           </button>
-        </div>
-
+        </div>}
+    >
         {/* Sub-header Banner */}
-        <div className="bg-[#FAF5EC] border-b border-[#EDE4D8] px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-[#FAF5EC] border border-[#EDE4D8] rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4 text-[#53616D]">
             {(notification?.scheduledCollectionDate || booking?.scheduledDate) && (
               <span className="flex items-center gap-1.5 font-semibold text-[#202B38]">
                 <Clock className="w-3.5 h-3.5 text-[#25345C]" />
-                {notification?.scheduledCollectionDate || booking?.scheduledDate} (
+                {formatBookingDate(notification?.scheduledCollectionDate || booking?.scheduledDate, lang)} (
                 {notification?.scheduledTimeWindow || booking?.scheduledTimeWindow})
               </span>
             )}
@@ -195,6 +201,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
 
           <button
             type="button"
+            aria-pressed={speaking}
             onClick={handleSpeak}
             className="px-3 py-1.5 bg-white border border-[#EDE4D8] rounded-xl text-xs font-bold text-[#25345C] hover:bg-[#EDF1F9] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
@@ -216,7 +223,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-6 pt-4">
           {/* Progress / Step checklist */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -233,10 +240,12 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
               {prep.steps.map((step) => {
                 const isDone = completedSteps.includes(step.stepNumber);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={step.stepNumber}
+                    aria-pressed={isDone}
                     onClick={() => toggleStep(step.stepNumber)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                    className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                       isDone
                         ? 'bg-[#E8FAF1] border-[#C9F1DC]'
                         : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/30'
@@ -258,7 +267,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono font-bold text-[#53616D]">
-                          Step {step.stepNumber}
+                          {lang === 'en' ? 'Step' : 'ধাপ'} {step.stepNumber}
                         </span>
                         <h4
                           className={`text-sm font-bold ${
@@ -272,7 +281,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
                         {lang === 'en' ? step.detail : step.detailBn}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -298,7 +307,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
                         {lang === 'en' ? mat.name : mat.nameBn}
                       </span>
                       <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC]/50 px-2 py-0.5 rounded-md font-semibold">
-                        Clean Stream
+                        {lang === 'en' ? 'Clean stream' : 'পরিচ্ছন্ন ধারা'}
                       </span>
                     </div>
 
@@ -327,8 +336,8 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
             <div className="space-y-1 text-xs">
               <span className="font-bold text-amber-950 block">
                 {lang === 'en'
-                  ? 'Quality & Purity Guarantee'
-                  : 'মান ও বিশুদ্ধতা নিশ্চিতকরণ'}
+                  ? 'Why preparation matters'
+                  : 'কেন প্রস্তুতি জরুরি'}
               </span>
               <p className="text-amber-900 leading-relaxed">
                 {lang === 'en'
@@ -347,25 +356,6 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-[#FAF5EC] border-t border-[#EDE4D8] flex items-center justify-between">
-          <span className="text-xs text-[#53616D]">
-            {completedSteps.length === prep.steps.length
-              ? lang === 'en'
-                ? 'All steps completed! You are ready for pickup.'
-                : 'সব প্রস্তুতি সম্পন্ন! আপনি সংগ্রহের জন্য প্রস্তুত।'
-              : lang === 'en'
-              ? 'Complete the checklist before collector arrival.'
-              : 'কালেক্টর আসার আগেই প্রস্তুতি শেষ করুন।'}
-          </span>
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors"
-          >
-            {lang === 'en' ? 'Got It, I am Ready' : 'বুঝেছি, প্রস্তুত'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

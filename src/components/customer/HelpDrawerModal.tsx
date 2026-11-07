@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useTranslation } from '../../utils/translations';
-import {
-  X,
-  HelpCircle,
-  Phone,
-  AlertCircle,
-  FileText,
-  ChevronRight,
-  MessageSquare,
-  CheckCircle2,
-  Clock,
-  Scale,
-  Sparkles
-} from 'lucide-react';
+import { Modal } from '../common/Modal';
+import { SupportCasesList } from './SupportCasesList';
+import { Phone, AlertCircle, FileText, ChevronRight, MessageSquare } from 'lucide-react';
 
 interface HelpDrawerModalProps {
   isOpen: boolean;
@@ -30,11 +20,9 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
   onOpenSortingGuide,
   bookingIdContext
 }) => {
-  const { lang, bookings } = useApp();
+  const { lang } = useApp();
   const t = useTranslation(lang);
   const [selectedFaq, setSelectedFaq] = useState<number | null>(null);
-
-  if (!isOpen) return null;
 
   const faqs = [
     {
@@ -58,32 +46,15 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-      <div className="bg-[#FAF9F5] w-full max-w-md h-full flex flex-col border-l border-[#EDE4D8] shadow-2xl text-[#202B38] overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 bg-white border-b border-[#EDE4D8] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-[#25345C] text-[#C9F1DC] flex items-center justify-center font-bold">
-              <HelpCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-[#202B38]">{t.help}</h2>
-              <span className="text-xs text-[#53616D]">
-                {lang === 'en' ? 'Support, FAQs & Disputes' : 'সহায়তা, প্রশ্ন ও অভিযোগ'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-[#FAF5EC] hover:bg-[#EDE4D8] flex items-center justify-center text-[#53616D] transition-colors cursor-pointer"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto space-y-5 text-xs flex-1">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      variant="drawer"
+      title={t.help}
+      description={lang === 'en' ? 'Support, FAQs & disputes' : 'সহায়তা, প্রশ্ন ও অভিযোগ'}
+      closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+    >
+        <div className="space-y-5 text-xs">
           {/* Direct Emergency Contact Box */}
           <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] flex items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-3">
@@ -119,9 +90,10 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
             </p>
 
             <button
+              type="button"
               onClick={() => {
                 onClose();
-                onOpenFileDispute(bookingIdContext || bookings[0]?.id);
+                onOpenFileDispute(bookingIdContext);
               }}
               className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
@@ -142,6 +114,8 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
                 className="bg-white rounded-2xl border border-[#EDE4D8] overflow-hidden transition-all"
               >
                 <button
+                  type="button"
+                  aria-expanded={selectedFaq === idx}
                   onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
                   className="w-full p-3.5 text-left font-bold text-[#202B38] flex items-center justify-between gap-2 cursor-pointer hover:bg-[#FAF5EC]/50"
                 >
@@ -161,9 +135,12 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
             ))}
           </div>
 
+          <SupportCasesList className="!rounded-2xl !p-4" />
+
           {/* Sorting Guide Link */}
           {onOpenSortingGuide && (
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onOpenSortingGuide();
@@ -178,7 +155,6 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
