@@ -5,6 +5,7 @@ import { Modal } from '../common/Modal';
 import { isOverTolerance } from '../../domain/rules';
 import type { EvidencePackage, MaterialCategory } from '../../types';
 import { ShieldCheck, Award, FileDown, Plus, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+import { verifyLotUrl } from '../../live/routes';
 import brandImg from '../../assets/images/brand_campaign_circular_1791258420512.jpg';
 
 type ClaimType = EvidencePackage['claimType'];
@@ -400,6 +401,14 @@ export const BrandEPRPortal: React.FC = () => {
                 <span className="text-slate-400 font-mono text-[10px]">
                   Approved & Sealed on {pkg.approvedDate}
                 </span>
+                <a
+                  href={verifyLotUrl(lots.find((l) => l.evidenceLevel === 'E4')?.id ?? 'LOT-2026-092-OCC')}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center min-h-11 px-2 font-medium text-emerald-800 underline underline-offset-2"
+                >
+                  {t('Consumer QR preview ↗', 'ভোক্তা QR প্রিভিউ ↗')}
+                </a>
                 <button
                   type="button"
                   onClick={() => handleDownloadDossier(pkg)}

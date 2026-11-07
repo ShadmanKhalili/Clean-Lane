@@ -3,7 +3,7 @@
  *   FIREBASE_EMULATOR=127.0.0.1:9000 npx vitest run firebase.emulator
  * (start it with `npx firebase-tools emulators:start --only database --project demo-cleanlane`).
  */
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { deleteApp, initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectDatabaseEmulator, getDatabase, onValue, ref, remove, set } from 'firebase/database';
 import { advance, createLiveBooking, normaliseBooking, verifyLiveChain, type LiveBooking } from '../live/model';
@@ -22,9 +22,15 @@ suite('Firebase realtime sync + security rules (emulator)', () => {
     connectDatabaseEmulator(db, h, Number(p));
     return db;
   };
-  const audience = client('audience');
-  const presenter = client('presenter');
+  // Created in beforeAll: a skipped describe still runs its body during collection.
+  let audience: ReturnType<typeof getDatabase>;
+  let presenter: ReturnType<typeof getDatabase>;
   const ROOM = 'TEST';
+
+  beforeAll(() => {
+    audience = client('audience');
+    presenter = client('presenter');
+  });
 
   afterAll(async () => {
     await remove(ref(presenter, `rooms/${ROOM}/bookings`));

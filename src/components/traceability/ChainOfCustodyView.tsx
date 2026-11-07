@@ -3,6 +3,7 @@ import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { GitBranch, ArrowRight, Search, FileText } from 'lucide-react';
+import { verifyLotUrl } from '../../live/routes';
 
 export const ChainOfCustodyView: React.FC = () => {
   const { lots, custodyEvents, sortingTransformations, processingDispositions, lang } = useApp();
@@ -103,6 +104,14 @@ export const ChainOfCustodyView: React.FC = () => {
                   ACTIVE LOT IDENTIFIER
                 </span>
                 <h3 className="text-lg font-bold font-mono text-slate-900">{selectedLot.id}</h3>
+                <a
+                  href={verifyLotUrl(selectedLot.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center min-h-11 text-xs font-semibold text-emerald-800 underline underline-offset-2"
+                >
+                  {lang === 'en' ? 'Verify journey ↗' : 'যাত্রা যাচাই ↗'}
+                </a>
               </div>
               <EvidenceBadge level={selectedLot.evidenceLevel} />
             </div>
