@@ -46,7 +46,7 @@ export const DemoModePill: React.FC = () => {
   ];
 
   return (
-    <div ref={ref} className={`fixed left-3 ${role === 'collector' ? 'bottom-40' : 'bottom-20'} md:bottom-4 z-[60] print:hidden`}>
+    <div ref={ref} className={`fixed left-3 ${role === 'collector' ? 'bottom-[14.5rem]' : 'bottom-20'} md:bottom-4 z-[60] print:hidden`}>
       {open && (
         <div role="menu" aria-label={en ? 'Demo mode' : 'ডেমো মোড'} className="mb-2 w-64 rounded-2xl bg-[#172521] text-white shadow-2xl p-2 cl-rise">
           {groups.map((g) => (

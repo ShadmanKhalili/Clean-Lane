@@ -259,7 +259,7 @@ export const ChainOfCustodyView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400 font-mono">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 pt-1 text-[10px] text-slate-400 font-mono break-all">
                       <span>Hash: {evt.signatureOrHash}</span>
                       <span>{evt.timestamp.replace('T', ' ').slice(0, 19)}</span>
                     </div>
