@@ -1,5 +1,6 @@
 import React from 'react';
 import { LifeBuoy } from 'lucide-react';
+import { EmptyState } from '../../design/Celebrate';
 import { useApp } from '../../context/AppContext';
 import type { ServiceComplaint } from '../../types';
 import { formatDateOnly } from './dates';
@@ -21,15 +22,25 @@ const STATUS: Record<ServiceComplaint['status'], { en: string; bn: string; cls: 
 };
 
 /** The signed-in customer's support cases with status and the operator's resolution note. */
-export const SupportCasesList: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const SupportCasesList: React.FC<{ className?: string; showEmpty?: boolean; onAsk?: () => void }> = ({ className = '', showEmpty = false, onAsk }) => {
   const { lang } = useApp();
   const { myComplaints } = useCustomerData();
-  if (myComplaints.length === 0) return null;
+  if (myComplaints.length === 0) {
+    if (!showEmpty) return null;
+    return (
+      <EmptyState
+        icon={<LifeBuoy className="h-6 w-6 text-[#124B3A]" aria-hidden="true" />}
+        title={lang === 'en' ? 'No open questions' : 'কোনো খোলা প্রশ্ন নেই'}
+        body={lang === 'en' ? 'If a pickup is missed or a weight looks wrong, tell us here and you can follow the answer.' : 'পিকআপ ছুটে গেলে বা ওজন ঠিক না লাগলে এখানে জানান, উত্তর এখানেই দেখতে পাবেন।'}
+        action={onAsk && <button type="button" onClick={onAsk} className="inline-flex h-12 items-center rounded-2xl border-2 border-[#124B3A]/20 bg-white px-4 text-sm font-bold text-[#124B3A] cursor-pointer">{lang === 'en' ? 'Talk to us' : 'আমাদের জানান'}</button>}
+      />
+    );
+  }
 
   return (
     <section className={`p-5 bg-white rounded-3xl border border-[#EDE4D8] space-y-3 shadow-2xs text-xs ${className}`} aria-labelledby="support-cases-heading">
       <h3 id="support-cases-heading" className="font-bold text-sm text-[#202B38] flex items-center gap-2">
-        <LifeBuoy className="w-4 h-4 text-[#25345C]" aria-hidden="true" />
+        <LifeBuoy className="w-4 h-4 text-[#124B3A]" aria-hidden="true" />
         {lang === 'en' ? 'My support cases' : 'আমার অভিযোগসমূহ'}
       </h3>
       <ul className="space-y-2">
@@ -38,7 +49,7 @@ export const SupportCasesList: React.FC<{ className?: string }> = ({ className =
           return (
             <li key={c.id} className="p-3 bg-[#FAF9F5] rounded-xl border border-[#EDE4D8] space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono font-bold text-[#25345C]">{c.id}</span>
+                <span className="font-mono font-bold text-[#124B3A]">{c.id}</span>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${st.cls}`}>{lang === 'en' ? st.en : st.bn}</span>
               </div>
               <div className="font-semibold text-[#202B38]">{lang === 'en' ? TYPE_LABEL[c.type].en : TYPE_LABEL[c.type].bn}</div>

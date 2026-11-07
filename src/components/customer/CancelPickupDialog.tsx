@@ -61,7 +61,7 @@ export const CancelPickupDialog: React.FC<CancelPickupDialogProps> = ({ booking,
           <button
             type="button"
             onClick={confirming ? () => setConfirming(false) : close}
-            className="flex-1 py-2.5 rounded-xl border border-[#EDE4D8] bg-white text-[#25345C] font-bold text-xs hover:bg-[#FAF5EC] cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl border border-[#EDE4D8] bg-white text-[#124B3A] font-bold text-xs hover:bg-[#FAF5EC] cursor-pointer"
           >
             {confirming ? (lang === 'en' ? 'Back' : 'পিছনে') : lang === 'en' ? 'Keep my pickup' : 'পিকআপ রাখুন'}
           </button>
@@ -78,7 +78,7 @@ export const CancelPickupDialog: React.FC<CancelPickupDialogProps> = ({ booking,
               type="button"
               disabled={!canContinue}
               onClick={() => setConfirming(true)}
-              className="flex-1 py-2.5 rounded-xl bg-[#25345C] hover:bg-[#1B2644] text-white font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 rounded-xl bg-[#124B3A] hover:bg-[#0E3A2D] text-white font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {lang === 'en' ? 'Continue' : 'এগিয়ে যান'}
             </button>
@@ -108,7 +108,7 @@ export const CancelPickupDialog: React.FC<CancelPickupDialogProps> = ({ booking,
             <label
               key={r.id}
               className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
-                reasonId === r.id ? 'bg-[#FAF5EC] border-[#25345C]' : 'bg-white border-[#EDE4D8] hover:bg-[#FAF9F5]'
+                reasonId === r.id ? 'bg-[#FAF5EC] border-[#124B3A]' : 'bg-white border-[#EDE4D8] hover:bg-[#FAF9F5]'
               }`}
             >
               <input
@@ -117,7 +117,7 @@ export const CancelPickupDialog: React.FC<CancelPickupDialogProps> = ({ booking,
                 value={r.id}
                 checked={reasonId === r.id}
                 onChange={() => setReasonId(r.id)}
-                className="accent-[#25345C]"
+                className="accent-[#124B3A]"
               />
               <span className="font-semibold text-[#202B38]">{lang === 'en' ? r.en : r.bn}</span>
             </label>

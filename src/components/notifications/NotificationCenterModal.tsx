@@ -89,7 +89,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
       size="lg"
       title={
         <span className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-[#25345C]" aria-hidden="true" />
+          <Bell className="w-5 h-5 text-[#124B3A]" aria-hidden="true" />
           {lang === 'en' ? 'Notifications & Reminders' : 'বিজ্ঞপ্তি ও স্মারক'}
           {unreadCount > 0 && (
             <span className="text-[11px] font-bold bg-rose-600 text-white rounded-full px-2 py-0.5" aria-label={lang === 'en' ? `${unreadCount} unread` : `${unreadCount}টি অপঠিত`}>
@@ -116,7 +116,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold cursor-pointer transition-colors shrink-0"
+            className="px-4 py-2 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl font-bold cursor-pointer transition-colors shrink-0"
           >
             {lang === 'en' ? 'Close' : 'বন্ধ করুন'}
           </button>
@@ -130,7 +130,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
                 activeTab === 'all'
-                  ? 'bg-[#25345C] text-white shadow-xs'
+                  ? 'bg-[#124B3A] text-white shadow-xs'
                   : 'bg-white text-[#53616D] border border-[#EDE4D8] hover:bg-white/80'
               }`}
             >
@@ -142,7 +142,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               onClick={() => setActiveTab('reminders')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'reminders'
-                  ? 'bg-[#25345C] text-white shadow-xs'
+                  ? 'bg-[#124B3A] text-white shadow-xs'
                   : 'bg-white text-[#53616D] border border-[#EDE4D8] hover:bg-white/80'
               }`}
             >
@@ -155,7 +155,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               onClick={() => setActiveTab('settings')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'settings'
-                  ? 'bg-[#25345C] text-white shadow-xs'
+                  ? 'bg-[#124B3A] text-white shadow-xs'
                   : 'bg-white text-[#53616D] border border-[#EDE4D8] hover:bg-white/80'
               }`}
             >
@@ -169,7 +169,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               <button
                 type="button"
                 onClick={markAllNotificationsAsRead}
-                className="text-[11px] font-semibold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-semibold text-[#124B3A] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 <span>{lang === 'en' ? 'Mark all read' : 'সব পঠিত হিসেবে চিহ্নিত করুন'}</span>
@@ -225,7 +225,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       onChange={(e) =>
                         updateNotificationSettings({ reminder24h: e.target.checked })
                       }
-                      className="w-4 h-4 text-[#25345C] rounded focus:ring-[#25345C]"
+                      className="w-4 h-4 text-[#124B3A] rounded focus:ring-[#124B3A]"
                     />
                   </label>
 
@@ -248,7 +248,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       onChange={(e) =>
                         updateNotificationSettings({ reminder2h: e.target.checked })
                       }
-                      className="w-4 h-4 text-[#25345C] rounded focus:ring-[#25345C]"
+                      className="w-4 h-4 text-[#124B3A] rounded focus:ring-[#124B3A]"
                     />
                   </label>
                 </div>
@@ -279,7 +279,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       onChange={(e) =>
                         updateNotificationSettings({ smsEnabled: e.target.checked })
                       }
-                      className="w-4 h-4 text-[#25345C] rounded focus:ring-[#25345C]"
+                      className="w-4 h-4 text-[#124B3A] rounded focus:ring-[#124B3A]"
                     />
                   </label>
 
@@ -301,7 +301,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       onChange={(e) =>
                         updateNotificationSettings({ pushEnabled: e.target.checked })
                       }
-                      className="w-4 h-4 text-[#25345C] rounded focus:ring-[#25345C]"
+                      className="w-4 h-4 text-[#124B3A] rounded focus:ring-[#124B3A]"
                     />
                   </label>
 
@@ -323,7 +323,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       onChange={(e) =>
                         updateNotificationSettings({ audioReadout: e.target.checked })
                       }
-                      className="w-4 h-4 text-[#25345C] rounded focus:ring-[#25345C]"
+                      className="w-4 h-4 text-[#124B3A] rounded focus:ring-[#124B3A]"
                     />
                   </label>
                 </div>
@@ -350,7 +350,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   <button
                     type="button"
                     onClick={handleTestTrigger}
-                    className="px-4 py-2 bg-[#25345C] text-white rounded-xl text-xs font-bold hover:bg-[#1B2644] transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-[#124B3A] text-white rounded-xl text-xs font-bold hover:bg-[#0E3A2D] transition-colors cursor-pointer"
                   >
                     {lang === 'en'
                       ? 'Trigger 24h Reminder Test'
@@ -369,7 +369,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                           ? 'bg-white border-[#EDE4D8]'
                           : is24h
                           ? 'bg-[#FEF8EB] border-[#F5BF55] ring-1 ring-[#F5BF55]/50'
-                          : 'bg-[#EDF1F9] border-[#25345C]/30'
+                          : 'bg-[#EDF1F9] border-[#124B3A]/30'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -378,7 +378,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                               is24h
                                 ? 'bg-[#F5BF55] text-[#202B38]'
-                                : 'bg-[#25345C] text-white'
+                                : 'bg-[#124B3A] text-white'
                             }`}
                           >
                             {is24h ? (
@@ -394,7 +394,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                                 {lang === 'en' ? notif.title : notif.titleBn}
                               </h4>
                               {!notif.read && (
-                                <span className="w-2 h-2 rounded-full bg-[#25345C] animate-pulse" />
+                                <span className="w-2 h-2 rounded-full bg-[#124B3A] animate-pulse" />
                               )}
                               <span
                                 className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
@@ -442,7 +442,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                               markNotificationAsRead(notif.id);
                               onOpenPreparation(notif);
                             }}
-                            className="px-3 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                            className="px-3 py-1.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <FileCheck2 className="w-3.5 h-3.5 text-[#C9F1DC]" />
                             <span>
@@ -456,7 +456,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                           <button
                             type="button"
                             onClick={() => setSelectedPreviewNotif(notif)}
-                            className="px-3 py-1.5 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                            className="px-3 py-1.5 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#124B3A] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <Smartphone className="w-3.5 h-3.5" />
                             <span>
@@ -469,7 +469,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                           <button
                             type="button"
                             onClick={() => markNotificationAsRead(notif.id)}
-                            className="text-[11px] font-semibold text-[#53616D] hover:text-[#25345C] cursor-pointer"
+                            className="text-[11px] font-semibold text-[#53616D] hover:text-[#124B3A] cursor-pointer"
                           >
                             {lang === 'en' ? 'Mark read' : 'পঠিত'}
                           </button>
@@ -551,7 +551,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                     <span>Now</span>
                   </div>
                   <div className="p-3 bg-slate-800/90 rounded-xl flex items-start gap-3 border border-slate-700">
-                    <div className="w-8 h-8 rounded-lg bg-[#25345C] text-white flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#124B3A] text-white flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4 text-[#F5BF55]" />
                     </div>
                     <div className="space-y-0.5">

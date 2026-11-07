@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { pointsForWeight } from '../../domain/rules';
+import { ChevronDown, ChevronUp, LifeBuoy, ShieldCheck, XCircle } from 'lucide-react';
+import { pointsForWeight, pointsToTaka } from '../../domain/rules';
 import { Booking } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { useTranslation } from '../../utils/translations';
-import { EvidenceBadge } from '../common/EvidenceBadge';
+import { JourneyLine } from '../../design/JourneyLine';
+import { Term } from '../../design/Glossary';
 import { Modal } from '../common/Modal';
-import { BrandJourneyDevice } from '../common/BrandJourneyDevice';
 import { CancelPickupDialog } from './CancelPickupDialog';
+import { MaterialChips, useJourney } from './BookingBits';
 import { formatBookingDate, formatDateTime } from './dates';
 import { isCancellable } from './useCustomerData';
-import { HelpCircle, ChevronDown, ChevronUp, ShieldCheck, XCircle } from 'lucide-react';
+import { DANGER_GHOST, GHOST, SECONDARY, nf, taka } from './ui';
 
 interface CollectionStatusModalProps {
   booking: Booking | null;
@@ -18,283 +19,169 @@ interface CollectionStatusModalProps {
   onGetHelp: (bookingId?: string) => void;
 }
 
-export const CollectionStatusModal: React.FC<CollectionStatusModalProps> = ({
-  booking,
-  isOpen,
-  onClose,
-  onGetHelp
-}) => {
-  const { lang, custodyEvents, lots } = useApp();
-  const t = useTranslation(lang);
-  const [showDetails, setShowDetails] = useState<boolean>(false);
-  const [isCancelOpen, setIsCancelOpen] = useState(false);
-
-  if (!isOpen || !booking) return null;
-
-  // Real audit state logic
-  const isRequested = booking.status === 'REQUESTED';
-  const isConfirmed = booking.status === 'CONFIRMED' || booking.status === 'COLLECTOR_ASSIGNED';
-  const isEnRoute = booking.status === 'EN_ROUTE';
-  const isCollected = booking.status === 'COLLECTED';
-  const isQuantityUnderReview = booking.status === 'QUANTITY_UNDER_REVIEW';
-  const isQuantityConfirmed = booking.status === 'QUANTITY_CONFIRMED' || booking.status === 'ENTERED_RECOVERY_CHAIN' || booking.status === 'PROCESSED';
-  const isProcessed = booking.status === 'PROCESSED';
-  const isMissedOrDisputed = booking.status === 'MISSED' || booking.status === 'DISPUTED';
-  const isCancelled = booking.status === 'CANCELLED';
-  const canCancel = isCancellable(booking);
+const Body: React.FC<{ booking: Booking; onClose: () => void; onGetHelp: (id?: string) => void }> = ({ booking, onClose, onGetHelp }) => {
+  const { lang, custodyEvents, lots, rewards } = useApp();
+  const en = lang === 'en';
+  const journey = useJourney(booking);
+  const [showDetails, setShowDetails] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const dateLabel = formatBookingDate(booking.scheduledDate, lang);
+  const out = journey.outcome;
 
-  // Primary short answer computation
-  const getPrimaryStatusBadge = () => {
-    if (isCancelled) return { text: lang === 'en' ? 'CANCELLED' : 'বাতিল করা হয়েছে', color: 'bg-slate-200 text-slate-800' };
-    if (isProcessed) return { text: lang === 'en' ? 'PROCESSED AT MILL' : 'মিলে প্রক্রিয়াজাত সম্পন্ন', color: 'bg-emerald-900 text-emerald-100' };
-    if (isQuantityConfirmed) return { text: lang === 'en' ? 'QUANTITY CONFIRMED' : 'ওজন নিশ্চিত করা হয়েছে', color: 'bg-[#C9F1DC] text-[#12613F]' };
-    if (isQuantityUnderReview) return { text: lang === 'en' ? 'UNDER SCALE CHECK' : 'স্কেল যাচাই চলছে', color: 'bg-amber-100 text-amber-900' };
-    if (isCollected) return { text: lang === 'en' ? 'COLLECTED' : 'সংগ্রহ সম্পন্ন', color: 'bg-[#25345C] text-white' };
-    if (isEnRoute) return { text: lang === 'en' ? 'COLLECTOR EN ROUTE' : 'কালেক্টর পথে আছেন', color: 'bg-blue-100 text-blue-900' };
-    if (isConfirmed) return { text: lang === 'en' ? 'PICKUP CONFIRMED' : 'পিকআপ নিশ্চিত', color: 'bg-emerald-100 text-emerald-900' };
-    if (isMissedOrDisputed) return { text: lang === 'en' ? 'ATTENTION REQUIRED' : 'পর্যালোচনাধীন', color: 'bg-amber-600 text-white' };
-    return { text: lang === 'en' ? 'REQUESTED' : 'অনুরোধ গৃহীত', color: 'bg-slate-100 text-slate-800' };
-  };
+  const headline =
+    out === 'cancelled' ? (en ? 'This pickup was cancelled' : 'এই পিকআপ বাতিল হয়েছে')
+    : out === 'missed' ? (en ? 'We missed this pickup' : 'এই পিকআপটি ছুটে গেছে')
+    : out === 'disputed' ? (en ? 'We are looking into this pickup' : 'আমরা এই পিকআপটি দেখছি')
+    : out === 'under_review' ? (en ? 'We are double-checking the weight' : 'আমরা ওজন আবার যাচাই করছি')
+    : out === 'complete' ? (en ? 'All done. Your bag has been recycled' : 'সম্পন্ন। আপনার ব্যাগ রিসাইকেল হয়েছে')
+    : booking.confirmedWeightKg ? (en ? `${booking.confirmedWeightKg} kg confirmed at the hub` : `হাবে ${nf(booking.confirmedWeightKg, lang, 1)} কেজি নিশ্চিত হয়েছে`)
+    : booking.status === 'COLLECTED' ? (en ? 'Your bag has been picked up' : 'আপনার ব্যাগ সংগ্রহ হয়েছে')
+    : booking.status === 'EN_ROUTE' ? (en ? 'Your collector is on the way' : 'আপনার সংগ্রাহক আসছেন')
+    : en ? `Booked for ${dateLabel}` : `${dateLabel}-এর জন্য বুক করা হয়েছে`;
 
-  const getPrimaryHeadline = () => {
-    if (isCancelled) return lang === 'en' ? 'This pickup was cancelled.' : 'এই পিকআপটি বাতিল করা হয়েছে।';
-    if (isProcessed) return lang === 'en' ? 'Materials converted to certified flake batches.' : 'বর্জ্য সফলভাবে প্রক্রিয়াজাত করে ফ্লেক্সে রূপান্তর করা হয়েছে।';
-    if (isQuantityConfirmed)
-      return booking.confirmedWeightKg
-        ? lang === 'en'
-          ? `${booking.confirmedWeightKg} kg verified at platform scale.`
-          : `${booking.confirmedWeightKg} কেজি সার্টিফাইড স্কেলে নিশ্চিত হয়েছে।`
-        : lang === 'en'
-        ? 'Quantity confirmed at platform scale.'
-        : 'সার্টিফাইড স্কেলে পরিমাণ নিশ্চিত হয়েছে।';
-    if (isCollected || isQuantityUnderReview) return lang === 'en' ? 'Your materials were picked up.' : 'আপনার বর্জ্য সফলভাবে সংগ্রহ করা হয়েছে।';
-    if (isEnRoute) return lang === 'en' ? 'Collector is approaching your address.' : 'কালেক্টর আপনার ঠিকানার দিকে আসছেন।';
-    if (isConfirmed) return lang === 'en' ? `Scheduled for ${dateLabel}.` : `${dateLabel} তারিখের জন্য নির্ধারিত।`;
-    if (isMissedOrDisputed) return lang === 'en' ? 'Pickup was flagged for operator review.' : 'সংগ্রহটি পর্যালোচনার জন্য চিহ্নিত রয়েছে।';
-    return lang === 'en' ? 'Pickup request received by dispatch.' : 'অনুরোধটি গ্রহণ করা হয়েছে।';
-  };
-
-  const getNextStepNotice = () => {
-    if (isCancelled) return lang === 'en' ? 'You can book a new pickup whenever you are ready.' : 'প্রস্তুত হলে যেকোনো সময় নতুন পিকআপ বুক করতে পারবেন।';
-    if (isProcessed) return lang === 'en' ? 'Next: Audited certificate archived for EPR reporting.' : 'পরবর্তী: অডিট সার্টিফিকেট ডিজিটাল খতিয়ানে সংরক্ষিত।';
-    if (isQuantityConfirmed) return lang === 'en' ? 'Next: Points added to your Available balance.' : 'পরবর্তী: পয়েন্ট আপনার উপলব্ধ ব্যালেন্সে যোগ করা হয়েছে।';
-    if (isCollected || isQuantityUnderReview) return lang === 'en' ? 'Next: We are checking the quantity at the receiving hub.' : 'পরবর্তী: আমরা একত্রীকরণ কেন্দ্রে ডিজিটাল স্কেলে পরিমাণ যাচাই করছি।';
-    if (isEnRoute) return lang === 'en' ? 'Next: Collector will weigh materials in your presence.' : 'পরবর্তী: কালেক্টর আপনার সামনে ঝুলন্ত স্কেলে ওজন করবেন।';
-    if (isConfirmed) return lang === 'en' ? `Next: Collector will arrive during ${booking.scheduledTimeWindow}.` : `পরবর্তী: কালেক্টর ${booking.scheduledTimeWindow} সময়ে পৌঁছাবেন।`;
-    if (isMissedOrDisputed) return lang === 'en' ? 'Next: Dispatch operator is reviewing audit evidence.' : 'পরবর্তী: অপারেটর অডিট ট্রেইল পর্যালোচনা করে সমাধান জানাবেন।';
-    return lang === 'en' ? 'Next: Vehicle route will be confirmed.' : 'পরবর্তী: এলাকা ভিত্তিক কালেক্টর বরাদ্দ করা হবে।';
-  };
-
-  const badge = getPrimaryStatusBadge();
-  const headline = getPrimaryHeadline();
-  const nextStep = getNextStepNotice();
-
-  // Custody trail: only lots that came from THIS booking, oldest first.
-  const bookingLotIds = new Set(lots.filter((l) => l.sourceBookingId === booking.id).map((l) => l.id));
-  const relatedCustody = custodyEvents
-    .filter((e) => bookingLotIds.has(e.lotId))
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-  const weighedKg = booking.confirmedWeightKg ?? booking.fieldWeightKg;
-  const pointsLabel = booking.pointsStatus
-    ? {
-        potential: lang === 'en' ? 'Expected after scale check' : 'স্কেল যাচাইয়ের পর প্রত্যাশিত',
-        pending: lang === 'en' ? 'Pending hub verification' : 'হাব যাচাইয়ের অপেক্ষায়',
-        available: lang === 'en' ? 'Available' : 'উপলব্ধ',
-        reversed: lang === 'en' ? 'Reversed' : 'বাতিল',
-        redeemed: lang === 'en' ? 'Redeemed' : 'রিডিম করা হয়েছে'
-      }[booking.pointsStatus]
+  const subline =
+    out === 'cancelled' ? (en ? 'You can book a new pickup whenever you like.' : 'যখন ইচ্ছা নতুন পিকআপ বুক করতে পারবেন।')
+    : out === 'missed' || out === 'disputed' ? (en ? 'A person at Clean Lane will help. You can also talk to us.' : 'ক্লিন লেনের একজন সদস্য সাহায্য করবেন। আপনি আমাদের সাথেও কথা বলতে পারেন।')
+    : out === 'under_review' ? (en ? 'Your points are safe. We will update this page.' : 'আপনার পয়েন্ট নিরাপদ। আমরা এই পাতা হালনাগাদ করব।')
+    : booking.status === 'REQUESTED' || booking.status === 'CONFIRMED' || booking.status === 'COLLECTOR_ASSIGNED'
+    ? en ? `Collector comes ${booking.scheduledTimeWindow}.` : `সংগ্রাহক আসবেন ${booking.scheduledTimeWindow}।`
     : '';
+
+  const lotIds = new Set(lots.filter((l) => l.sourceBookingId === booking.id).map((l) => l.id));
+  const handovers = custodyEvents.filter((e) => lotIds.has(e.lotId)).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const weighedKg = booking.confirmedWeightKg ?? booking.fieldWeightKg;
+  const pts = booking.earnedPoints ?? (weighedKg !== undefined ? pointsForWeight(weighedKg) : undefined);
+  const worth = pts !== undefined ? pointsToTaka(pts, rewards) : null;
+  const pending = booking.pointsStatus === 'pending' || booking.pointsStatus === 'potential';
 
   return (
     <>
-      <Modal
-        open
-        onClose={onClose}
-        title={t.checkACollection}
-        description={lang === 'en' ? `Pickup Ref: #${booking.id}` : `পিকআপ রেফারেন্স: #${booking.id}`}
-        closeLabel={t.close}
-      >
-        <div className="space-y-5 text-xs text-[#202B38]">
-          {/* One answer first */}
-          <div className="p-6 bg-[#FAF9F5] rounded-3xl border border-[#EDE4D8] text-center space-y-3 shadow-2xs">
-            {!isCancelled && !isMissedOrDisputed && (
-              <BrandJourneyDevice currentStep={isQuantityConfirmed ? 3 : isCollected || isQuantityUnderReview ? 2 : 1} size="compact" />
-            )}
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider ${badge.color}`}>
-              {badge.text}
-            </span>
+      <div className="space-y-4 text-[#124B3A]">
+        <div className="rounded-3xl bg-[#EAF5C9] p-5">
+          <h3 className="font-display text-2xl font-extrabold leading-tight">{headline}</h3>
+          {subline && <p className="mt-1 text-sm font-medium text-[#124B3A]/75">{subline}</p>}
+          <MaterialChips booking={booking} size="md" className="mt-3" />
+        </div>
 
-            <div className="space-y-1">
-              <h4 className="text-xl font-black text-[#202B38] tracking-tight">{headline}</h4>
-              <p className="text-xs text-[#53616D] font-medium max-w-sm mx-auto">{nextStep}</p>
+        <JourneyLine stops={journey.stops} lang={lang} orientation="vertical" muted={out === 'cancelled' || out === 'missed'} className="px-1" />
+
+        {pts !== undefined && out !== 'cancelled' && out !== 'missed' && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#FAF9F5] p-4 ring-1 ring-[#124B3A]/10">
+            <div>
+              <p className="text-xs font-bold text-[#124B3A]/60">{en ? 'Points for this pickup' : 'এই পিকআপের পয়েন্ট'}</p>
+              <p className="font-display text-2xl font-extrabold">+{nf(pts, lang)}</p>
+              {worth !== null && <p className="text-sm font-semibold text-[#124B3A]/70">≈ {taka(worth, lang)} {en ? 'in vouchers' : 'ভাউচারে'}</p>}
             </div>
-
-            <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowDetails(!showDetails)}
-                aria-expanded={showDetails}
-                className="w-full sm:flex-1 py-3 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-              >
-                <span>{showDetails ? (lang === 'en' ? 'Hide details' : 'বিবরণ লুকান') : t.seeDetails}</span>
-                {showDetails ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onGetHelp(booking.id);
-                }}
-                className="w-full sm:w-auto px-5 py-3 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#25345C] rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <HelpCircle className="w-4 h-4 text-amber-700" aria-hidden="true" />
-                <span>{t.getHelp}</span>
-              </button>
-            </div>
-
-            {canCancel && (
-              <button
-                type="button"
-                onClick={() => setIsCancelOpen(true)}
-                className="text-xs font-bold text-rose-700 hover:underline flex items-center gap-1 mx-auto cursor-pointer"
-              >
-                <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>{lang === 'en' ? 'Cancel pickup' : 'পিকআপ বাতিল করুন'}</span>
-              </button>
-            )}
-          </div>
-
-          {isCancelled && booking.notes && (
-            <p className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-[#53616D]">{booking.notes}</p>
-          )}
-
-          {showDetails && (
-            <div className="space-y-4 pt-1 animate-fade-in">
-              <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
-                {lang === 'en' ? 'Collection record & measurement basis' : 'সংগ্রহ রেকর্ড ও পরিমাপ ভিত্তি'}
-              </span>
-
-              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2.5">
-                <div className="flex justify-between items-center gap-3">
-                  <span className="text-[#53616D]">{lang === 'en' ? 'Collection window:' : 'সংগ্রহের সময়:'}</span>
-                  <span className="font-bold text-right">
-                    {dateLabel} · {booking.scheduledTimeWindow}
-                  </span>
-                </div>
-                {booking.collectorName && (
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-[#53616D]">{lang === 'en' ? 'Collector:' : 'সংগ্রাহক:'}</span>
-                    <span className="font-bold text-right">{booking.collectorName}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center gap-3">
-                  <span className="text-[#53616D]">{lang === 'en' ? 'Confirmed quantity:' : 'নিশ্চিত ওজন:'}</span>
-                  <span className="font-mono font-bold text-sm text-[#12613F] text-right">
-                    {booking.confirmedWeightKg
-                      ? `${booking.confirmedWeightKg} kg`
-                      : lang === 'en'
-                      ? 'Not yet confirmed at hub scale'
-                      : 'হাব স্কেলে এখনো নিশ্চিত হয়নি'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center gap-3 text-[11px]">
-                  <span className="text-[#53616D]">{lang === 'en' ? 'Collector field weight:' : 'সংগ্রাহকের মাঠ ওজন:'}</span>
-                  <span className="font-mono text-[#202B38]">
-                    {booking.fieldWeightKg ? `${booking.fieldWeightKg} kg` : lang === 'en' ? 'Not yet weighed' : 'এখনো ওজন করা হয়নি'}
-                  </span>
-                </div>
-                {typeof booking.rejectedWeightKg === 'number' && booking.rejectedWeightKg > 0 && (
-                  <div className="flex justify-between items-center gap-3 text-[11px]">
-                    <span className="text-[#53616D]">{lang === 'en' ? 'Rejected / contaminated:' : 'বর্জনীয় উপাদান:'}</span>
-                    <span className="font-mono text-amber-800 font-bold text-right">
-                      {booking.rejectedWeightKg} kg{booking.rejectedReason ? ` · ${booking.rejectedReason}` : ''}
-                    </span>
-                  </div>
-                )}
-                {weighedKg === undefined && (
-                  <p className="text-[11px] text-[#53616D]">
-                    {lang === 'en'
-                      ? 'Your materials have not been weighed yet. The collector weighs them at your door.'
-                      : 'আপনার বর্জ্য এখনো ওজন করা হয়নি। সংগ্রাহক দরজায় ওজন করবেন।'}
-                  </p>
-                )}
-              </div>
-
-              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[#53616D]">{t.serviceFee}:</span>
-                  <span className="font-mono font-bold text-[#12613F]">
-                    {booking.serviceFeeBdt > 0 ? `৳${booking.serviceFeeBdt}` : lang === 'en' ? '৳0 (free doorstep recovery)' : '৳০ (বিনামূল্যে ডোরস্টেপ সংগ্রহ)'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[#53616D]">{lang === 'en' ? 'Reward points:' : 'রিওয়ার্ড পয়েন্ট:'}</span>
-                  <span className="font-mono font-bold text-[#25345C]">
-                    {booking.earnedPoints !== undefined || weighedKg !== undefined
-                      ? `${isCancelled ? '' : '+'}${booking.earnedPoints ?? pointsForWeight(weighedKg ?? 0)} pts`
-                      : '—'}
-                  </span>
-                </div>
-                {pointsLabel && !isCancelled && (
-                  <div className="flex justify-between items-center text-[11px] pt-1 border-t border-[#FAF5EC]">
-                    <span className="text-[#53616D]">{lang === 'en' ? 'Points status:' : 'পয়েন্ট অবস্থা:'}</span>
-                    <span className="font-bold text-[#12613F]">{pointsLabel}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#202B38]">{lang === 'en' ? 'Chain of custody' : 'কাস্টডি চেইন ও হস্তান্তর'}</span>
-                  <EvidenceBadge level={booking.evidenceLevel || 'E0'} />
-                </div>
-
-                {relatedCustody.length === 0 ? (
-                  <p className="text-[11px] text-[#53616D]">
-                    {lang === 'en'
-                      ? 'No custody handovers recorded yet. They appear here once your materials are collected.'
-                      : 'এখনো কোনো হস্তান্তর রেকর্ড হয়নি। বর্জ্য সংগ্রহের পর এখানে দেখা যাবে।'}
-                  </p>
-                ) : (
-                  <ol className="space-y-2 text-[11px] text-[#53616D]">
-                    {relatedCustody.map((e) => (
-                      <li key={e.id} className="p-2.5 bg-[#FAF9F5] rounded-xl border border-[#EDE4D8] space-y-0.5">
-                        <div className="font-bold text-[#202B38]">
-                          {e.sender} → {e.receiver}
-                        </div>
-                        <div>
-                          {formatDateTime(e.timestamp, lang)} · {e.location}
-                        </div>
-                        <div className="font-mono">
-                          {e.quantityKg} kg · {e.measurementMethod}
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-
-              {relatedCustody.length > 0 && (
-                <div className="p-3 bg-[#FAF5EC] rounded-2xl border border-[#EDE4D8] flex items-center gap-2 text-[11px]">
-                  <ShieldCheck className="w-4 h-4 text-[#12613F] shrink-0" aria-hidden="true" />
-                  <span className="text-[#53616D]">
-                    {lang === 'en' ? 'Latest record hash: ' : 'সর্বশেষ রেকর্ড হ্যাশ: '}
-                    <strong className="font-mono text-[#25345C] break-all">{relatedCustody[relatedCustody.length - 1].signatureOrHash}</strong>
-                  </span>
-                </div>
+            <p className="max-w-[170px] text-right text-xs font-semibold leading-snug text-[#124B3A]/70">
+              {pending ? (
+                <>
+                  <Term id="pendingPoints" lang={lang}>{en ? 'Pending points' : 'অপেক্ষমাণ পয়েন্ট'}</Term>
+                  {en ? ': spendable once the ' : ': খরচ করা যাবে '}
+                  <Term id="hubScale" lang={lang}>{en ? 'hub scale' : 'হাবের স্কেল'}</Term>
+                  {en ? ' confirms the weight.' : ' ওজন নিশ্চিত করলে।'}
+                </>
+              ) : (
+                en ? 'Ready to spend in Rewards.' : 'রিওয়ার্ডে খরচের জন্য প্রস্তুত।'
               )}
-            </div>
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setShowDetails(!showDetails)} aria-expanded={showDetails} className={SECONDARY}>
+            {showDetails ? (en ? 'Hide details' : 'বিবরণ লুকান') : en ? 'See the details' : 'বিবরণ দেখুন'}
+            {showDetails ? <ChevronUp className="h-4 w-4" aria-hidden="true" /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
+          </button>
+          <button type="button" onClick={() => { onClose(); onGetHelp(booking.id); }} className={GHOST}>
+            <LifeBuoy className="h-4 w-4" aria-hidden="true" />
+            {en ? 'Talk to us' : 'আমাদের জানান'}
+          </button>
+          {isCancellable(booking) && (
+            <button type="button" onClick={() => setCancelOpen(true)} className={DANGER_GHOST}>
+              <XCircle className="h-4 w-4" aria-hidden="true" />
+              {en ? 'Cancel pickup' : 'পিকআপ বাতিল করুন'}
+            </button>
           )}
         </div>
-      </Modal>
 
-      <CancelPickupDialog
-        booking={isCancelOpen ? booking : null}
-        onClose={() => setIsCancelOpen(false)}
-      />
+        {out === 'cancelled' && booking.notes && <p className="rounded-2xl bg-[#FAF9F5] p-3 text-sm text-[#53616D]">{booking.notes}</p>}
+
+        {showDetails && (
+          <div className="cl-rise space-y-3 text-sm">
+            <dl className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-[#124B3A]/10">
+              <Row l={en ? 'When' : 'কখন'} v={`${dateLabel} · ${booking.scheduledTimeWindow}`} />
+              {booking.collectorName && <Row l={en ? 'Collector' : 'সংগ্রাহক'} v={booking.collectorName} />}
+              <Row l={en ? 'Weighed at your door' : 'দরজায় ওজন'} v={booking.fieldWeightKg ? `${nf(booking.fieldWeightKg, lang, 1)} kg` : en ? 'Not yet' : 'এখনো নয়'} />
+              <Row
+                l={<Term id="hubScale" lang={lang}>{en ? 'Weighed at the hub' : 'হাবে ওজন'}</Term>}
+                v={booking.confirmedWeightKg ? `${nf(booking.confirmedWeightKg, lang, 1)} kg` : en ? 'Not yet' : 'এখনো নয়'}
+              />
+              {typeof booking.rejectedWeightKg === 'number' && booking.rejectedWeightKg > 0 && (
+                <Row
+                  l={<Term id="contamination" lang={lang}>{en ? 'Could not be recycled' : 'রিসাইকেল করা যায়নি'}</Term>}
+                  v={`${nf(booking.rejectedWeightKg, lang, 1)} kg${booking.rejectedReason ? ` · ${booking.rejectedReason}` : ''}`}
+                />
+              )}
+              <Row l={en ? 'Service fee' : 'সেবা ফি'} v={booking.serviceFeeBdt > 0 ? taka(booking.serviceFeeBdt, lang) : en ? 'Free' : 'বিনামূল্যে'} />
+            </dl>
+            <p className="px-1 text-xs font-medium text-[#124B3A]/65">
+              {en ? 'The two weights can differ a little. Within ' : 'দুই ওজনে সামান্য পার্থক্য হতেই পারে। '}
+              <Term id="weightTolerance" lang={lang}>±5%</Term>
+              {en ? ' is normal. More than that, a person checks.' : '-এর মধ্যে স্বাভাবিক। এর বেশি হলে একজন যাচাই করেন।'}
+            </p>
+
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-[#124B3A]/10">
+              <p className="font-bold">{en ? 'Who has handled your bag' : 'কার কার হাত ঘুরেছে'}</p>
+              {handovers.length === 0 ? (
+                <p className="mt-1 text-xs text-[#124B3A]/65">{en ? 'Nothing yet. Each handover shows up here after pickup.' : 'এখনো কিছু নেই। পিকআপের পর প্রতিটি হস্তান্তর এখানে দেখা যাবে।'}</p>
+              ) : (
+                <ol className="mt-2 space-y-2">
+                  {handovers.map((e) => (
+                    <li key={e.id} className="rounded-xl bg-[#FAF9F5] p-2.5 text-xs">
+                      <span className="block font-bold">{e.sender} → {e.receiver}</span>
+                      <span className="block text-[#124B3A]/65">{formatDateTime(e.timestamp, lang)} · {e.location} · {nf(e.quantityKg, lang, 1)} kg</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {handovers.length > 0 && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] font-medium text-[#124B3A]/65">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    {en ? 'Every handover is sealed with a ' : 'প্রতিটি হস্তান্তর সিল করা আছে '}
+                    <Term id="fingerprint" lang={lang}>{en ? 'fingerprint' : 'ফিঙ্গারপ্রিন্টে'}</Term>
+                    {en ? ' so it cannot be quietly changed.' : ' যাতে গোপনে বদলানো না যায়।'}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      <CancelPickupDialog booking={cancelOpen ? booking : null} onClose={() => setCancelOpen(false)} />
     </>
+  );
+};
+
+const Row: React.FC<{ l: React.ReactNode; v: React.ReactNode }> = ({ l, v }) => (
+  <div className="flex items-baseline justify-between gap-3">
+    <dt className="text-[#124B3A]/65">{l}</dt>
+    <dd className="text-right font-bold">{v}</dd>
+  </div>
+);
+
+export const CollectionStatusModal: React.FC<CollectionStatusModalProps> = ({ booking, isOpen, onClose, onGetHelp }) => {
+  const { lang } = useApp();
+  if (!isOpen || !booking) return null;
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={lang === 'en' ? 'Your pickup' : 'আপনার পিকআপ'}
+      description={lang === 'en' ? `Reference #${booking.id}` : `রেফারেন্স #${booking.id}`}
+      closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+    >
+      <Body booking={booking} onClose={onClose} onGetHelp={onGetHelp} />
+    </Modal>
   );
 };

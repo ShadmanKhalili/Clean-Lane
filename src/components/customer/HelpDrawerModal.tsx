@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useTranslation } from '../../utils/translations';
 import { Modal } from '../common/Modal';
 import { SupportCasesList } from './SupportCasesList';
+import { LearnEntry } from './LearnEntry';
 import { Phone, AlertCircle, FileText, ChevronRight, MessageSquare } from 'lucide-react';
 
 interface HelpDrawerModalProps {
@@ -95,12 +96,14 @@ export const HelpDrawerModal: React.FC<HelpDrawerModalProps> = ({
                 onClose();
                 onOpenFileDispute(bookingIdContext);
               }}
-              className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="w-full py-2.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <MessageSquare className="w-4 h-4 text-[#C9F1DC]" />
               <span>{t.getHelp}</span>
             </button>
           </div>
+
+          <LearnEntry compact />
 
           {/* Quick Answers / FAQs */}
           <div className="space-y-2">

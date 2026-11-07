@@ -5,6 +5,7 @@ import { Building2, Calendar, Plus, ShieldCheck, FileDown, Truck, XCircle, Chevr
 import { formatBookingDate, relativeDayLabel } from './dates';
 import { COMPLETED_BOOKING_STATUSES, isCancellable, useCustomerData } from './useCustomerData';
 import { SupportCasesList } from './SupportCasesList';
+import { EmptyState } from '../../design/Celebrate';
 import { bookingStatusLabel, materialLabel } from './labels';
 
 interface OrganisationDashboardViewProps {
@@ -97,7 +98,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
               </>
             )}
           </div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#25345C] mt-1">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#124B3A] mt-1">
             {isBusiness
               ? lang === 'en'
                 ? 'Business waste recovery'
@@ -122,7 +123,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
               aria-selected={activeOrgTab === tab.id}
               onClick={() => setActiveOrgTab(tab.id)}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                activeOrgTab === tab.id ? 'bg-[#25345C] text-white shadow-xs' : 'text-[#53616D] hover:text-[#202B38]'
+                activeOrgTab === tab.id ? 'bg-[#124B3A] text-white shadow-xs' : 'text-[#53616D] hover:text-[#202B38]'
               }`}
             >
               {lang === 'en' ? tab.en : tab.bn}
@@ -148,12 +149,21 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
             </div>
           )}
 
+          {myBookings.length === 0 && (
+            <EmptyState
+              icon={<Building2 className="w-6 h-6 text-[#124B3A]" aria-hidden="true" />}
+              title={lang === 'en' ? 'Your first site pickup starts here' : 'আপনার সাইটের প্রথম পিকআপ এখান থেকে শুরু'}
+              body={lang === 'en' ? 'Book a pickup and this dashboard fills with weights, schedules and a report you can download.' : 'পিকআপ বুক করলে এই ড্যাশবোর্ডে ওজন, সময়সূচি ও ডাউনলোডযোগ্য রিপোর্ট দেখা যাবে।'}
+              action={<button type="button" onClick={onBookPickup} className="inline-flex h-12 items-center gap-1.5 rounded-2xl bg-[#124B3A] px-5 text-sm font-extrabold text-[#CBEA70] cursor-pointer"><Plus className="w-4 h-4" aria-hidden="true" />{lang === 'en' ? 'Book a pickup' : 'পিকআপ বুক করুন'}</button>}
+            />
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className={`${card} p-5 space-y-1`}>
               <span className="text-xs font-medium text-[#53616D] block">{lang === 'en' ? 'Next scheduled pickup' : 'পরবর্তী নির্ধারিত পিকআপ'}</span>
               {nextBooking ? (
                 <>
-                  <div className="text-lg font-black text-[#25345C] flex items-center gap-1.5">
+                  <div className="text-lg font-black text-[#124B3A] flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-[#12613F]" aria-hidden="true" />
                     <span>{relativeDayLabel(nextBooking.scheduledDate, lang)}</span>
                   </div>
@@ -163,7 +173,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
                     {nextCollector ?? (lang === 'en' ? 'Collector not assigned yet' : 'সংগ্রাহক এখনো নির্ধারিত হয়নি')}
                   </div>
                   <div className="flex flex-wrap gap-3 pt-2 text-xs font-bold">
-                    <button type="button" onClick={() => onOpenStatus(nextBooking)} className="text-[#25345C] hover:underline cursor-pointer flex items-center gap-0.5">
+                    <button type="button" onClick={() => onOpenStatus(nextBooking)} className="text-[#124B3A] hover:underline cursor-pointer flex items-center gap-0.5">
                       {lang === 'en' ? 'Track' : 'ট্র্যাক করুন'}
                       <ChevronRight className="w-3 h-3" aria-hidden="true" />
                     </button>
@@ -184,7 +194,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
             </div>
 
             <div className={`${card} p-5 space-y-1`}>
-              <span className="text-xs font-medium text-[#53616D] block">{lang === 'en' ? 'Confirmed weight' : 'নিশ্চিত ওজন'}</span>
+              <span className="text-xs font-medium text-[#53616D] block">{lang === 'en' ? 'Weighed at the hub' : 'হাবে ওজন হয়েছে'}</span>
               <div className="text-2xl font-black font-mono text-[#12613F] tabular-nums">{confirmedKg.toFixed(1)} kg</div>
               <div className="text-[11px] text-[#53616D]">
                 {lang === 'en' ? `Across ${completed.length} completed pickup(s)` : `${completed.length}টি সম্পন্ন পিকআপে`}
@@ -211,7 +221,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
             <button
               type="button"
               onClick={onBookPickup}
-              className="px-4 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               <span>{lang === 'en' ? 'Book a pickup' : 'পিকআপ বুক করুন'}</span>
@@ -219,7 +229,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
             <button
               type="button"
               onClick={onRequestRecurring}
-              className="px-4 py-2.5 bg-white border border-[#EDE4D8] text-[#25345C] hover:bg-[#FAF5EC] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-white border border-[#EDE4D8] text-[#124B3A] hover:bg-[#FAF5EC] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
               <Recycle className="w-4 h-4 text-[#12613F]" aria-hidden="true" />
               <span>{lang === 'en' ? 'Request a regular schedule' : 'নিয়মিত সূচির অনুরোধ'}</span>
@@ -257,7 +267,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
               <h3 className="text-base font-bold text-[#202B38]">{lang === 'en' ? 'Collection schedule' : 'সংগ্রহের সময়সূচি'}</h3>
               <p className="text-xs text-[#53616D]">{customer.name}</p>
             </div>
-            <button type="button" onClick={onBookPickup} className="px-3.5 py-1.5 bg-[#25345C] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer shrink-0">
+            <button type="button" onClick={onBookPickup} className="px-3.5 py-1.5 bg-[#124B3A] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer shrink-0">
               {lang === 'en' ? 'Book a pickup' : 'পিকআপ বুক করুন'}
             </button>
           </div>
@@ -284,7 +294,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
                     </div>
                     <div className="flex items-center gap-3 self-start sm:self-auto">
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-900">{bookingStatusLabel(b.status, lang)}</span>
-                      <button type="button" onClick={() => onOpenStatus(b)} className="font-bold text-[#25345C] hover:underline cursor-pointer">
+                      <button type="button" onClick={() => onOpenStatus(b)} className="font-bold text-[#124B3A] hover:underline cursor-pointer">
                         {lang === 'en' ? 'Details' : 'বিবরণ'}
                       </button>
                       {isCancellable(b) && (
@@ -308,7 +318,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
                   <button
                     type="button"
                     onClick={() => onOpenStatus(b)}
-                    className="w-full text-left p-3 rounded-xl border border-[#EDE4D8] bg-white hover:border-[#25345C] flex items-center justify-between gap-3 text-xs cursor-pointer"
+                    className="w-full text-left p-3 rounded-xl border border-[#EDE4D8] bg-white hover:border-[#124B3A] flex items-center justify-between gap-3 text-xs cursor-pointer"
                   >
                     <span>
                       <span className="font-bold text-[#202B38]">{formatBookingDate(b.scheduledDate, lang)}</span>
@@ -339,7 +349,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
               type="button"
               onClick={downloadCsv}
               disabled={myBookings.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#25345C] rounded-lg text-xs font-bold cursor-pointer disabled:opacity-40 shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF5EC] hover:bg-[#EDE4D8] text-[#124B3A] rounded-lg text-xs font-bold cursor-pointer disabled:opacity-40 shrink-0"
             >
               <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{lang === 'en' ? 'Download CSV' : 'CSV ডাউনলোড'}</span>
@@ -355,7 +365,7 @@ export const OrganisationDashboardView: React.FC<OrganisationDashboardViewProps>
             ].map((x) => (
               <div key={x.l} className="p-3 bg-[#FAF9F5] rounded-xl border border-[#EDE4D8]">
                 <dt className="text-[10px] text-[#53616D] uppercase tracking-wider">{x.l}</dt>
-                <dd className="text-lg font-black font-mono text-[#25345C]">{x.v}</dd>
+                <dd className="text-lg font-black font-mono text-[#124B3A]">{x.v}</dd>
               </div>
             ))}
           </dl>

@@ -81,7 +81,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
 
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-[#25345C] text-white px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-[#124B3A] text-white px-2 py-0.5 rounded-full">
                 {lang === 'en' ? 'Pickup reminder' : 'পিকআপ রিমাইন্ডার'}
               </span>
               {reminderSent && (
@@ -95,11 +95,11 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
               {lang === 'en' ? (
                 <>
                   {isToday ? 'Collection today' : 'Collection tomorrow'}:{' '}
-                  <span className="text-[#25345C] underline decoration-[#F5BF55]">{dateText}</span>
+                  <span className="text-[#124B3A] underline decoration-[#F5BF55]">{dateText}</span>
                 </>
               ) : (
                 <>
-                  {isToday ? 'আজ সংগ্রহ' : 'আগামীকাল সংগ্রহ'}: <span className="text-[#25345C]">{dateText}</span>
+                  {isToday ? 'আজ সংগ্রহ' : 'আগামীকাল সংগ্রহ'}: <span className="text-[#124B3A]">{dateText}</span>
                 </>
               )}
             </h3>
@@ -130,7 +130,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
           <button
             type="button"
             onClick={() => onOpenPreparation(booking)}
-            className="px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer min-h-[40px]"
+            className="px-4 py-2 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer min-h-[40px]"
           >
             <FileCheck2 className="w-4 h-4 text-[#C9F1DC]" />
             <span>
@@ -144,11 +144,11 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
           <button
             type="button"
             onClick={handleSpeak}
-            className="px-3 py-2 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
+            className="px-3 py-2 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#124B3A] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px]"
           >
             <Volume2
               className={`w-3.5 h-3.5 ${
-                speaking ? 'text-rose-600 animate-pulse' : 'text-[#25345C]'
+                speaking ? 'text-rose-600 animate-pulse' : 'text-[#124B3A]'
               }`}
             />
             <span>
@@ -166,7 +166,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
         <button
           type="button"
           onClick={onOpenNotifications}
-          className="text-xs font-bold text-[#25345C] hover:text-[#1B2644] flex items-center gap-1 cursor-pointer py-1 px-2"
+          className="text-xs font-bold text-[#124B3A] hover:text-[#0E3A2D] flex items-center gap-1 cursor-pointer py-1 px-2"
         >
           <span>{lang === 'en' ? 'SMS & Notification Center' : 'এসএমএস ও নোটিফিকেশন'}</span>
           <ChevronRight className="w-3.5 h-3.5" />
