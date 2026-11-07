@@ -1,23 +1,46 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
-import { ShieldCheck, GitBranch, Scale, Truck, ArrowRight, Hash, Clock, MapPin } from 'lucide-react';
+import { GitBranch, ArrowRight, Search, FileText } from 'lucide-react';
 
 export const ChainOfCustodyView: React.FC = () => {
   const { lots, custodyEvents, sortingTransformations, processingDispositions, lang } = useApp();
   const [selectedLotId, setSelectedLotId] = useState<string>(lots[0]?.id || '');
 
+  const [query, setQuery] = useState<string>('');
+  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
+
   const selectedLot = lots.find((l) => l.id === selectedLotId);
-  const relevantEvents = custodyEvents.filter((e) => e.lotId === selectedLotId);
-  const relevantSorting = sortingTransformations.filter((s) => s.inputLotId === selectedLotId);
+  const byTime = <T extends { timestamp: string }>(a: T, b: T) => a.timestamp.localeCompare(b.timestamp);
+  const relevantEvents = custodyEvents.filter((e) => e.lotId === selectedLotId).sort(byTime);
+  const parentLot = selectedLot?.parentLotId ? lots.find((l) => l.id === selectedLot.parentLotId) : undefined;
+  const parentEvents = parentLot ? custodyEvents.filter((e) => e.lotId === parentLot.id).sort(byTime) : [];
+  const childLots = (selectedLot?.childLotIds ?? [])
+    .map((id) => lots.find((l) => l.id === id))
+    .filter((l): l is NonNullable<typeof l> => Boolean(l));
+  const relevantSorting = sortingTransformations.filter(
+    (s) => s.inputLotId === selectedLotId || s.outputs.some((o) => o.childLotId === selectedLotId)
+  );
   const relevantDisposition = processingDispositions.filter((p) => p.lotId === selectedLotId);
+
+  // Search by lot id, source booking id or source job id.
+  const q = query.trim().toLowerCase();
+  const matchingLots = q
+    ? lots.filter(
+        (l) =>
+          l.id.toLowerCase().includes(q) ||
+          (l.sourceBookingId ?? '').toLowerCase().includes(q) ||
+          (l.sourceJobId ?? '').toLowerCase().includes(q)
+      )
+    : lots;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
         <div className="flex items-center gap-2 text-xs text-slate-500">
-          <GitBranch className="w-4 h-4 text-emerald-700" />
+          <GitBranch className="w-4 h-4 text-emerald-700" aria-hidden="true" />
           <span className="font-semibold text-slate-800">Immutable Custody Chain</span>
           <span aria-hidden="true">·</span>
           <span>Digital Traceability Ledger</span>
@@ -29,19 +52,42 @@ export const ChainOfCustodyView: React.FC = () => {
           PRD § 9.2: Every material lot preserves its physical sender, receiver, certified scale measurement, transformation splits, and cryptographic hash proof.
         </p>
 
-        {/* Lot Selector */}
-        <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
-          {lots.map((lot) => (
+        {/* Search + Lot Selector */}
+        <div className="relative mt-4 max-w-md">
+          <label htmlFor="lot-search" className="sr-only">{t('Search lot or booking id', 'লট বা বুকিং আইডি খুঁজুন')}</label>
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" aria-hidden="true" />
+          <input
+            id="lot-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && matchingLots.length > 0) {
+                e.preventDefault();
+                setSelectedLotId(matchingLots[0].id);
+              }
+            }}
+            placeholder={t('Search lot, booking or job id…', 'লট, বুকিং বা জব আইডি খুঁজুন…')}
+            className="w-full pl-9 pr-3 min-h-11 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-mono"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {matchingLots.length === 0 && (
+            <span role="status" className="text-xs text-slate-500">No lot or booking matches “{query}”.</span>
+          )}
+          {matchingLots.map((lot) => (
             <button
               key={lot.id}
+              type="button"
+              aria-pressed={selectedLotId === lot.id}
               onClick={() => setSelectedLotId(lot.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 min-h-11 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
                 selectedLotId === lot.id
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
-              {lot.id} ({lot.material.split('_')[0]})
+              {lot.parentLotId ? '↳ ' : ''}{lot.id} ({lot.material.split('_')[0]})
             </button>
           ))}
         </div>
@@ -65,7 +111,7 @@ export const ChainOfCustodyView: React.FC = () => {
               <div className="pt-2 flex justify-between">
                 <span className="text-slate-500">Material Category:</span>
                 <span className="font-semibold text-slate-900 font-mono">
-                  {selectedLot.material.replace('_', ' ')}
+                  {selectedLot.material.replace(/_/g, ' ')}
                 </span>
               </div>
               <div className="pt-2 flex justify-between font-mono">
@@ -83,7 +129,7 @@ export const ChainOfCustodyView: React.FC = () => {
                   <span className="text-slate-500">Scale Variance Delta:</span>
                   <span
                     className={`font-bold ${
-                      Math.abs(selectedLot.discrepancyPercentage) > 5 ? 'text-amber-700' : 'text-slate-700'
+                      isOverTolerance(selectedLot.discrepancyPercentage) ? 'text-amber-700' : 'text-slate-700'
                     }`}
                   >
                     {selectedLot.discrepancyPercentage}%
@@ -102,10 +148,50 @@ export const ChainOfCustodyView: React.FC = () => {
               </div>
             </div>
 
-            {selectedLot.parentLotId && (
-              <div className="p-3 bg-cyan-50 border border-cyan-100 rounded-xl text-xs text-cyan-950">
-                <strong>Parent Lot Link: </strong>
-                <span className="font-mono">{selectedLot.parentLotId}</span>
+            {(selectedLot.sourceBookingId || selectedLot.sourceJobId) && (
+              <div className="text-[11px] text-slate-500 font-mono">
+                {selectedLot.sourceBookingId && <div>Booking: {selectedLot.sourceBookingId}</div>}
+                {selectedLot.sourceJobId && <div>Job: {selectedLot.sourceJobId}</div>}
+              </div>
+            )}
+
+            {/* Lineage: parent -> this lot -> child lots */}
+            {(parentLot || selectedLot.parentLotId || childLots.length > 0) && (
+              <div className="p-3 bg-cyan-50 border border-cyan-100 rounded-xl text-xs text-cyan-950 space-y-2">
+                <strong className="block">Sorting lineage</strong>
+                {selectedLot.parentLotId && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-cyan-800">Parent:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLotId(selectedLot.parentLotId!)}
+                      className="font-mono underline min-h-11 px-1 cursor-pointer"
+                    >
+                      {selectedLot.parentLotId}
+                    </button>
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span className="font-mono font-bold">{selectedLot.id}</span>
+                  </div>
+                )}
+                {childLots.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-cyan-800 block">Sorted into {childLots.length} child lot(s):</span>
+                    {childLots.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedLotId(c.id)}
+                        className="w-full flex items-center justify-between gap-2 font-mono min-h-11 px-2 rounded-lg bg-white/60 hover:bg-white cursor-pointer text-left"
+                      >
+                        <span className="underline break-all">{c.id}</span>
+                        <span>{c.initialFieldWeightKg} kg · {c.evidenceLevel}</span>
+                      </button>
+                    ))}
+                    {selectedLot.sortingLossResidueKg !== undefined && (
+                      <div className="text-rose-800">Residue accounted: {selectedLot.sortingLossResidueKg} kg</div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -115,6 +201,19 @@ export const ChainOfCustodyView: React.FC = () => {
             <h3 className="text-base font-bold text-slate-900">
               Chain of Custody Events & Physical Transfers
             </h3>
+
+            {parentEvents.length > 0 && (
+              <div className="p-3 rounded-xl border border-dashed border-cyan-300 bg-cyan-50/40 text-xs space-y-1">
+                <strong className="text-cyan-950">Inherited from parent lot {parentLot?.id}</strong>
+                <ul className="space-y-1 text-slate-600">
+                  {parentEvents.map((evt) => (
+                    <li key={evt.id} className="font-mono text-[11px]">
+                      {evt.timestamp.replace('T', ' ').slice(0, 16)} · {evt.sender} → {evt.receiver} · {evt.quantityKg} kg · {evt.evidenceLevelResult}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="space-y-4">
               {relevantEvents.length === 0 ? (
@@ -133,7 +232,7 @@ export const ChainOfCustodyView: React.FC = () => {
                           {idx + 1}
                         </span>
                         <span className="font-bold text-slate-900">{evt.sender}</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
                         <span className="font-bold text-slate-900">{evt.receiver}</span>
                       </div>
                       <EvidenceBadge level={evt.evidenceLevelResult} />
@@ -159,6 +258,24 @@ export const ChainOfCustodyView: React.FC = () => {
                 ))
               )}
             </div>
+
+            {/* E4 processing disposition */}
+            {relevantDisposition.length > 0 && (
+              <div className="pt-4 border-t border-slate-200 space-y-2">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Processing Outcome (E4)</h4>
+                {relevantDisposition.map((d) => (
+                  <div key={d.id} className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-xl text-xs space-y-1">
+                    <div className="flex items-center gap-2 font-mono font-bold text-slate-900">
+                      <FileText className="w-4 h-4 text-indigo-700" aria-hidden="true" /> {d.dispositionCertificateId}
+                    </div>
+                    <div className="text-slate-600">{d.processorName} · {d.processType.replace(/_/g, ' ')}</div>
+                    <div className="font-mono text-slate-700">
+                      Yield {d.outputYieldKg} kg · Loss {d.processLossKg} kg · {d.completedAt.slice(0, 10)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Sorting transformation info if exists */}
             {relevantSorting.length > 0 && (

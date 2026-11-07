@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Booking } from '../../types';
+import { daysFromToday, formatBookingDate } from '../customer/dates';
 
 interface ReminderBannerProps {
   booking: Booking;
@@ -26,6 +27,9 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
 }) => {
   const { lang, notifications } = useApp();
   const [isDismissed, setIsDismissed] = useState(false);
+  const isToday = daysFromToday(booking.scheduledDate) === 0;
+  const dateText = `${formatBookingDate(booking.scheduledDate, lang)} (${booking.scheduledTimeWindow})`;
+  const reminderSent = notifications.some((n) => n.bookingId === booking.id);
   const [speaking, setSpeaking] = useState(false);
 
   if (isDismissed) return null;
@@ -50,7 +54,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
     const textToSpeak =
       lang === 'bn'
         ? `স্মারক: আগামীকাল ${booking.scheduledDate} তারিখে ${booking.scheduledTimeWindow} সময়ে আপনার বর্জ্য সংগ্রহ নির্ধারিত আছে। অনুগ্রহ করে বোতল ও কার্টুন চ্যাপ্টা করে আলাদা ব্যাগে প্রস্তুত রাখুন।`
-        : `Reminder: Your collection is scheduled for tomorrow ${booking.scheduledDate} during ${booking.scheduledTimeWindow}. Please rinse and flatten your recyclables in separate bags for full points.`;
+        : `Reminder: Your collection is scheduled for ${isToday ? 'today' : 'tomorrow'}, ${formatBookingDate(booking.scheduledDate, 'en')}, during ${booking.scheduledTimeWindow}. Please rinse and flatten your recyclables in separate bags for full points.`;
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
@@ -78,43 +82,42 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-[#25345C] text-white px-2 py-0.5 rounded-full">
-                {lang === 'en' ? '24-Hour Automated Reminder' : 'স্বয়ংক্রিয় ২৪ ঘণ্টা পূর্বের অ্যালার্ট'}
+                {lang === 'en' ? 'Pickup reminder' : 'পিকআপ রিমাইন্ডার'}
               </span>
-              <span className="text-[10px] font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-full">
-                SMS & App Sent
-              </span>
+              {reminderSent && (
+                <span className="text-[10px] font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-full">
+                  {lang === 'en' ? 'Sent to your phone & app' : 'ফোন ও অ্যাপে পাঠানো হয়েছে'}
+                </span>
+              )}
             </div>
 
             <h3 className="text-sm sm:text-base font-bold text-[#202B38]">
               {lang === 'en' ? (
                 <>
-                  Collection Tomorrow:{' '}
-                  <span className="text-[#25345C] underline decoration-[#F5BF55]">
-                    {booking.scheduledDate} ({booking.scheduledTimeWindow})
-                  </span>
+                  {isToday ? 'Collection today' : 'Collection tomorrow'}:{' '}
+                  <span className="text-[#25345C] underline decoration-[#F5BF55]">{dateText}</span>
                 </>
               ) : (
                 <>
-                  আগামীকাল সংগ্রহ:{' '}
-                  <span className="text-[#25345C]">
-                    {booking.scheduledDate} ({booking.scheduledTimeWindow})
-                  </span>
+                  {isToday ? 'আজ সংগ্রহ' : 'আগামীকাল সংগ্রহ'}: <span className="text-[#25345C]">{dateText}</span>
                 </>
               )}
             </h3>
 
             <p className="text-xs text-[#53616D] leading-relaxed max-w-xl">
               {lang === 'en'
-                ? `Please rinse, flatten, and separate your ${materialsCount} scheduled recyclable stream(s). Clean materials guarantee 100% verified points & instant scale approval.`
+                ? `Please rinse, flatten, and separate your ${materialsCount} scheduled recyclable stream(s). Clean, dry materials are weighed and credited without delays.`
                 : `আপনার ${materialsCount}টি বর্জ্যের ধরন ধুয়ে ও চ্যাপ্টা করে আলাদা রাখুন যাতে সম্পূর্ণ পয়েন্ট নিশ্চিত হয়।`}
             </p>
           </div>
         </div>
 
         <button
+          type="button"
           onClick={() => setIsDismissed(true)}
-          className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg self-start sm:self-auto cursor-pointer"
-          title="Dismiss reminder"
+          className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg self-start sm:self-auto cursor-pointer"
+          title={lang === 'en' ? 'Dismiss reminder' : 'রিমাইন্ডার সরান'}
+          aria-label={lang === 'en' ? 'Dismiss reminder' : 'রিমাইন্ডার সরান'}
         >
           <X className="w-4 h-4" />
         </button>
@@ -125,6 +128,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {/* View Preparation Steps */}
           <button
+            type="button"
             onClick={() => onOpenPreparation(booking)}
             className="px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer min-h-[40px]"
           >
@@ -160,6 +164,7 @@ export const ReminderBanner: React.FC<ReminderBannerProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onOpenNotifications}
           className="text-xs font-bold text-[#25345C] hover:text-[#1B2644] flex items-center gap-1 cursor-pointer py-1 px-2"
         >

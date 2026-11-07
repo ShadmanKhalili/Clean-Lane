@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { TOKENS } from '../../theme/tokens';
 import { ContinuousLoopLine } from './ContinuousLoopLine';
+import { Modal } from './Modal';
 import {
-  X,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -26,8 +26,6 @@ export const InvestorLoopDemonstrator: React.FC<InvestorLoopDemonstratorProps> =
   onClose
 }) => {
   const [activeStage, setActiveStage] = useState<1 | 2 | 3 | 4 | 5>(1);
-
-  if (!isOpen) return null;
 
   const stageDetails: Record<
     1 | 2 | 3 | 4 | 5,
@@ -119,36 +117,75 @@ export const InvestorLoopDemonstrator: React.FC<InvestorLoopDemonstratorProps> =
 
   const current = stageDetails[activeStage];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-[#F8F7F1] rounded-3xl shadow-2xl max-w-2xl w-full max-h-[94vh] flex flex-col border border-[#E8E5DA] overflow-hidden text-[#172521]">
-        {/* Top Header */}
-        <div className="px-6 py-4 border-b border-[#E8E5DA] bg-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#124B3A] text-[#CBEA70] flex items-center justify-center font-bold text-sm">
-              CL
-            </div>
-            <div>
-              <span className="font-bold text-sm text-[#172521] block">
-                Everyday Circularity: Interactive Loop Walkthrough
-              </span>
-              <span className="text-[11px] text-[#53625C]">
-                Investor & Evaluator 5-Stage Transformation
-              </span>
-            </div>
-          </div>
+  // Footer navigation controls
+  const footer = (
+    <div className="flex items-center justify-between gap-3">
+      <button
+        type="button"
+        disabled={activeStage === 1}
+        onClick={() => setActiveStage((prev) => (prev > 1 ? ((prev - 1) as any) : prev))}
+        className="min-h-[44px] px-4 py-2 rounded-2xl border border-[#E8E5DA] text-xs font-bold text-[#53625C] hover:bg-[#F8F7F1] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>Previous Step</span>
+      </button>
 
+      <div className="flex items-center gap-1.5">
+        {[1, 2, 3, 4, 5].map((s) => (
           <button
-            onClick={onClose}
+            key={s}
             type="button"
-            className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            aria-label={`Go to stage ${s}`}
+            aria-current={activeStage === s ? 'step' : undefined}
+            onClick={() => setActiveStage(s as any)}
+            className={`w-2.5 h-2.5 rounded-full transition-all ${
+              activeStage === s ? 'bg-[#124B3A] w-6' : 'bg-[#E8E5DA] hover:bg-[#879690]'
+            }`}
+          />
+        ))}
+      </div>
 
+      {activeStage < 5 ? (
+        <button
+          type="button"
+          onClick={() => setActiveStage((prev) => (prev < 5 ? ((prev + 1) as any) : prev))}
+          className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-[#124B3A] hover:bg-[#0D382B] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+        >
+          <span>Next Stage</span>
+          <ArrowRight className="w-4 h-4 text-[#CBEA70]" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-[#124B3A] hover:bg-[#0D382B] text-white text-xs font-bold cursor-pointer"
+        >
+          Complete Tour
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      closeLabel="Close walkthrough"
+      title={
+        <span className="flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-xl bg-[#124B3A] text-[#CBEA70] flex items-center justify-center font-bold text-sm shrink-0" aria-hidden="true">
+            CL
+          </span>
+          <span>Everyday Circularity: Interactive Loop Walkthrough</span>
+        </span>
+      }
+      description="Investor & Evaluator 5-Stage Transformation"
+      footer={footer}
+    >
+      <div className="-mx-5 -my-4 min-h-full bg-[#F8F7F1] text-[#172521] flex flex-col">
         {/* Continuous Loop Line Component */}
-        <div className="px-6 pt-5 pb-3 bg-white border-b border-[#E8E5DA] shrink-0">
+        <div className="sticky top-0 z-10 px-5 sm:px-6 pt-4 pb-3 bg-white border-b border-[#E8E5DA]">
           <ContinuousLoopLine
             currentStage={activeStage}
             interactive={true}
@@ -157,7 +194,7 @@ export const InvestorLoopDemonstrator: React.FC<InvestorLoopDemonstratorProps> =
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
+        <div className="p-5 sm:p-6 space-y-5">
           {/* Header of Active Stage */}
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -218,50 +255,7 @@ export const InvestorLoopDemonstrator: React.FC<InvestorLoopDemonstratorProps> =
           </div>
         </div>
 
-        {/* Footer Navigation Controls */}
-        <div className="p-4 px-6 border-t border-[#E8E5DA] bg-white flex items-center justify-between gap-3 shrink-0">
-          <button
-            type="button"
-            disabled={activeStage === 1}
-            onClick={() => setActiveStage((prev) => (prev > 1 ? ((prev - 1) as any) : prev))}
-            className="min-h-[44px] px-4 py-2 rounded-2xl border border-[#E8E5DA] text-xs font-bold text-[#53625C] hover:bg-[#F8F7F1] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Previous Step</span>
-          </button>
-
-          <div className="flex items-center gap-1.5">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setActiveStage(s as any)}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${
-                  activeStage === s ? 'bg-[#124B3A] w-6' : 'bg-[#E8E5DA] hover:bg-[#879690]'
-                }`}
-              />
-            ))}
-          </div>
-
-          {activeStage < 5 ? (
-            <button
-              type="button"
-              onClick={() => setActiveStage((prev) => (prev < 5 ? ((prev + 1) as any) : prev))}
-              className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-[#124B3A] hover:bg-[#0D382B] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>Next Stage</span>
-              <ArrowRight className="w-4 h-4 text-[#CBEA70]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-[44px] px-6 py-2.5 rounded-2xl bg-[#124B3A] hover:bg-[#0D382B] text-white text-xs font-bold cursor-pointer"
-            >
-              Complete Tour
-            </button>
-          )}
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 };

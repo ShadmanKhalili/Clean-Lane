@@ -1,14 +1,20 @@
 import React from 'react';
 import { Booking } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { MapPin, Clock, Calendar, CheckCircle2, FileCheck2, ChevronRight, Sparkles } from 'lucide-react';
+import { MapPin, ChevronRight, Sparkles, Truck, XCircle } from 'lucide-react';
 import { MaterialIllustration } from './MaterialIllustrations';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
+import { formatBookingDate, relativeDayLabel } from '../customer/dates';
+import { isCancellable } from '../customer/useCustomerData';
 
 interface AppointmentTicketProps {
   booking: Booking;
   onOpenChecklist?: () => void;
   onTrackStatus?: () => void;
+  /** Shown only while the pickup can still be cancelled. */
+  onCancel?: () => void;
+  /** Collector name from the dispatch job (falls back to the booking's). */
+  collectorName?: string;
   className?: string;
   isConfirmationView?: boolean;
 }
@@ -17,6 +23,8 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
   booking,
   onOpenChecklist,
   onTrackStatus,
+  onCancel,
+  collectorName,
   className = '',
   isConfirmationView = false
 }) => {
@@ -53,15 +61,27 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
             {lang === 'en' ? 'Collection Window' : 'সংগ্রহের নির্ধারিত সময়'}
           </span>
           <h3 className="text-2xl sm:text-3xl font-black text-[#25345C] tracking-tight">
-            {booking.scheduledDate}{' '}
+            {relativeDayLabel(booking.scheduledDate, lang)}{' '}
             <span className="text-[#12613F] font-bold">
               ({booking.scheduledTimeWindow})
             </span>
           </h3>
+          {relativeDayLabel(booking.scheduledDate, lang) !== formatBookingDate(booking.scheduledDate, lang) && (
+            <p className="text-xs font-semibold text-[#53616D]">{formatBookingDate(booking.scheduledDate, lang)}</p>
+          )}
           <p className="text-xs text-[#53616D] flex items-center gap-1.5 pt-1">
-            <MapPin className="w-3.5 h-3.5 text-[#25345C] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-[#25345C] shrink-0" aria-hidden="true" />
             <span className="truncate">{booking.address}</span>
           </p>
+          {(collectorName || booking.collectorName) && (
+            <p className="text-xs text-[#53616D] flex items-center gap-1.5">
+              <Truck className="w-3.5 h-3.5 text-[#25345C] shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {lang === 'en' ? 'Collector: ' : 'সংগ্রাহক: '}
+                {collectorName || booking.collectorName}
+              </span>
+            </p>
+          )}
         </div>
 
         {/* Selected Material Cards & Illustrations */}
@@ -181,7 +201,18 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
             className="w-full min-h-[50px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:scale-[0.985]"
           >
             <span>{lang === 'en' ? 'Track Live Status' : 'লাইভ ট্র্যাকিং দেখুন'}</span>
-            <ChevronRight className="w-4 h-4 text-[#C9F1DC]" />
+            <ChevronRight className="w-4 h-4 text-[#C9F1DC]" aria-hidden="true" />
+          </button>
+        )}
+
+        {onCancel && isCancellable(booking) && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mx-auto flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:underline cursor-pointer"
+          >
+            <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>{lang === 'en' ? 'Cancel pickup' : 'পিকআপ বাতিল করুন'}</span>
           </button>
         )}
       </div>

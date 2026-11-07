@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AppNotification } from '../../types';
+import { Modal } from '../common/Modal';
+import { useCustomerData } from '../customer/useCustomerData';
+import { formatBookingDate } from '../customer/dates';
 
 interface NotificationCenterModalProps {
   isOpen: boolean;
@@ -34,7 +37,6 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   onOpenPreparation
 }) => {
   const {
-    notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     deleteNotification,
@@ -45,11 +47,10 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     showToast
   } = useApp();
 
+  const { myNotifications: notifications } = useCustomerData();
   const [activeTab, setActiveTab] = useState<'all' | 'reminders' | 'settings'>('all');
   const [selectedPreviewNotif, setSelectedPreviewNotif] = useState<AppNotification | null>(null);
   const [previewChannel, setPreviewChannel] = useState<'sms' | 'push'>('sms');
-
-  if (!isOpen) return null;
 
   const filteredNotifications = notifications.filter((n) => {
     if (activeTab === 'reminders') {
@@ -82,50 +83,50 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#FFF9F0] border border-[#EDE4D8] rounded-3xl shadow-2xl overflow-hidden my-6">
-        {/* Header */}
-        <div className="px-6 py-5 bg-[#25345C] text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#F5BF55] text-[#202B38] flex items-center justify-center font-bold relative shadow-xs">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-[#25345C]">
-                  {unreadCount}
-                </span>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">
-                  {lang === 'en' ? 'Notifications & Reminders' : 'বিজ্ঞপ্তি ও স্মারক'}
-                </h2>
-                <span className="text-[10px] font-mono font-bold bg-[#C9F1DC] text-[#12613F] px-2 py-0.5 rounded-full">
-                  Automated 24h Service
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                {lang === 'en'
-                  ? 'Scheduled pickup alerts, preparation guidance & SMS delivery'
-                  : 'বর্জ্য সংগ্রহের অ্যালার্ট, প্রস্তুতি নির্দেশিকা ও এসএমএস'}
-              </p>
-            </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-2">
+          <Bell className="w-5 h-5 text-[#25345C]" aria-hidden="true" />
+          {lang === 'en' ? 'Notifications & Reminders' : 'বিজ্ঞপ্তি ও স্মারক'}
+          {unreadCount > 0 && (
+            <span className="text-[11px] font-bold bg-rose-600 text-white rounded-full px-2 py-0.5" aria-label={lang === 'en' ? `${unreadCount} unread` : `${unreadCount}টি অপঠিত`}>
+              {unreadCount}
+            </span>
+          )}
+        </span>
+      }
+      description={
+        lang === 'en'
+          ? 'Scheduled pickup alerts, preparation guidance & SMS delivery'
+          : 'বর্জ্য সংগ্রহের অ্যালার্ট, প্রস্তুতি নির্দেশিকা ও এসএমএস'
+      }
+      closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+      footer={<div className="flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-[#53616D]">
+            <ShieldCheck className="w-4 h-4 text-[#12613F] shrink-0" aria-hidden="true" />
+            <span>
+              {lang === 'en'
+                ? 'Reminders go out the day before your pickup.'
+                : 'পিকআপের আগের দিন রিমাইন্ডার পাঠানো হয়।'}
+            </span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold cursor-pointer transition-colors shrink-0"
+          >
+            {lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+          </button>
+        </div>}
+    >
         {/* Tab & Action Bar */}
-        <div className="bg-[#FAF5EC] border-b border-[#EDE4D8] px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-[#FAF5EC] border border-[#EDE4D8] rounded-2xl px-3 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
                 activeTab === 'all'
@@ -137,6 +138,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('reminders')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'reminders'
@@ -149,6 +151,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('settings')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'settings'
@@ -164,6 +167,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={markAllNotificationsAsRead}
                 className="text-[11px] font-semibold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
               >
@@ -173,6 +177,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             )}
 
             <button
+              type="button"
               onClick={handleTestTrigger}
               className="px-2.5 py-1 bg-[#C9F1DC] hover:bg-[#b5ebd0] text-[#12613F] rounded-lg font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer border border-[#12613F]/20"
               title="Manually test and fire automated 24h reminder scheduler"
@@ -184,7 +189,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* Content Area */}
-        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+        <div className="space-y-4 pt-4">
           {/* TAB: SETTINGS */}
           {activeTab === 'settings' && (
             <div className="space-y-4">
@@ -343,6 +348,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       : 'পিকআপ বুক করার পর স্বয়ংক্রিয় রিমাইন্ডার এবং নির্দেশিকা এখানে প্রদর্শিত হবে।'}
                   </p>
                   <button
+                    type="button"
                     onClick={handleTestTrigger}
                     className="px-4 py-2 bg-[#25345C] text-white rounded-xl text-xs font-bold hover:bg-[#1B2644] transition-colors cursor-pointer"
                   >
@@ -407,18 +413,20 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
                             <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#53616D]">
                               <span className="font-semibold text-[#202B38]">
-                                📅 {notif.scheduledCollectionDate} ({notif.scheduledTimeWindow})
+                                {formatBookingDate(notif.scheduledCollectionDate, lang)} ({notif.scheduledTimeWindow})
                               </span>
                               <span>·</span>
-                              <span>📍 {notif.address.split(',')[0]}</span>
+                              <span>{notif.address.split(',')[0]}</span>
                             </div>
                           </div>
                         </div>
 
                         <button
+                          type="button"
                           onClick={() => deleteNotification(notif.id)}
                           className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition-colors cursor-pointer"
-                          title="Dismiss notification"
+                          title={lang === 'en' ? 'Dismiss notification' : 'বিজ্ঞপ্তি মুছুন'}
+                          aria-label={lang === 'en' ? 'Dismiss notification' : 'বিজ্ঞপ্তি মুছুন'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -429,6 +437,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                         <div className="flex items-center gap-2">
                           {/* View Preparation Guidance */}
                           <button
+                            type="button"
                             onClick={() => {
                               markNotificationAsRead(notif.id);
                               onOpenPreparation(notif);
@@ -445,6 +454,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
                           {/* Preview SMS / Push simulator */}
                           <button
+                            type="button"
                             onClick={() => setSelectedPreviewNotif(notif)}
                             className="px-3 py-1.5 bg-white hover:bg-[#FAF5EC] border border-[#EDE4D8] text-[#25345C] rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
@@ -457,6 +467,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
                         {!notif.read && (
                           <button
+                            type="button"
                             onClick={() => markNotificationAsRead(notif.id)}
                             className="text-[11px] font-semibold text-[#53616D] hover:text-[#25345C] cursor-pointer"
                           >
@@ -483,6 +494,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
+                    type="button"
                     onClick={() => setPreviewChannel('sms')}
                     className={`px-2.5 py-1 text-[11px] font-bold rounded-lg ${
                       previewChannel === 'sms'
@@ -493,6 +505,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                     SMS View
                   </button>
                   <button
+                    type="button"
                     onClick={() => setPreviewChannel('push')}
                     className={`px-2.5 py-1 text-[11px] font-bold rounded-lg ${
                       previewChannel === 'push'
@@ -503,7 +516,9 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                     Push Banner
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSelectedPreviewNotif(null)}
+                    aria-label={lang === 'en' ? 'Close preview' : 'প্রিভিউ বন্ধ করুন'}
                     className="p-1 text-slate-400 hover:text-white"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -555,24 +570,6 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-[#FAF5EC] border-t border-[#EDE4D8] flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-[#53616D]">
-            <ShieldCheck className="w-4 h-4 text-[#12613F]" />
-            <span>
-              {lang === 'en'
-                ? 'Automated 24h reminders reduce contamination by 42%'
-                : 'স্বয়ংক্রিয় রিমাইন্ডার বর্জ্য মিশ্রণ ৪২% হ্রাস করে'}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold cursor-pointer transition-colors"
-          >
-            {lang === 'en' ? 'Close' : 'বন্ধ করুন'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

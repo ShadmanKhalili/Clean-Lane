@@ -2,23 +2,17 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { useTranslation } from '../../utils/translations';
+import { Modal } from '../common/Modal';
 import {
-  X,
-  User,
   Globe,
   Bell,
   Building,
-  MapPin,
-  Settings,
   Check,
   Plus,
-  ShieldCheck,
-  Smartphone,
   ChevronRight,
   Sparkles,
   Compass,
-  FileCheck2,
-  RefreshCw
+  FileCheck2
 } from 'lucide-react';
 
 interface AccountDrawerModalProps {
@@ -46,19 +40,17 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
     savedLocations,
     selectedLocationId,
     setSelectedLocationId,
-    notifications,
+    currentCustomer,
     notificationSettings,
     updateNotificationSettings,
-    isOfflineMode,
-    setIsOfflineMode,
-    syncOfflineQueue,
-    offlineQueueCount
   } = useApp();
+  const { resetDemoData } = useApp();
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const t = useTranslation(lang);
   const [activeSection, setActiveSection] = useState<'profile' | 'locations' | 'organisation' | 'settings'>('profile');
 
-  if (!isOpen) return null;
+  const isOrg = currentCustomer.customerType === 'apartment' || currentCustomer.customerType === 'business';
 
   const roleLabels: Record<UserRole, { en: string; bn: string }> = {
     customer_household: { en: 'Household Resident', bn: 'বাসাবাড়ির বাসিন্দা' },
@@ -72,31 +64,18 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs animate-fade-in">
-      <div className="bg-[#FAF9F5] w-full max-w-md h-full flex flex-col border-l border-[#EDE4D8] shadow-2xl text-[#202B38] overflow-hidden">
-        {/* Top Header */}
-        <div className="px-6 py-4 bg-white border-b border-[#EDE4D8] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-[#25345C] text-[#C9F1DC] flex items-center justify-center font-bold">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-[#202B38]">{t.account}</h2>
-              <span className="text-xs text-[#53616D]">Nasreen Akhter · +880 1712-345678</span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-[#FAF5EC] hover:bg-[#EDE4D8] flex items-center justify-center text-[#53616D] transition-colors cursor-pointer"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      variant="drawer"
+      title={t.account}
+      description={`${currentCustomer.name} · ${currentCustomer.phone}`}
+      closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+    >
         {/* Section Navigation Pills */}
-        <div className="px-6 py-2.5 bg-white border-b border-[#EDE4D8] flex items-center gap-1.5 overflow-x-auto shrink-0 text-xs font-semibold">
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-semibold pb-2 border-b border-[#EDE4D8]">
           <button
+            type="button"
             onClick={() => setActiveSection('profile')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'profile'
@@ -108,6 +87,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveSection('locations')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'locations'
@@ -119,6 +99,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveSection('organisation')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'organisation'
@@ -130,6 +111,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveSection('settings')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'settings'
@@ -142,7 +124,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+        <div className="space-y-6 text-xs pt-4">
           {/* SECTION 1: PROFILE & LANGUAGE & NOTIFICATIONS */}
           {activeSection === 'profile' && (
             <div className="space-y-5 animate-fade-in">
@@ -154,20 +136,20 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Name' : 'নাম'}</span>
-                    <span className="font-bold text-[#202B38]">Nasreen Akhter</span>
+                    <span className="font-bold text-[#202B38]">{currentCustomer.name}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Phone' : 'মোবাইল'}</span>
-                    <span className="font-mono font-bold text-[#202B38]">+880 1712-345678</span>
+                    <span className="font-mono font-bold text-[#202B38]">{currentCustomer.phone}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Customer ID' : 'গ্রাহক আইডি'}</span>
-                    <span className="font-mono text-[#25345C]">CL-CUST-8841</span>
+                    <span className="font-mono text-[#25345C]">{currentCustomer.id}</span>
                   </div>
                   <div className="flex justify-between items-center pt-1 border-t border-[#FAF5EC]">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Verification' : 'যাচাই অবস্থা'}</span>
                     <span className="font-bold text-[#12613F] bg-[#C9F1DC] px-2 py-0.5 rounded-md">
-                      Verified Resident ✓
+                      {isOrg ? (lang === 'en' ? 'Verified organisation' : 'যাচাইকৃত প্রতিষ্ঠান') : lang === 'en' ? 'Verified resident' : 'যাচাইকৃত বাসিন্দা'}
                     </span>
                   </div>
                 </div>
@@ -183,6 +165,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => setLang('en')}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
                       lang === 'en'
@@ -194,6 +177,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     {lang === 'en' && <Check className="w-3.5 h-3.5 text-[#C9F1DC]" />}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setLang('bn')}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
                       lang === 'bn'
@@ -257,7 +241,11 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                 <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
                   {lang === 'en' ? 'Switch Platform Perspective' : 'প্ল্যাটফর্ম রোল পরিবর্তন'}
                 </span>
+                <label htmlFor="acct-role" className="sr-only">
+                  {lang === 'en' ? 'Switch platform perspective' : 'প্ল্যাটফর্ম রোল পরিবর্তন'}
+                </label>
                 <select
+                  id="acct-role"
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full bg-[#FAF5EC] border border-[#EDE4D8] rounded-xl p-2.5 text-xs font-bold text-[#202B38] cursor-pointer"
@@ -283,6 +271,44 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     : 'মাঠকর্মী, কেন্দ্র ইনটেক ও অ্যাডমিনদের জন্য আলাদা ইন্টারফেস বিদ্যমান।'}
                 </p>
               </div>
+
+              {/* Demo data controls — changes are saved in this browser between visits. */}
+              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2">
+                <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                  {lang === 'en' ? 'Demo data' : 'ডেমো ডেটা'}
+                </span>
+                <p className="text-[11px] text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'Bookings, points and handovers you create are saved in this browser. Reset to start the walkthrough from scratch.'
+                    : 'আপনার তৈরি বুকিং, পয়েন্ট ও হস্তান্তর এই ব্রাউজারে সংরক্ষিত থাকে। নতুন করে শুরু করতে রিসেট করুন।'}
+                </p>
+                {confirmReset ? (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={resetDemoData}
+                      className="flex-1 px-3 py-2 rounded-xl bg-[#B42318] text-white text-xs font-bold cursor-pointer"
+                    >
+                      {lang === 'en' ? 'Yes, erase my changes' : 'হ্যাঁ, মুছে ফেলুন'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmReset(false)}
+                      className="px-3 py-2 rounded-xl border border-[#EDE4D8] text-xs font-bold cursor-pointer"
+                    >
+                      {lang === 'en' ? 'Cancel' : 'বাতিল'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmReset(true)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#EDE4D8] bg-[#FAF5EC] text-xs font-bold text-[#202B38] cursor-pointer"
+                  >
+                    {lang === 'en' ? 'Reset demo data' : 'ডেমো ডেটা রিসেট'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -294,6 +320,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                   {lang === 'en' ? 'Collection Addresses' : 'বর্জ্য সংগ্রহের ঠিকানাসমূহ'}
                 </span>
                 <button
+                  type="button"
                   onClick={onOpenOnboarding}
                   className="px-3 py-1.5 bg-[#25345C] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#1B2644]"
                 >
@@ -304,10 +331,12 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
 
               <div className="space-y-2.5">
                 {savedLocations.map((loc) => (
-                  <div
+                  <button
+                    type="button"
                     key={loc.id}
+                    aria-pressed={selectedLocationId === loc.id}
                     onClick={() => setSelectedLocationId(loc.id)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                       selectedLocationId === loc.id
                         ? 'bg-white border-[#25345C] shadow-xs'
                         : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/40'
@@ -329,9 +358,9 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                       <p className="text-xs text-[#53616D]">{loc.address}</p>
                     </div>
                     {selectedLocationId === loc.id && (
-                      <Check className="w-4 h-4 text-[#25345C] shrink-0" />
+                      <Check className="w-4 h-4 text-[#25345C] shrink-0" aria-hidden="true" />
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -342,7 +371,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-3">
                 <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4 text-[#25345C]" />
+                  <Building className="w-4 h-4 text-[#25345C]" aria-hidden="true" />
                   <span className="font-bold text-sm text-[#202B38]">
                     {lang === 'en' ? 'Apartment & Business Access' : 'ভবন ও প্রাতিষ্ঠানিক ব্যবস্থাপনা'}
                   </span>
@@ -353,30 +382,65 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     : 'আবাসিক ভবন কমিটি, শেয়ার্ড বিন এলাকা এবং বাণিজ্যিক খাদ্য ও ক্যাফে প্রতিষ্ঠানের জন্য।'}
                 </p>
 
-                <div className="p-3 bg-[#FAF5EC] rounded-xl space-y-2 border border-[#EDE4D8]">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#202B38]">Gulshan Parkview Committee</span>
-                    <span className="text-[10px] font-mono bg-[#C9F1DC] text-[#12613F] px-2 py-0.5 rounded font-bold">
-                      24 Units
-                    </span>
+                {isOrg ? (
+                  <div className="p-3 bg-[#FAF5EC] rounded-xl space-y-1 border border-[#EDE4D8]">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="font-bold text-[#202B38]">{currentCustomer.name}</span>
+                      <span className="text-[10px] font-mono bg-[#C9F1DC] text-[#12613F] px-2 py-0.5 rounded font-bold">
+                        {currentCustomer.customerType === 'business' ? (lang === 'en' ? 'Business' : 'ব্যবসা') : lang === 'en' ? 'Building' : 'ভবন'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#53616D]">
+                      {lang === 'en'
+                        ? 'Organisation totals are tracked separately from individual resident accounts.'
+                        : 'প্রতিষ্ঠানের হিসাব আলাদাভাবে রাখা হয়, ব্যক্তিগত বাসিন্দার হিসাবের সঙ্গে মেশানো হয় না।'}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#53616D]">
+                ) : (
+                  <p className="p-3 bg-[#FAF5EC] rounded-xl border border-[#EDE4D8] text-[11px] text-[#53616D]">
                     {lang === 'en'
-                      ? 'Building-level attribution rule active. Points credited to communal maintenance fund.'
-                      : 'ভবন-স্তরের পয়েন্ট নিয়ম সক্রিয়। ফ্ল্যাট মালিক সমিতির ফান্ডে পয়েন্ট জমা হয়।'}
+                      ? `You are signed in as ${currentCustomer.name}, a household account. Try the organisation views below.`
+                      : `আপনি ${currentCustomer.name} নামের গৃহস্থালি অ্যাকাউন্টে আছেন। নিচে প্রাতিষ্ঠানিক ভিউ দেখে নিতে পারেন।`}
                   </p>
-                </div>
+                )}
 
-                <div className="pt-2">
-                  <button
-                    onClick={() => {
-                      setRole('customer_apartment');
-                      onClose();
-                    }}
-                    className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
-                  >
-                    {lang === 'en' ? 'Open Committee Console' : 'কমিটি কনসোল ওপেন করুন'}
-                  </button>
+                <div className="pt-2 grid gap-2">
+                  {role !== 'customer_apartment' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRole('customer_apartment');
+                        onClose();
+                      }}
+                      className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                    >
+                      {lang === 'en' ? 'View as apartment committee' : 'ভবন কমিটি হিসেবে দেখুন'}
+                    </button>
+                  )}
+                  {role !== 'customer_business' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRole('customer_business');
+                        onClose();
+                      }}
+                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#25345C] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                    >
+                      {lang === 'en' ? 'View as business / café' : 'ব্যবসা প্রতিষ্ঠান হিসেবে দেখুন'}
+                    </button>
+                  )}
+                  {isOrg && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRole('customer_household');
+                        onClose();
+                      }}
+                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#25345C] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                    >
+                      {lang === 'en' ? 'Back to household view' : 'গৃহস্থালি ভিউতে ফিরুন'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -391,6 +455,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
 
               {onOpenEvidenceModel && (
                 <button
+                  type="button"
                   onClick={() => {
                     onOpenEvidenceModel();
                     onClose();
@@ -414,6 +479,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
 
               {onOpenInvestorBrief && (
                 <button
+                  type="button"
                   onClick={() => {
                     onOpenInvestorBrief();
                     onClose();
@@ -437,6 +503,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
 
               {onOpenTour && (
                 <button
+                  type="button"
                   onClick={() => {
                     onOpenTour();
                     onClose();
@@ -460,7 +527,6 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

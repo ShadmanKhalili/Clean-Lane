@@ -1,10 +1,13 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { EVIDENCE_LEVELS, EvidenceLevel } from '../../types';
-import { ShieldCheck, AlertOctagon, CheckCircle2, Scale, BookOpen } from 'lucide-react';
+import { ShieldCheck, AlertOctagon } from 'lucide-react';
 
 export const EvidenceModelView: React.FC = () => {
-  const { lang } = useApp();
+  const { lang, lots, evidencePackages } = useApp();
+  // Live count of leaf lots currently sitting at each level (E5 counts sealed packages).
+  const countAt = (lvl: EvidenceLevel) =>
+    lvl === 'E5' ? evidencePackages.length : lots.filter((l) => l.evidenceLevel === lvl && !(l.childLotIds?.length)).length;
 
   const rules: EvidenceLevel[] = ['E0', 'E1', 'E2', 'E3', 'E4', 'E5'];
 
@@ -22,7 +25,7 @@ export const EvidenceModelView: React.FC = () => {
       {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-xs space-y-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
-          <ShieldCheck className="w-4 h-4 text-emerald-700" />
+          <ShieldCheck className="w-4 h-4 text-emerald-700" aria-hidden="true" />
           <span>Truth in Claims & Anti-Greenwashing Standard</span>
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -57,8 +60,15 @@ export const EvidenceModelView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-xs font-mono text-emerald-800 bg-emerald-50 px-3 py-1 rounded-lg self-start sm:self-auto">
-                  Permitted Wording: "{info.allowedWording}"
+                <div className="flex flex-col items-start sm:items-end gap-1 self-start sm:self-auto">
+                  <div className="text-xs font-mono text-emerald-800 bg-emerald-50 px-3 py-1 rounded-lg">
+                    Permitted Wording: "{info.allowedWording}"
+                  </div>
+                  {lvl !== 'E0' && (
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {countAt(lvl)} {lvl === 'E5' ? 'sealed package(s)' : 'lot(s) at this level now'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -72,7 +82,7 @@ export const EvidenceModelView: React.FC = () => {
 
                 <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-1">
                   <span className="font-semibold text-rose-900 flex items-center gap-1.5">
-                    <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
+                    <AlertOctagon className="w-3.5 h-3.5 text-rose-600" aria-hidden="true" />
                     Prohibited Premature Claims (PRD § 3)
                   </span>
                   <p className="text-rose-950 text-[11px] leading-relaxed">{banned}</p>
