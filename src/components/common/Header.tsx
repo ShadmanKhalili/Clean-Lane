@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { useTranslation } from '../../utils/translations';
@@ -15,13 +15,16 @@ import {
   FileCheck2,
   ChevronDown
 } from 'lucide-react';
-import { InvestorLoopDemonstrator } from './InvestorLoopDemonstrator';
-import { InvestorShowcaseModal } from './InvestorShowcaseModal';
-import { AccountDrawerModal } from '../customer/AccountDrawerModal';
-import { HelpDrawerModal } from '../customer/HelpDrawerModal';
-import { OnboardingFlowModal } from '../customer/OnboardingFlowModal';
-import { DisputeModal } from '../customer/DisputeModal';
-import { MaterialGuideModal } from '../customer/MaterialGuideModal';
+import { USER_ROLES } from '../../routing';
+
+// Modals are only downloaded the first time they are opened.
+const InvestorLoopDemonstrator = lazy(() => import('./InvestorLoopDemonstrator').then((m) => ({ default: m.InvestorLoopDemonstrator })));
+const InvestorShowcaseModal = lazy(() => import('./InvestorShowcaseModal').then((m) => ({ default: m.InvestorShowcaseModal })));
+const AccountDrawerModal = lazy(() => import('../customer/AccountDrawerModal').then((m) => ({ default: m.AccountDrawerModal })));
+const HelpDrawerModal = lazy(() => import('../customer/HelpDrawerModal').then((m) => ({ default: m.HelpDrawerModal })));
+const OnboardingFlowModal = lazy(() => import('../customer/OnboardingFlowModal').then((m) => ({ default: m.OnboardingFlowModal })));
+const DisputeModal = lazy(() => import('../customer/DisputeModal').then((m) => ({ default: m.DisputeModal })));
+const MaterialGuideModal = lazy(() => import('../customer/MaterialGuideModal').then((m) => ({ default: m.MaterialGuideModal })));
 
 interface HeaderProps {
   activeTab: string;
@@ -131,6 +134,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               {/* Tab 1: Home */}
               <button
                 onClick={() => setActiveTab('overview')}
+                aria-current={activeTab === 'overview' ? 'page' : undefined}
                 className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === 'overview'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
@@ -144,6 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               {/* Tab 2: Rewards */}
               <button
                 onClick={() => setActiveTab('rewards')}
+                aria-current={activeTab === 'rewards' ? 'page' : undefined}
                 className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === 'rewards'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
@@ -157,6 +162,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               {/* Tab 3: My activity */}
               <button
                 onClick={() => setActiveTab('activity')}
+                aria-current={activeTab === 'activity' ? 'page' : undefined}
                 className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === 'activity'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
@@ -172,6 +178,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             <nav className="hidden md:flex items-center gap-2 text-sm font-semibold text-[#53625C]">
               <button
                 onClick={() => setActiveTab('overview')}
+                aria-current={activeTab === 'overview' ? 'page' : undefined}
                 className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer ${
                   activeTab === 'overview'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
@@ -191,6 +198,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
               <button
                 onClick={() => setActiveTab('traceability')}
+                aria-current={activeTab === 'traceability' ? 'page' : undefined}
                 className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'traceability'
                     ? 'bg-[#124B3A] text-white shadow-xs font-bold'
@@ -205,11 +213,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
           {/* Zone 3: Actions - Help & Account (Paired Icons + Labels) */}
           <div className="flex items-center gap-2">
+            {/* Persona switcher — the demo is multi-stakeholder, so make it one click away. */}
+            <label className="hidden lg:flex items-center gap-2 pl-3 pr-1 py-1 rounded-xl border border-[#EDE4D8] bg-[#FAF9F5] text-[11px] font-semibold text-[#53625C]">
+              <span>{lang === 'en' ? 'Viewing as' : 'যে হিসেবে দেখছেন'}</span>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                className="bg-white border border-[#EDE4D8] rounded-lg px-2 py-1 text-xs font-bold text-[#172521] cursor-pointer"
+              >
+                {USER_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {roleLabels[r][lang]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             {/* Help Button (In Header) */}
             <button
               onClick={() => setIsHelpOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#FAF5EC] text-xs font-bold text-[#202B38] transition-colors cursor-pointer shadow-2xs"
               title={t.help}
+              aria-label={t.help}
             >
               <HelpCircle className="w-4 h-4 text-[#25345C]" />
               <span className="hidden sm:inline">{t.help}</span>
@@ -220,6 +245,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               onClick={() => setIsAccountOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25345C] hover:bg-[#1B2644] text-white text-xs font-bold transition-colors cursor-pointer shadow-2xs"
               title={t.account}
+              aria-label={t.account}
             >
               <User className="w-4 h-4 text-[#C9F1DC]" />
               <span className="hidden sm:inline">{t.account}</span>
@@ -230,83 +256,131 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}
               className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#F8F7F1] text-[#172521] transition-colors cursor-pointer"
               title="Switch language / ভাষা পরিবর্তন"
+              aria-label={lang === 'en' ? 'Switch to Bangla' : 'Switch to English'}
+              lang={lang === 'en' ? 'bn' : 'en'}
             >
               {lang === 'en' ? 'বাংলা' : 'EN'}
             </button>
           </div>
         </div>
+
+        {/* Mobile navigation for operational roles (customers use the bottom tab bar). */}
+        {!isCustomerRole && (
+          <nav aria-label={lang === 'en' ? 'Workspace' : 'ওয়ার্কস্পেস'} className="md:hidden border-t border-[#EDE4D8] px-3 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold text-[#53625C]">
+            <button
+              onClick={() => setActiveTab('overview')}
+              aria-current={activeTab === 'overview' ? 'page' : undefined}
+              className={`shrink-0 px-3 py-1.5 rounded-lg cursor-pointer ${activeTab === 'overview' ? 'bg-[#124B3A] text-white' : 'bg-[#F8F7F1]'}`}
+            >
+              {role === 'collector'
+                ? t.fieldJobs
+                : role === 'aggregator'
+                ? t.hubIntake
+                : role === 'processor'
+                ? t.millProcessing
+                : role === 'brand_partner'
+                ? t.eprCampaigns
+                : t.commandCenter}
+            </button>
+            <button
+              onClick={() => setActiveTab('traceability')}
+              aria-current={activeTab === 'traceability' ? 'page' : undefined}
+              className={`shrink-0 px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1 ${activeTab === 'traceability' ? 'bg-[#124B3A] text-white' : 'bg-[#F8F7F1]'}`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+              {t.chainOfCustody}
+            </button>
+            <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wider text-[#8A968F]">{roleLabels[role][lang]}</span>
+          </nav>
+        )}
       </header>
 
-      {/* Account Drawer Modal */}
-      <AccountDrawerModal
-        isOpen={isAccountOpen}
-        onClose={() => setIsAccountOpen(false)}
-        onOpenOnboarding={() => {
-          setIsAccountOpen(false);
-          setIsOnboardingOpen(true);
-        }}
-        onOpenEvidenceModel={() => {
-          setIsAccountOpen(false);
-          setActiveTab('evidence_model');
-        }}
-        onOpenTour={() => {
-          setIsAccountOpen(false);
-          setIsDemonstratorOpen(true);
-        }}
-        onOpenInvestorBrief={() => {
-          setIsAccountOpen(false);
-          setIsInvestorShowcaseOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        {/* Account Drawer Modal */}
+        {isAccountOpen && (
+          <AccountDrawerModal
+            isOpen={isAccountOpen}
+            onClose={() => setIsAccountOpen(false)}
+            onOpenOnboarding={() => {
+              setIsAccountOpen(false);
+              setIsOnboardingOpen(true);
+            }}
+            onOpenEvidenceModel={() => {
+              setIsAccountOpen(false);
+              setActiveTab('evidence_model');
+            }}
+            onOpenTour={() => {
+              setIsAccountOpen(false);
+              setIsDemonstratorOpen(true);
+            }}
+            onOpenInvestorBrief={() => {
+              setIsAccountOpen(false);
+              setIsInvestorShowcaseOpen(true);
+            }}
+          />
+        )}
 
-      {/* Help Drawer Modal */}
-      <HelpDrawerModal
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-        onOpenFileDispute={(bId) => {
-          setIsHelpOpen(false);
-          setIsDisputeOpen(true);
-        }}
-        onOpenSortingGuide={() => {
-          setIsHelpOpen(false);
-          setIsSortingGuideOpen(true);
-        }}
-      />
+        {/* Help Drawer Modal */}
+        {isHelpOpen && (
+          <HelpDrawerModal
+            isOpen={isHelpOpen}
+            onClose={() => setIsHelpOpen(false)}
+            onOpenFileDispute={(bId) => {
+              setIsHelpOpen(false);
+              setIsDisputeOpen(true);
+            }}
+            onOpenSortingGuide={() => {
+              setIsHelpOpen(false);
+              setIsSortingGuideOpen(true);
+            }}
+          />
+        )}
 
-      {/* Onboarding / Add Address Modal */}
-      <OnboardingFlowModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        onProceedToBooking={() => {
-          setIsOnboardingOpen(false);
-          setActiveTab('overview');
-        }}
-      />
+        {/* Onboarding / Add Address Modal */}
+        {isOnboardingOpen && (
+          <OnboardingFlowModal
+            isOpen={isOnboardingOpen}
+            onClose={() => setIsOnboardingOpen(false)}
+            onProceedToBooking={() => {
+              setIsOnboardingOpen(false);
+              setActiveTab('overview');
+            }}
+          />
+        )}
 
-      {/* Dispute Modal */}
-      <DisputeModal
-        isOpen={isDisputeOpen}
-        onClose={() => setIsDisputeOpen(false)}
-      />
+        {/* Dispute Modal */}
+        {isDisputeOpen && (
+          <DisputeModal
+            isOpen={isDisputeOpen}
+            onClose={() => setIsDisputeOpen(false)}
+          />
+        )}
 
-      {/* Sorting Guide Modal */}
-      <MaterialGuideModal
-        isOpen={isSortingGuideOpen}
-        onClose={() => setIsSortingGuideOpen(false)}
-      />
+        {/* Sorting Guide Modal */}
+        {isSortingGuideOpen && (
+          <MaterialGuideModal
+            isOpen={isSortingGuideOpen}
+            onClose={() => setIsSortingGuideOpen(false)}
+          />
+        )}
 
-      {/* 5-Step Tour Modal */}
-      <InvestorLoopDemonstrator
-        isOpen={isDemonstratorOpen}
-        onClose={() => setIsDemonstratorOpen(false)}
-      />
+        {/* 5-Step Tour Modal */}
+        {isDemonstratorOpen && (
+          <InvestorLoopDemonstrator
+            isOpen={isDemonstratorOpen}
+            onClose={() => setIsDemonstratorOpen(false)}
+          />
+        )}
 
-      {/* Investor Brief Modal */}
-      <InvestorShowcaseModal
-        isOpen={isInvestorShowcaseOpen}
-        onClose={() => setIsInvestorShowcaseOpen(false)}
-        onOpenLoopDemonstrator={() => setIsDemonstratorOpen(true)}
-      />
+        {/* Investor Brief Modal */}
+        {isInvestorShowcaseOpen && (
+          <InvestorShowcaseModal
+            isOpen={isInvestorShowcaseOpen}
+            onClose={() => setIsInvestorShowcaseOpen(false)}
+            onOpenLoopDemonstrator={() => setIsDemonstratorOpen(true)}
+          />
+        )}
+      </Suspense>
     </>
   );
 };

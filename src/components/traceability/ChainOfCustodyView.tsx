@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { ShieldCheck, GitBranch, Scale, Truck, ArrowRight, Hash, Clock, MapPin } from 'lucide-react';
@@ -83,7 +84,7 @@ export const ChainOfCustodyView: React.FC = () => {
                   <span className="text-slate-500">Scale Variance Delta:</span>
                   <span
                     className={`font-bold ${
-                      Math.abs(selectedLot.discrepancyPercentage) > 5 ? 'text-amber-700' : 'text-slate-700'
+                      isOverTolerance(selectedLot.discrepancyPercentage) ? 'text-amber-700' : 'text-slate-700'
                     }`}
                   >
                     {selectedLot.discrepancyPercentage}%

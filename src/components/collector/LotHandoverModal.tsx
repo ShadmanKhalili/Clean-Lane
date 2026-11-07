@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { MaterialLot } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
@@ -36,7 +37,7 @@ export const LotHandoverModal: React.FC<LotHandoverModalProps> = ({
   const fieldWeight = lot.initialFieldWeightKg || 0;
   const deltaKg = hubScaleWeight - fieldWeight;
   const deltaPct = fieldWeight > 0 ? (deltaKg / fieldWeight) * 100 : 0;
-  const isHighDiscrepancy = Math.abs(deltaPct) > 5;
+  const isHighDiscrepancy = isOverTolerance(deltaPct);
 
   const handleSubmitHandover = (e: React.FormEvent) => {
     e.preventDefault();

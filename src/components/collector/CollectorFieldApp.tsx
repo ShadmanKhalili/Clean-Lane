@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { MaterialCategory, PickupJob, MaterialLot } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
@@ -435,7 +436,7 @@ export const CollectorFieldApp: React.FC = () => {
                   </div>
                 </div>
 
-                {lot.discrepancyPercentage !== undefined && Math.abs(lot.discrepancyPercentage) > 5 && (
+                {isOverTolerance(lot.discrepancyPercentage) && (
                   <div className="p-2.5 bg-amber-50 rounded-lg text-amber-900 text-[11px] flex items-center gap-1.5 border border-amber-200">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                     <span>Discrepancy Flag: Delta {lot.discrepancyPercentage}% recorded. Requires supervisor signoff.</span>

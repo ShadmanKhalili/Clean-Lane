@@ -1,4 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { usePersistentState, clearPersistedState } from '../hooks/usePersistentState';
+import { rebaseSeed } from '../utils/seedTime';
+import { shortId } from '../utils/id';
+import { readRoute } from '../routing';
+import {
+  assessScaleReading,
+  computePointBalances,
+  payoutForWeight,
+  pointsForWeight,
+  releasePendingHolds,
+  SCALE_TOLERANCE_PERCENT
+} from '../domain/rules';
 import {
   INITIAL_AUDIT_LOGS,
   INITIAL_BOOKINGS,
@@ -49,6 +61,31 @@ import {
   evaluateAutomatedReminders
 } from '../services/notificationService';
 
+/**
+ * Seed data, shifted so the demo's "today" is the real today. Computed once per
+ * page load; persisted user data (see usePersistentState) takes precedence.
+ */
+const SEED = rebaseSeed({
+  bookings: INITIAL_BOOKINGS,
+  jobs: INITIAL_JOBS,
+  lots: INITIAL_MATERIAL_LOTS,
+  custodyEvents: INITIAL_CUSTODY_EVENTS,
+  sortingTransformations: INITIAL_SORTING_TRANSFORMATIONS,
+  processingDispositions: INITIAL_PROCESSING_DISPOSITIONS,
+  pointsLedger: INITIAL_POINTS_LEDGER,
+  rewards: INITIAL_REWARDS,
+  redemptions: INITIAL_REDEMPTIONS,
+  complaints: INITIAL_COMPLAINTS,
+  campaigns: INITIAL_BRAND_CAMPAIGNS,
+  evidencePackages: INITIAL_EVIDENCE_PACKAGES,
+  serviceZones: INITIAL_SERVICE_ZONES,
+  auditLogs: INITIAL_AUDIT_LOGS,
+  dropOffPoints: INITIAL_DROP_OFF_POINTS,
+  savedLocations: INITIAL_SAVED_LOCATIONS,
+  orgMembers: INITIAL_ORG_MEMBERS,
+  notifications: INITIAL_NOTIFICATIONS
+});
+
 interface AppContextType {
   role: UserRole;
   setRole: (role: UserRole) => void;
@@ -95,6 +132,8 @@ interface AppContextType {
   // Toast / System Notification
   activeToast: string | null;
   showToast: (msg: string) => void;
+  /** Wipes persisted demo data and reloads from the seed. */
+  resetDemoData: () => void;
 
   // Actions
   createBooking: (newBooking: Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'evidenceLevel' | 'status' | 'pointsStatus'>) => Booking;
@@ -149,35 +188,41 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<UserRole>('customer_household');
-  const [lang, setLang] = useState<'en' | 'bn'>('en');
+  // Role comes from the URL first (deep links), then the last-used role.
+  const [role, setRole] = usePersistentState<UserRole>('role', () => readRoute().role ?? 'customer_household');
+  useEffect(() => {
+    const fromUrl = readRoute().role;
+    if (fromUrl && fromUrl !== role) setRole(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [lang, setLang] = usePersistentState<'en' | 'bn'>('lang', 'en');
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
   const [activeToast, setActiveToast] = useState<string | null>(null);
 
-  const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
-  const [jobs, setJobs] = useState<PickupJob[]>(INITIAL_JOBS);
-  const [lots, setLots] = useState<MaterialLot[]>(INITIAL_MATERIAL_LOTS);
-  const [custodyEvents, setCustodyEvents] = useState<CustodyEvent[]>(INITIAL_CUSTODY_EVENTS);
-  const [sortingTransformations, setSortingTransformations] = useState<SortingTransformation[]>(INITIAL_SORTING_TRANSFORMATIONS);
-  const [processingDispositions, setProcessingDispositions] = useState<ProcessingDisposition[]>(INITIAL_PROCESSING_DISPOSITIONS);
-  const [pointsLedger, setPointsLedger] = useState<PointsLedgerEntry[]>(INITIAL_POINTS_LEDGER);
-  const [rewards, setRewards] = useState<RewardItem[]>(INITIAL_REWARDS);
-  const [redemptions, setRedemptions] = useState<CustomerRedemption[]>(INITIAL_REDEMPTIONS);
-  const [complaints, setComplaints] = useState<ServiceComplaint[]>(INITIAL_COMPLAINTS);
-  const [campaigns, setCampaigns] = useState<BrandCampaign[]>(INITIAL_BRAND_CAMPAIGNS);
-  const [evidencePackages, setEvidencePackages] = useState<EvidencePackage[]>(INITIAL_EVIDENCE_PACKAGES);
-  const [serviceZones] = useState<ServiceZone[]>(INITIAL_SERVICE_ZONES);
-  const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
-  const [dropOffPoints, setDropOffPoints] = useState<DropOffPoint[]>(INITIAL_DROP_OFF_POINTS);
-  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>(INITIAL_SAVED_LOCATIONS);
-  const [orgMembers, setOrgMembers] = useState<OrgMember[]>(INITIAL_ORG_MEMBERS);
-  const [selectedLocationId, setSelectedLocationId] = useState<string>('LOC-01');
+  const [bookings, setBookings] = usePersistentState<Booking[]>('bookings', SEED.bookings);
+  const [jobs, setJobs] = usePersistentState<PickupJob[]>('jobs', SEED.jobs);
+  const [lots, setLots] = usePersistentState<MaterialLot[]>('lots', SEED.lots);
+  const [custodyEvents, setCustodyEvents] = usePersistentState<CustodyEvent[]>('custodyEvents', SEED.custodyEvents);
+  const [sortingTransformations, setSortingTransformations] = usePersistentState<SortingTransformation[]>('sortingTransformations', SEED.sortingTransformations);
+  const [processingDispositions, setProcessingDispositions] = usePersistentState<ProcessingDisposition[]>('processingDispositions', SEED.processingDispositions);
+  const [pointsLedger, setPointsLedger] = usePersistentState<PointsLedgerEntry[]>('pointsLedger', SEED.pointsLedger);
+  const [rewards, setRewards] = usePersistentState<RewardItem[]>('rewards', SEED.rewards);
+  const [redemptions, setRedemptions] = usePersistentState<CustomerRedemption[]>('redemptions', SEED.redemptions);
+  const [complaints, setComplaints] = usePersistentState<ServiceComplaint[]>('complaints', SEED.complaints);
+  const [campaigns, setCampaigns] = usePersistentState<BrandCampaign[]>('campaigns', SEED.campaigns);
+  const [evidencePackages, setEvidencePackages] = usePersistentState<EvidencePackage[]>('evidencePackages', SEED.evidencePackages);
+  const [serviceZones] = useState<ServiceZone[]>(SEED.serviceZones);
+  const [auditLogs, setAuditLogs] = usePersistentState<AuditEvent[]>('auditLogs', SEED.auditLogs);
+  const [dropOffPoints, setDropOffPoints] = usePersistentState<DropOffPoint[]>('dropOffPoints', SEED.dropOffPoints);
+  const [savedLocations, setSavedLocations] = usePersistentState<SavedLocation[]>('savedLocations', SEED.savedLocations);
+  const [orgMembers, setOrgMembers] = usePersistentState<OrgMember[]>('orgMembers', SEED.orgMembers);
+  const [selectedLocationId, setSelectedLocationId] = usePersistentState<string>('selectedLocationId', 'LOC-01');
 
   // Notifications & 24h Automated Reminders
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = usePersistentState<AppNotification[]>('notifications', SEED.notifications);
   const [notificationSettings, setNotificationSettings] =
-    useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+    usePersistentState<NotificationSettings>('notificationSettings', DEFAULT_NOTIFICATION_SETTINGS);
 
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) =>
@@ -258,6 +303,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
+  const resetDemoData = () => {
+    clearPersistedState();
+    window.location.reload();
+  };
+
   const addAuditLog = (
     action: string,
     targetObject: string,
@@ -267,7 +317,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     newValue?: string
   ) => {
     const newLog: AuditEvent = {
-      id: `AUD-${Date.now().toString().slice(-6)}`,
+      id: `AUD-${shortId()}`,
       timestamp: new Date().toISOString(),
       actor: role.toUpperCase(),
       actorRole: role,
@@ -285,7 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createBooking = (
     data: Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'evidenceLevel' | 'status' | 'pointsStatus'>
   ): Booking => {
-    const newId = `CL-BK-${Date.now().toString().slice(-4)}`;
+    const newId = `CL-BK-${shortId()}`;
     const nowIso = new Date().toISOString();
 
     // Calculate approximate points hold
@@ -322,7 +372,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Add points ledger entry
     const ledgerEntry: PointsLedgerEntry = {
-      id: `PTS-${Date.now().toString().slice(-5)}`,
+      id: `PTS-${shortId()}`,
       customerId: data.customerId,
       timestamp: nowIso,
       ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
@@ -445,7 +495,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Record Custody Event
       const custodyEv: CustodyEvent = {
-        id: `CUST-EV-${Date.now().toString().slice(-5)}`,
+        id: `CUST-EV-${shortId()}`,
         lotId: batchLotId,
         timestamp: nowIso,
         sender: job.customerAddress,
@@ -492,8 +542,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const point = dropOffPoints.find((p) => p.id === dropOffPointId);
     if (!point) return;
     const nowIso = new Date().toISOString();
-    const trxId = `CL-DROP-${Date.now().toString().slice(-4)}`;
-    const pts = Math.round(weightKg * 50);
+    const trxId = `CL-DROP-${shortId()}`;
+    const pts = pointsForWeight(weightKg, 'dropOff');
 
     // Create completed booking record directly at E2: Quantity confirmed (PRD Flow C)
     const newBooking: Booking = {
@@ -513,7 +563,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       evidenceLevel: 'E2',
       confirmedWeightKg: weightKg,
       serviceFeeBdt: 0,
-      materialPayoutBdt: Math.round(weightKg * 30),
+      materialPayoutBdt: payoutForWeight(weightKg),
       earnedPoints: pts,
       pointsStatus: 'available',
       notes: `Walk-in drop-off verified at ${point.name}. Verified by ${point.operatorName}.`,
@@ -525,7 +575,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Available points immediately (PRD Flow C step 5)
     setPointsLedger((prev) => [
       {
-        id: `PTS-${Date.now().toString().slice(-5)}`,
+        id: `PTS-${shortId()}`,
         customerId: 'CUST-H-801',
         timestamp: nowIso,
         ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
@@ -568,7 +618,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notes?: string
   ) => {
     const nowIso = new Date().toISOString();
-    const reqId = `REQ-REC-${Date.now().toString().slice(-4)}`;
+    const reqId = `REQ-REC-${shortId()}`;
     addAuditLog(
       'RECURRING_ARRANGEMENT_REQUESTED',
       'Organisation',
@@ -581,7 +631,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addSavedLocation = (loc: Omit<SavedLocation, 'id'>) => {
     const newLoc: SavedLocation = {
       ...loc,
-      id: `LOC-${Date.now().toString().slice(-4)}`
+      id: `LOC-${shortId()}`
     };
     setSavedLocations((prev) => [...prev, newLoc]);
     addAuditLog('SAVED_LOCATION_ADDED', 'SavedLocation', newLoc.id, `Location added: ${newLoc.label}`);
@@ -628,11 +678,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const lot = lots.find((l) => l.id === lotId);
     if (!lot) return;
 
-    const delta = hubWeightKg - lot.initialFieldWeightKg;
-    const deltaPercent = Number(((delta / lot.initialFieldWeightKg) * 100).toFixed(1));
+    const { deltaPercent, isDiscrepant } = assessScaleReading(lot.initialFieldWeightKg, hubWeightKg);
     const nowIso = new Date().toISOString();
-
-    const isDiscrepant = Math.abs(deltaPercent) > 5.0; // Over 5% threshold flagged
 
     // Update Lot to E2
     setLots((prev) =>
@@ -663,8 +710,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 evidenceLevel: 'E2',
                 confirmedWeightKg: hubWeightKg,
                 discrepancyFlag: isDiscrepant,
-                materialPayoutBdt: Math.round(hubWeightKg * 30),
-                earnedPoints: Math.round(hubWeightKg * 45),
+                materialPayoutBdt: payoutForWeight(hubWeightKg),
+                earnedPoints: pointsForWeight(hubWeightKg),
                 pointsStatus: isDiscrepant ? 'pending' : 'available',
                 notes: notes || `Hub scale confirmed ${hubWeightKg} kg (Delta: ${deltaPercent}%).`
               }
@@ -674,20 +721,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Make points available in ledger if not heavily discrepant
       if (!isDiscrepant) {
+        const bookingId = lot.sourceBookingId;
         setPointsLedger((prev) => [
           {
-            id: `PTS-${Date.now().toString().slice(-5)}`,
+            id: `PTS-${shortId()}`,
             customerId: 'CUST-H-801',
             timestamp: nowIso,
             ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
             sourceEvent: 'HUB_SCALE_QUANTITY_CONFIRMED',
             description: `Scale confirmation for lot ${lotId}: ${hubWeightKg} kg accepted.`,
             type: 'CREDIT',
-            amount: Math.round(hubWeightKg * 45),
+            amount: pointsForWeight(hubWeightKg),
             status: 'AVAILABLE',
-            linkedBookingId: lot.sourceBookingId
+            linkedBookingId: bookingId
           },
-          ...prev
+          ...releasePendingHolds(prev, bookingId)
         ]);
       }
     }
@@ -695,7 +743,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Custody Event
     setCustodyEvents((prev) => [
       {
-        id: `CUST-EV-${Date.now().toString().slice(-5)}`,
+        id: `CUST-EV-${shortId()}`,
         lotId,
         timestamp: nowIso,
         sender: lot.primaryCollector,
@@ -719,7 +767,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast(
       isDiscrepant
-        ? `Warning: Discrepancy ${deltaPercent}% exceeds 5% tolerance. Flagged for review.`
+        ? `Warning: Discrepancy ${deltaPercent}% exceeds ${SCALE_TOLERANCE_PERCENT}% tolerance. Flagged for review.`
         : `Scale verified: ${hubWeightKg} kg accepted. Evidence Level E2 confirmed.`
     );
   };
@@ -749,7 +797,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!parentLot) return;
 
     const nowIso = new Date().toISOString();
-    const transformationId = `SORT-TR-${Date.now().toString().slice(-4)}`;
+    const transformationId = `SORT-TR-${shortId()}`;
 
     const newTransformation: SortingTransformation = {
       id: transformationId,
@@ -812,7 +860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     const nowIso = new Date().toISOString();
     const dispRecord: ProcessingDisposition = {
-      id: `PROC-DISP-${Date.now().toString().slice(-4)}`,
+      id: `PROC-DISP-${shortId()}`,
       lotId,
       processorName,
       facilityLocation: 'Bengal Polymers & Flake Mill, Savar',
@@ -889,7 +937,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Ledger debit
     const ledgerEntry: PointsLedgerEntry = {
-      id: `PTS-${Date.now().toString().slice(-5)}`,
+      id: `PTS-${shortId()}`,
       customerId: 'CUST-H-801',
       timestamp: nowIso,
       ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
@@ -903,7 +951,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Redemption record
     const redRecord: CustomerRedemption = {
-      id: `RED-${Date.now().toString().slice(-4)}`,
+      id: `RED-${shortId()}`,
       customerId: 'CUST-H-801',
       rewardId,
       rewardTitle: reward.title,
@@ -922,7 +970,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fileComplaint = (type: any, description: string, bookingId?: string) => {
     const nowIso = new Date().toISOString();
     const newComp: ServiceComplaint = {
-      id: `CMP-${Date.now().toString().slice(-4)}`,
+      id: `CMP-${shortId()}`,
       customerId: 'CUST-H-801',
       customerName: 'Nasreen Akhter',
       type,
@@ -937,7 +985,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createEvidencePackage = (pkg: Omit<EvidencePackage, 'id' | 'approvedDate'>) => {
-    const id = `EVP-${Date.now().toString().slice(-5)}`;
+    const id = `EVP-${shortId()}`;
     const newPkg: EvidencePackage = {
       ...pkg,
       id,
@@ -1070,7 +1118,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const ptsDebit = 400;
       // First ledger entry: hold/reserve
       const debitEntry: PointsLedgerEntry = {
-        id: `PTS-FAIL-RES-${Date.now().toString().slice(-4)}`,
+        id: `PTS-FAIL-RES-${shortId()}`,
         customerId: 'CUST-H-801',
         timestamp: nowIso,
         ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
@@ -1082,7 +1130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       // Restoration entry immediately
       const refundEntry: PointsLedgerEntry = {
-        id: `PTS-FAIL-REF-${Date.now().toString().slice(-4)}`,
+        id: `PTS-FAIL-REF-${shortId()}`,
         customerId: 'CUST-H-801',
         timestamp: nowIso,
         ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
@@ -1188,13 +1236,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Computed values
-  const customerAvailablePoints = pointsLedger
-    .filter((p) => p.customerId === 'CUST-H-801' && p.status === 'AVAILABLE')
-    .reduce((acc, curr) => acc + curr.amount, 0);
-
-  const customerPendingPoints = pointsLedger
-    .filter((p) => p.customerId === 'CUST-H-801' && p.status === 'PENDING')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  // Debits (redemptions, reservations) must reduce the spendable balance —
+  // see domain/rules.ts for the ledger semantics.
+  const { available: customerAvailablePoints, pending: customerPendingPoints } = computePointBalances(
+    pointsLedger,
+    'CUST-H-801'
+  );
 
   // Accurate Pilot KPIs (Reporting rule: Collected, Accepted, Processed, Verified counted separately)
   const totalCollectedKg = lots.reduce((acc, l) => acc + l.initialFieldWeightKg, 0);
@@ -1229,6 +1276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         auditLogs,
         activeToast,
         showToast,
+        resetDemoData,
         createBooking,
         cancelBooking,
         acceptJob,

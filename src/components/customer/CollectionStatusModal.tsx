@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { pointsForWeight } from '../../domain/rules';
 import { Booking } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useTranslation } from '../../utils/translations';
@@ -199,7 +200,7 @@ export const CollectionStatusModal: React.FC<CollectionStatusModalProps> = ({
                 <div className="flex justify-between items-center">
                   <span className="text-[#53616D]">{lang === 'en' ? 'Reward Points Earned:' : 'অর্জিত রিওয়ার্ড পয়েন্ট:'}</span>
                   <span className="font-mono font-bold text-[#25345C]">
-                    +{booking.earnedPoints || (booking.confirmedWeightKg ? Math.round(booking.confirmedWeightKg * 50) : 325)} pts
+                    +{booking.earnedPoints ?? pointsForWeight(booking.confirmedWeightKg ?? booking.fieldWeightKg ?? 0)} pts
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[11px] pt-1 border-t border-[#FAF5EC]">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { Booking, MaterialLot, PickupJob } from '../../types';
@@ -516,7 +517,7 @@ export const OperatorDashboard: React.FC = () => {
                     </td>
                     <td className="py-3 px-3">
                       {lot.discrepancyPercentage !== undefined ? (
-                        <span className={`font-bold ${Math.abs(lot.discrepancyPercentage) > 5 ? 'text-amber-700' : 'text-slate-600'}`}>
+                        <span className={`font-bold ${isOverTolerance(lot.discrepancyPercentage) ? 'text-amber-700' : 'text-slate-600'}`}>
                           {lot.discrepancyPercentage}%
                         </span>
                       ) : (

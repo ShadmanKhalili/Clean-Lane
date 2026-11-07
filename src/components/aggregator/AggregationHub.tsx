@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { MaterialLot } from '../../types';
 import { EvidenceBadge } from '../common/EvidenceBadge';
@@ -265,7 +266,7 @@ export const AggregationHub: React.FC = () => {
                     if (!chosen) return null;
                     const delta = hubScaleWeight - chosen.initialFieldWeightKg;
                     const deltaPct = ((delta / chosen.initialFieldWeightKg) * 100).toFixed(1);
-                    const isHigh = Math.abs(parseFloat(deltaPct)) > 5.0;
+                    const isHigh = isOverTolerance(parseFloat(deltaPct));
 
                     return (
                       <div
@@ -343,7 +344,7 @@ export const AggregationHub: React.FC = () => {
                         {lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : '—'}
                       </td>
                       <td className="py-3 px-3 font-sans">
-                        {lot.discrepancyPercentage !== undefined && Math.abs(lot.discrepancyPercentage) > 5 ? (
+                        {isOverTolerance(lot.discrepancyPercentage) ? (
                           <span className="text-amber-700 font-semibold text-[11px]">
                             Discrepancy ({lot.discrepancyPercentage}%)
                           </span>

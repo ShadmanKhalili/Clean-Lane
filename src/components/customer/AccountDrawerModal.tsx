@@ -54,6 +54,8 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
     syncOfflineQueue,
     offlineQueueCount
   } = useApp();
+  const { resetDemoData } = useApp();
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const t = useTranslation(lang);
   const [activeSection, setActiveSection] = useState<'profile' | 'locations' | 'organisation' | 'settings'>('profile');
@@ -282,6 +284,41 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     ? 'Clean Lane maintains distinct consoles for field collectors, receiving hubs, recyclers, and municipal operators.'
                     : 'মাঠকর্মী, কেন্দ্র ইনটেক ও অ্যাডমিনদের জন্য আলাদা ইন্টারফেস বিদ্যমান।'}
                 </p>
+              </div>
+
+              {/* Demo data controls — changes are saved in this browser between visits. */}
+              <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-2">
+                <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
+                  {lang === 'en' ? 'Demo data' : 'ডেমো ডেটা'}
+                </span>
+                <p className="text-[11px] text-[#53616D] leading-relaxed">
+                  {lang === 'en'
+                    ? 'Bookings, points and handovers you create are saved in this browser. Reset to start the walkthrough from scratch.'
+                    : 'আপনার তৈরি বুকিং, পয়েন্ট ও হস্তান্তর এই ব্রাউজারে সংরক্ষিত থাকে। নতুন করে শুরু করতে রিসেট করুন।'}
+                </p>
+                {confirmReset ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={resetDemoData}
+                      className="flex-1 px-3 py-2 rounded-xl bg-[#B42318] text-white text-xs font-bold cursor-pointer"
+                    >
+                      {lang === 'en' ? 'Yes, erase my changes' : 'হ্যাঁ, মুছে ফেলুন'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmReset(false)}
+                      className="px-3 py-2 rounded-xl border border-[#EDE4D8] text-xs font-bold cursor-pointer"
+                    >
+                      {lang === 'en' ? 'Cancel' : 'বাতিল'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmReset(true)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#EDE4D8] bg-[#FAF5EC] text-xs font-bold text-[#202B38] cursor-pointer"
+                  >
+                    {lang === 'en' ? 'Reset demo data' : 'ডেমো ডেটা রিসেট'}
+                  </button>
+                )}
               </div>
             </div>
           )}

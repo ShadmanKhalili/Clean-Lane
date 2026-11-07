@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { shortId } from '../../utils/id';
 import { useApp } from '../../context/AppContext';
 import {
   X,
@@ -75,7 +76,7 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({ isOpen, onClose, boo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const caseRef = `CASE-${Date.now().toString().slice(-5)}`;
+    const caseRef = `CASE-${shortId()}`;
     fileComplaint(complaintType, description || 'Customer submitted issue via Clean Lane app.', selectedBooking);
     setCaseSubmittedRef(caseRef);
   };
