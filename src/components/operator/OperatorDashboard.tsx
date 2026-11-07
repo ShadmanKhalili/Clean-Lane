@@ -3,6 +3,9 @@ import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { Modal } from '../common/Modal';
+import { OperatorHome } from './OperatorHome';
+import { EmptyState } from '../../design/Celebrate';
+import { Term } from '../../design/Glossary';
 import { ServiceComplaint } from '../../types';
 import {
   LayoutDashboard,
@@ -13,7 +16,6 @@ import {
   Building,
   BarChart3,
   Settings,
-  AlertTriangle,
   Scale,
   Bell,
   Sparkles,
@@ -64,11 +66,11 @@ export const OperatorDashboard: React.FC = () => {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('overview');
   const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
 
-  // Side Filters for Zone and Provider (PRD A01)
+  // Side Filters for Zone and Provider
   const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>('all');
   const [selectedProviderFilter, setSelectedProviderFilter] = useState<string>('all');
 
-  // Reassignment Modal State (PRD A02)
+  // Reassignment Modal State
   const [reassignJobId, setReassignJobId] = useState<string | null>(null);
   const [newCollectorName, setNewCollectorName] = useState<string>('Enterprise Route #2 (Kamrul)');
   const [reassignReason, setReassignReason] = useState<string>('');
@@ -102,7 +104,7 @@ export const OperatorDashboard: React.FC = () => {
     .filter((e) => e.type === 'CREDIT' && e.status === 'AVAILABLE')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  // Indicators (PRD A01)
+  // Counts
   const openBookingsCount = scopedBookings.filter((b) => b.status === 'REQUESTED' || b.status === 'CONFIRMED').length;
   const unassignedJobsCount = scopedJobs.filter((j) => j.status === 'PENDING').length;
   const discrepantLots = scopedLots.filter((l) => isOverTolerance(l.discrepancyPercentage) && !l.discrepancyResolved);
@@ -149,20 +151,20 @@ export const OperatorDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 9 Workspaces Navigation Bar (PRD Section 1 Operator Console) */}
+      {/* 9 Workspaces Navigation Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs">
         <div className="flex items-center gap-1 overflow-x-auto" role="tablist" aria-label={t('Operator workspaces', 'অপারেটর ওয়ার্কস্পেস')}>
           {[
-            { id: 'overview', label: t('Overview', 'ওভারভিউ'), icon: LayoutDashboard },
+            { id: 'overview', label: t('Today', 'আজ'), icon: LayoutDashboard },
             { id: 'bookings', label: `${t('Bookings', 'বুকিং')} (${bookings.length})`, icon: Calendar },
-            { id: 'dispatch', label: t('Dispatch Board', 'ডিসপ্যাচ বোর্ড'), icon: Truck },
-            { id: 'material', label: t('Material & Scales', 'উপাদান ও স্কেল'), icon: Scale },
-            { id: 'rewards', label: t('Rewards Admin', 'রিওয়ার্ড'), icon: Gift },
-            { id: 'customers', label: `${t('Customers', 'গ্রাহক')} (${unresolvedComplaintsCount})`, icon: Users },
+            { id: 'dispatch', label: t('Dispatch', 'ডিসপ্যাচ'), icon: Truck },
+            { id: 'material', label: t('Lots & scales', 'লট ও স্কেল'), icon: Scale },
+            { id: 'rewards', label: t('Rewards', 'রিওয়ার্ড'), icon: Gift },
+            { id: 'customers', label: `${t('Customer cases', 'গ্রাহকের অভিযোগ')} (${unresolvedComplaintsCount})`, icon: Users },
             { id: 'partners', label: t('Partners', 'পার্টনার'), icon: Building },
             { id: 'reports', label: t('Reports', 'রিপোর্ট'), icon: BarChart3 },
             { id: 'audit', label: `${t('Audit trail', 'অডিট ট্রেইল')} (${auditLogs.length})`, icon: History },
-            { id: 'settings', label: t('Settings & Zones', 'সেটিংস ও জোন'), icon: Settings }
+            { id: 'settings', label: t('Service areas', 'সেবা এলাকা'), icon: Settings }
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeWorkspace === item.id;
@@ -186,239 +188,68 @@ export const OperatorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* WORKSPACE 1: OVERVIEW (Wireframe A01 - Exception-First Work Queue) */}
-      {/* ========================================================================= */}
       {activeWorkspace === 'overview' && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {isScoped && (
             <div role="status" className="px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 flex items-center justify-between gap-2">
-              <span>{t('Showing a filtered scope (zone / enterprise). Counts below reflect the filter.', 'ফিল্টার করা স্কোপ দেখানো হচ্ছে।')}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedZoneFilter('all');
-                  setSelectedProviderFilter('all');
-                }}
-                className="px-3 min-h-11 font-semibold underline cursor-pointer"
-              >
-                {t('Clear filters', 'ফিল্টার মুছুন')}
+              <span>{t('Showing one area or provider only.', 'শুধু একটি এলাকা বা প্রদানকারী দেখানো হচ্ছে।')}</span>
+              <button type="button" onClick={() => { setSelectedZoneFilter('all'); setSelectedProviderFilter('all'); }} className="px-3 min-h-11 font-semibold underline cursor-pointer">
+                {t('Show everything', 'সব দেখান')}
               </button>
             </div>
           )}
-          {/* Top Indicators Bar (PRD A01) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-slate-500 block">Open Bookings</span>
-              <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">{openBookingsCount}</div>
-              <span className="text-[10px] text-slate-400 block">Scheduled in lane</span>
-            </div>
-
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-amber-800 block">Unassigned Jobs</span>
-              <div className="text-2xl font-bold font-mono text-amber-900 tabular-nums">{unassignedJobsCount}</div>
-              <span className="text-[10px] text-amber-700 block">Awaiting driver dispatch</span>
-            </div>
-
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-rose-800 block">Weight Discrepancies</span>
-              <div className="text-2xl font-bold font-mono text-rose-900 tabular-nums">{weightDiscrepanciesCount}</div>
-              <span className="text-[10px] text-rose-700 block">&gt; ±5% field vs scale</span>
-            </div>
-
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-slate-500 block">Open Disputes</span>
-              <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">{unresolvedComplaintsCount}</div>
-              <span className="text-[10px] text-slate-400 block">Customer tickets pending</span>
-            </div>
-          </div>
-
-          {/* Main Area: Exception-First Work Queue (PRD A01) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">
-                    {t('Exception-First Operations Queue (PRD A01)', 'ব্যতিক্রম-প্রথম অপারেশন কিউ (PRD A01)')}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Prioritizes tasks requiring manual operator decision or re-routing.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {/* Weight Discrepancy Alert */}
-                {discrepantLots.map((lot) => (
-                    <div
-                      key={lot.id}
-                      className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-amber-700" aria-hidden="true" />
-                          <span className="font-bold text-slate-900">Weight Discrepancy #{lot.id}</span>
-                          <span className="font-mono text-amber-800 font-bold">{lot.discrepancyPercentage}%</span>
-                        </div>
-                        <p className="text-slate-600">
-                          Field: {lot.initialFieldWeightKg} kg vs Certified Hub Scale: {lot.verifiedHubWeightKg} kg
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setActiveWorkspace('material')}
-                        className="px-3 min-h-11 bg-amber-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
-                      >
-                        Review Scale Log
-                      </button>
-                    </div>
-                  ))}
-
-                {/* Unassigned Job Alert */}
-                {scopedJobs
-                  .filter((j) => j.status === 'PENDING')
-                  .map((job) => (
-                    <div
-                      key={job.id}
-                      className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900">Unassigned Job #{job.id}</div>
-                        <p className="text-slate-600">{job.customerAddress} ({job.scheduledWindow})</p>
-                      </div>
-                      <button
-                        onClick={() => setActiveWorkspace('dispatch')}
-                        className="px-3 min-h-11 bg-slate-900 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
-                      >
-                        {t('Assign Driver', 'ড্রাইভার নির্ধারণ')}
-                      </button>
-                    </div>
-                  ))}
-
-                {/* Open Complaints */}
-                {openComplaints.map((c) => (
-                    <div
-                      key={c.id}
-                      className="p-4 rounded-xl border border-rose-200 bg-rose-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900">Customer Challenge #{c.id}</div>
-                        <p className="text-slate-600">{c.description}</p>
-                      </div>
-                      <button
-                        onClick={() => setActiveWorkspace('customers')}
-                        className="px-3 min-h-11 bg-rose-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
-                      >
-                        {t('Open Case', 'কেস খুলুন')}
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Side Panel: Service Area & Provider Filters (PRD A01) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 text-xs">
-              <h3 className="font-bold text-slate-900 text-sm">Operational Scope Filters</h3>
+          <OperatorHome
+            jobs={scopedJobs}
+            lots={scopedLots}
+            complaints={scopedComplaints}
+            collectors={knownCollectors}
+            onOpenTab={(tab) => setActiveWorkspace(tab)}
+          />
+          <details className="bg-white rounded-2xl border border-slate-200 p-4 text-xs group">
+            <summary className="cursor-pointer min-h-11 flex items-center font-semibold text-slate-700">{t('Filters and housekeeping', 'ফিল্টার ও অন্যান্য')}</summary>
+            <div className="grid gap-4 sm:grid-cols-3 pt-3">
               <div>
-                <label htmlFor="op-zone" className="block text-slate-500 mb-1 font-medium">Service Lane</label>
-                <select
-                  id="op-zone"
-                  value={selectedZoneFilter}
-                  onChange={(e) => setSelectedZoneFilter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900"
-                >
-                  <option value="all">All Pilot Zones (Dhaka North)</option>
-                  {serviceZones.map((z) => (
-                    <option key={z.id} value={z.id}>
-                      {z.name}
-                    </option>
-                  ))}
+                <label htmlFor="op-zone" className="block text-slate-500 mb-1 font-medium">{t('Service area', 'সেবা এলাকা')}</label>
+                <select id="op-zone" value={selectedZoneFilter} onChange={(e) => setSelectedZoneFilter(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900">
+                  <option value="all">{t('All pilot areas', 'সব পাইলট এলাকা')}</option>
+                  {serviceZones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
                 </select>
               </div>
-
               <div>
-                <label htmlFor="op-provider" className="block text-slate-500 mb-1 font-medium">Collection Enterprise</label>
-                <select
-                  id="op-provider"
-                  value={selectedProviderFilter}
-                  onChange={(e) => setSelectedProviderFilter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900"
-                >
-                  <option value="all">All Providers</option>
-                  {providers.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
+                <label htmlFor="op-provider" className="block text-slate-500 mb-1 font-medium">{t('Collection provider', 'সংগ্রহ প্রদানকারী')}</label>
+                <select id="op-provider" value={selectedProviderFilter} onChange={(e) => setSelectedProviderFilter(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900">
+                  <option value="all">{t('All providers', 'সব প্রদানকারী')}</option>
+                  {providers.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-
-              <div className="pt-2 border-t border-slate-100 space-y-2 text-slate-600">
-                <div className="flex justify-between">
-                  <span>Collectors with active jobs:</span>
-                  <span className="font-bold font-mono text-slate-900">{collectorsInField}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Hub scales registered:</span>
-                  <span className="font-bold font-mono text-emerald-800">1 (GW-01) <span className="font-sans font-normal text-slate-400">· sample</span></span>
-                </div>
-              </div>
-
-              {/* Automated 24h Reminder Gateway Monitor */}
-              <div className="pt-3 border-t border-slate-100 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <Bell className="w-3.5 h-3.5 text-[#F5BF55]" aria-hidden="true" />
-                    <span>24h Reminder Service</span>
-                  </div>
-                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
-                    Manual trigger · demo
-                  </span>
-                </div>
-
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5 text-[11px]">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">24h Reminders Sent:</span>
-                    <span className="font-bold font-mono text-slate-900">
-                      {reminders24hSent}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Read by customers:</span>
-                    <span className="font-bold font-mono text-indigo-700">{reminders24hRead} / {reminders24hSent}</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleReminderRun}
-                  className="w-full min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs"
-                >
-                  <Sparkles className="w-3 h-3 text-[#C9F1DC]" aria-hidden="true" />
-                  <span>Run Automated Dispatcher</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900"><Bell className="w-3.5 h-3.5 text-[#F5BF55]" aria-hidden="true" />{t('Pickup reminders', 'পিকআপ রিমাইন্ডার')}</div>
+                <p className="text-slate-500">{t(`${reminders24hSent} sent, ${reminders24hRead} read by customers.`, `${reminders24hSent}টি পাঠানো, ${reminders24hRead}টি পড়া হয়েছে।`)}</p>
+                <button type="button" onClick={handleReminderRun} className="w-full min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                  <Sparkles className="w-3 h-3 text-[#C9F1DC]" aria-hidden="true" /><span>{t('Send due reminders now (demo)', 'বাকি রিমাইন্ডার এখনই পাঠান (ডেমো)')}</span>
                 </button>
-                {reminderMessage && (
-                  <p role="status" className="text-[11px] text-slate-600">{reminderMessage}</p>
-                )}
+                {reminderMessage && <p role="status" className="text-slate-600">{reminderMessage}</p>}
               </div>
             </div>
-          </div>
+          </details>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 2: BOOKINGS (Wireframe A03 Booking Detail) */}
+      {/* WORKSPACE 2: BOOKINGS */}
       {/* ========================================================================= */}
       {activeWorkspace === 'bookings' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">{t('Bookings Management (PRD A03)', 'বুকিং ব্যবস্থাপনা (PRD A03)')}</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('Bookings', 'বুকিং')}</h2>
               <p className="text-xs text-slate-500">
-                Role-limited customer records, collection windows, and service terms.
+                {t('Every booking, its collection window and how far it has got.', 'প্রতিটি বুকিং, তার সংগ্রহের সময় ও অগ্রগতি।')}
               </p>
             </div>
           </div>
 
+          {scopedBookings.length === 0 && <EmptyState title={t('No bookings here yet', 'এখানে এখনো কোনো বুকিং নেই')} body={t('When a customer books a pickup it appears in this list with its window and status.', 'গ্রাহক পিকআপ বুক করলে সময় ও অবস্থাসহ এখানে দেখা যাবে।')} />}
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-500 uppercase font-semibold border-y border-slate-200">
@@ -457,15 +288,15 @@ export const OperatorDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 3: DISPATCH BOARD (Wireframe A02) */}
+      {/* WORKSPACE 3: DISPATCH BOARD */}
       {/* ========================================================================= */}
       {activeWorkspace === 'dispatch' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">{t('Dispatch Board (PRD A02)', 'ডিসপ্যাচ বোর্ড (PRD A02)')}</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('Dispatch board', 'ডিসপ্যাচ বোর্ড')}</h2>
               <p className="text-xs text-slate-500">
-                Manage jobs across statuses. Reassignment records mandatory reason in audit log.
+                {t('Move jobs between collectors. Every change is recorded with a reason.', 'সংগ্রাহকদের মধ্যে কাজ বদলান। প্রতিটি বদল কারণসহ রেকর্ড হয়।')}
               </p>
             </div>
           </div>
@@ -519,7 +350,7 @@ export const OperatorDashboard: React.FC = () => {
             onClose={() => setReassignJobId(null)}
             size="sm"
             title={`${t('Reassign Job', 'কাজ পুনর্বণ্টন')} #${reassignJobId}`}
-            description="PRD A02: Every reassignment records a mandatory audit reason."
+            description={t('Every change of collector is recorded with a reason.', 'সংগ্রাহক বদলের প্রতিটি ঘটনা কারণসহ রেকর্ড হয়।')}
           >
             <form onSubmit={handleReassign} className="space-y-3 text-xs">
               <div>
@@ -567,27 +398,28 @@ export const OperatorDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 4: MATERIAL & SCALES (Wireframes A04 Aggregation Receipt, A05 Lot Detail) */}
+      {/* WORKSPACE 4: MATERIAL & SCALES */}
       {/* ========================================================================= */}
       {activeWorkspace === 'material' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Material Traceability & Scale Ledger (PRD A04, A05)</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('Lots and scale readings', 'লট ও স্কেলের রিডিং')}</h2>
             <p className="text-xs text-slate-500">
-              Preserves field pickup and certified receiving measurements separately. Full mass balance audit trail.
+              {t('The doorstep weight and the', 'দরজার ওজন ও')} <Term id="hubScale" lang={lang} /> {t('weight are kept side by side, never overwritten.', 'ওজন পাশাপাশি রাখা হয়, কখনো মুছে ফেলা হয় না।')}
             </p>
           </div>
 
+          {scopedLots.length === 0 && <EmptyState title={t('No lots yet', 'এখনো কোনো লট নেই')} body={t('A lot appears when a collector finishes a pickup.', 'সংগ্রাহক পিকআপ শেষ করলে একটি লট তৈরি হয়।')} />}
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-500 uppercase font-semibold border-y border-slate-200 font-mono">
                 <tr>
-                  <th className="py-2.5 px-3">Lot Identifier</th>
-                  <th className="py-2.5 px-3">Material Category</th>
-                  <th className="py-2.5 px-3">Field Pickup (E1)</th>
-                  <th className="py-2.5 px-3">Hub Scale (E2)</th>
+                  <th className="py-2.5 px-3">Lot</th>
+                  <th className="py-2.5 px-3">Material</th>
+                  <th className="py-2.5 px-3">Doorstep weight <span className="font-mono text-[10px] opacity-60">E1</span></th>
+                  <th className="py-2.5 px-3">Hub scale <span className="font-mono text-[10px] opacity-60">E2</span></th>
                   <th className="py-2.5 px-3">Discrepancy</th>
-                  <th className="py-2.5 px-3">Current Custodian</th>
+                  <th className="py-2.5 px-3">Held by</th>
                   <th className="py-2.5 px-3 text-right">Evidence Level</th>
                 </tr>
               </thead>
@@ -598,7 +430,7 @@ export const OperatorDashboard: React.FC = () => {
                     <td className="py-3 px-3 font-sans text-slate-700">{lot.material.replace(/_/g, ' ')}</td>
                     <td className="py-3 px-3 text-slate-600">{lot.initialFieldWeightKg} kg</td>
                     <td className="py-3 px-3 text-slate-900 font-bold">
-                      {lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Pending E2'}
+                      {lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Waiting for hub scale'}
                     </td>
                     <td className="py-3 px-3">
                       {lot.discrepancyPercentage !== undefined ? (
@@ -609,7 +441,7 @@ export const OperatorDashboard: React.FC = () => {
                         '—'
                       )}
                     </td>
-                    <td className="py-3 px-3 font-sans text-slate-600 text-[11px]">{lot.currentCustodian}</td>
+                    <td className="py-3 px-3 font-sans text-slate-600 text-[11px]">{lot.currentCustodian.replace(/_/g, ' ').toLowerCase()}</td>
                     <td className="py-3 px-3 text-right">
                       <EvidenceBadge level={lot.evidenceLevel} interactive={false} />
                     </td>
@@ -622,14 +454,14 @@ export const OperatorDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 5: REWARDS ADMIN (Wireframe A07) */}
+      {/* WORKSPACE 5: REWARDS ADMIN */}
       {/* ========================================================================= */}
       {activeWorkspace === 'rewards' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Rewards Administration & Rules (PRD A07)</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('Rewards', 'রিওয়ার্ড')}</h2>
             <p className="text-xs text-slate-500">
-              Reward liabilities, funding sources, rule versions, and partner redemption inventories.
+              {t('Points given out, what they cost and which partners honour them.', 'কত পয়েন্ট দেওয়া হয়েছে, খরচ কত এবং কোন পার্টনার সেগুলো নেয়।')}
             </p>
           </div>
 
@@ -651,14 +483,14 @@ export const OperatorDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 6: CUSTOMERS (Wireframe A08 Customer Cases) */}
+      {/* WORKSPACE 6: CUSTOMERS */}
       {/* ========================================================================= */}
       {activeWorkspace === 'customers' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">{t('Customer Support Cases & Challenges (PRD A08)', 'গ্রাহক সহায়তা কেস (PRD A08)')}</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('Customer cases', 'গ্রাহকের অভিযোগ')}</h2>
             <p className="text-xs text-slate-500">
-              Customer issue tickets with prefilled transaction context and transparent resolution logs.
+              {t('What customers wrote in, and how each one was resolved.', 'গ্রাহকরা কী লিখেছেন এবং কীভাবে সমাধান হয়েছে।')}
             </p>
           </div>
 
@@ -757,24 +589,24 @@ export const OperatorDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {activeWorkspace === 'reports' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 text-xs font-mono">
-          <h2 className="text-base font-bold text-slate-900 font-sans">Pilot Performance & Measurement Report</h2>
-          <p className="text-slate-500 font-sans">PRD § 2.3: Collected, Accepted, Processed, and Verified reported strictly separately.</p>
+          <h2 className="text-base font-bold text-slate-900 font-sans">Pilot results</h2>
+          <p className="text-slate-500 font-sans">Four numbers, never blended: what was collected, what the hub accepted, what was recycled, and what brands have claimed.</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-sans">1. COLLECTED</span>
+              <span className="text-[10px] text-slate-400 block font-sans">1. COLLECTED AT THE DOOR</span>
               <span className="text-lg font-bold text-slate-900">{totalCollectedKg.toFixed(1)} kg</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-sans">2. ACCEPTED</span>
+              <span className="text-[10px] text-slate-400 block font-sans">2. ACCEPTED AT THE HUB</span>
               <span className="text-lg font-bold text-emerald-800">{totalAcceptedKg.toFixed(1)} kg</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-sans">3. PROCESSED</span>
+              <span className="text-[10px] text-slate-400 block font-sans">3. RECYCLED</span>
               <span className="text-lg font-bold text-indigo-800">{totalProcessedKg.toFixed(1)} kg</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-sans">4. VERIFIED EPR</span>
+              <span className="text-[10px] text-slate-400 block font-sans">4. CLAIMED BY BRANDS</span>
               <span className="text-lg font-bold text-emerald-950">{totalVerifiedEprKg.toFixed(1)} kg</span>
             </div>
           </div>
@@ -790,7 +622,7 @@ export const OperatorDashboard: React.FC = () => {
             <div>
               <h2 className="text-base font-bold text-slate-900">{t('Audit trail', 'অডিট ট্রেইল')}</h2>
               <p className="text-xs text-slate-500">
-                Append-only record of every state change, newest first. {visibleAudit.length} of {auditLogs.length} events.
+                A record of every change, newest first. Nothing is edited or deleted. {visibleAudit.length} of {auditLogs.length} events.
               </p>
             </div>
             <div className="sm:w-64">
@@ -840,14 +672,14 @@ export const OperatorDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* WORKSPACE 9: SETTINGS & SERVICE ZONES (Wireframe A09) */}
+      {/* WORKSPACE 9: SETTINGS & SERVICE ZONES */}
       {/* ========================================================================= */}
       {activeWorkspace === 'settings' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Service Zones & Partner Settings (PRD A09)</h2>
+            <h2 className="text-base font-bold text-slate-900">Service areas</h2>
             <p className="text-xs text-slate-500">
-              Changes require effective dates and are logged in the immutable audit history.
+              Every change has a start date and is kept in the audit trail.
             </p>
           </div>
 

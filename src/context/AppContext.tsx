@@ -5,6 +5,7 @@ import { shortId } from '../utils/id';
 import { readRoute } from '../routing';
 import { customerForRole, type CustomerProfile } from '../domain/customers';
 import { canHandOverToHub, intakeLots } from '../domain/lots';
+import { sealAll, sealCustodyEvent } from '../domain/custodyChain';
 import {
   assessScaleReading,
   computePointBalances,
@@ -69,7 +70,7 @@ import {
  * Seed data, shifted so the demo's "today" is the real today. Computed once per
  * page load; persisted user data (see usePersistentState) takes precedence.
  */
-const SEED = rebaseSeed({
+const REBASED_SEED = rebaseSeed({
   bookings: INITIAL_BOOKINGS,
   jobs: INITIAL_JOBS,
   lots: INITIAL_MATERIAL_LOTS,
@@ -89,6 +90,11 @@ const SEED = rebaseSeed({
   orgMembers: INITIAL_ORG_MEMBERS,
   notifications: INITIAL_NOTIFICATIONS
 });
+const SEED = {
+  ...REBASED_SEED,
+  // Seed records are hash-chained here so the demo starts with a verifiable history.
+  custodyEvents: sealAll(REBASED_SEED.custodyEvents, REBASED_SEED.lots)
+};
 
 const PROCESSOR_LOCATIONS: Record<string, string> = {
   bengal: 'Bengal Polymers & Flake Mill, Savar',
@@ -330,6 +336,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     toastTimer.current = setTimeout(() => setActiveToast(null), 4500);
   };
 
+  /**
+   * Seals a custody record onto its lot's hash chain. Sealing happens inside the
+   * state updater so the record always links to the true latest record.
+   */
+  const appendCustody = (ev: CustodyEvent) => {
+    setCustodyEvents((prev) => [sealCustodyEvent(ev, prev, lots), ...prev]);
+  };
+
   const resetDemoData = () => {
     clearPersistedState();
     window.location.reload();
@@ -542,9 +556,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         measurementMethod: report.weightMethod === 'field_scale' ? 'Certified Portable Scale' : report.weightMethod === 'estimate' ? 'Field Visual Estimate' : 'Not measured at doorstep',
         evidenceLevelResult: 'E1',
         verifiedBy: `${job.collectorName} (${ackCode})`,
-        signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
+        signatureOrHash: '' // sealed by appendCustody
       };
-      setCustodyEvents((prev) => [custodyEv, ...prev]);
+      appendCustody(custodyEv);
 
       addAuditLog(
         'COLLECTION_COMPLETED',
@@ -582,7 +596,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const trxId = `CL-DROP-${shortId()}`;
     const pts = pointsForWeight(weightKg, 'dropOff');
 
-    // Create completed booking record directly at E2: Quantity confirmed (PRD Flow C)
+    // Create completed booking record directly at E2: Quantity confirmed 
     const newBooking: Booking = {
       id: trxId,
       customerId: currentCustomer.id,
@@ -609,7 +623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setBookings((prev) => [newBooking, ...prev]);
 
-    // Available points immediately (PRD Flow C step 5)
+    // Available points immediately 
     setPointsLedger((prev) => [
       {
         id: `PTS-${shortId()}`,
@@ -785,7 +799,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Custody Event
-    setCustodyEvents((prev) => [
+    appendCustody(
       {
         id: `CUST-EV-${shortId()}`,
         lotId,
@@ -797,10 +811,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         measurementMethod: 'Certified Platform Floor Scale (OIML R76 Class III)',
         evidenceLevelResult: 'E2',
         verifiedBy: 'Rahmat Ali (Weighmaster)',
-        signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
-      },
-      ...prev
-    ]);
+        signatureOrHash: '' // sealed by appendCustody
+      }
+    );
 
     addAuditLog(
       'HUB_SCALE_MEASUREMENT',
@@ -1115,7 +1128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : l
       )
     );
-    setCustodyEvents((prev) => [
+    appendCustody(
       {
         id: `CUST-EV-${shortId()}`,
         lotId,
@@ -1127,10 +1140,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         measurementMethod: 'Dispatch manifest against certified hub weight',
         evidenceLevelResult: 'E3',
         verifiedBy: 'Rahmat Ali (Weighmaster)',
-        signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
-      },
-      ...prev
-    ]);
+        signatureOrHash: '' // sealed by appendCustody
+      }
+    );
     if (lot.sourceBookingId) {
       setBookings((prev) => prev.map((b) => (b.id === lot.sourceBookingId ? { ...b, evidenceLevel: 'E3', updatedAt: nowIso } : b)));
     }
@@ -1345,7 +1357,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Scenario 5 passed! Building totals updated without misallocating points to residents.');
       return {
         title: 'Scenario 5: Building-Level Shared Collection Attribution',
-        outcomeText: '55.0 kg confirmed for Green View Heights building account. PRD § R-08 safeguard prevented crediting individual residents for entire building gross weight.'
+        outcomeText: '55.0 kg confirmed for Green View Heights building account. Safeguard prevented crediting individual residents for entire building gross weight.'
       };
     }
 

@@ -157,3 +157,33 @@ describe('held points estimate', () => {
     expect(estimateHeldPoints([{ approximateBandKg: '2-5 kg' }, { approximateBandKg: '1-3 kg' }])).toBe(248);
   });
 });
+
+import { pointsToTaka, takaPerPoint } from '../domain/rules';
+import { customerJourney } from '../design/journey';
+import type { Booking } from '../types';
+
+describe('points to taka', () => {
+  const rewards = [
+    { title: '৳250 Grocery Voucher', pointsCost: 400 },
+    { title: '৳100 Mobile Airtime', pointsCost: 180 },
+    { title: 'Sponsor a solar lamp', pointsCost: 600 }
+  ];
+  it('uses the least generous catalogue rate and ignores non-taka rewards', () => {
+    expect(takaPerPoint(rewards)).toBeCloseTo(100 / 180);
+    expect(pointsToTaka(470, rewards)).toBe(261);
+    expect(pointsToTaka(470, [{ title: 'Lamp', pointsCost: 10 }])).toBeNull();
+  });
+});
+
+describe('customerJourney', () => {
+  const b = (status: Booking['status']) => ({ id: 'B', status, createdAt: '2026-11-01T10:00:00Z' }) as Booking;
+  it('maps booking status to plain-language stops', () => {
+    const j = customerJourney(b('EN_ROUTE'));
+    expect(j.stops.map((s) => s.state)).toEqual(['done', 'current', 'todo', 'todo', 'todo', 'todo']);
+    expect(j.stops[1].hintEn).toMatch(/on the way/);
+    expect(customerJourney(b('QUANTITY_CONFIRMED')).stops[3].state).toBe('current');
+    expect(customerJourney(b('PROCESSED')).stops.every((s) => s.state === 'done')).toBe(true);
+    expect(customerJourney(b('CANCELLED')).outcome).toBe('cancelled');
+    expect(customerJourney(b('QUANTITY_UNDER_REVIEW')).stops[2]).toMatchObject({ state: 'current', hintEn: expect.stringMatching(/checking/) });
+  });
+});

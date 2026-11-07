@@ -57,7 +57,7 @@ const RecurringForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               : `${currentLocation.label} ঠিকানায় ${frequency === 'weekly' ? 'সাপ্তাহিক' : 'পাক্ষিক'} পিকআপ (পছন্দের বার: ${DAY_LABEL[preferredDay].bn}) চালুর অনুরোধ অপারেটরের কাছে পাঠানো হয়েছে। সূচি অনুমোদিত হলে আপনাকে জানানো হবে।`}
           </p>
         </div>
-        <button type="button" onClick={onClose} className="w-full py-3 bg-[#25345C] text-white rounded-2xl font-bold text-xs cursor-pointer">
+        <button type="button" onClick={onClose} className="w-full py-3 bg-[#124B3A] text-white rounded-2xl font-bold text-xs cursor-pointer">
           {lang === 'en' ? 'Done' : 'সম্পন্ন'}
         </button>
       </div>
@@ -76,7 +76,7 @@ const RecurringForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               aria-pressed={frequency === f}
               onClick={() => setFrequency(f)}
               className={`p-3 rounded-2xl border text-center font-bold transition-all cursor-pointer ${
-                frequency === f ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs' : 'bg-[#FAF5EC] text-[#202B38] border-[#EDE4D8]'
+                frequency === f ? 'bg-[#124B3A] text-white border-[#124B3A] shadow-2xs' : 'bg-[#FAF5EC] text-[#202B38] border-[#EDE4D8]'
               }`}
             >
               {f === 'weekly' ? (lang === 'en' ? 'Weekly' : 'সাপ্তাহিক') : lang === 'en' ? 'Every 2 weeks' : 'পাক্ষিক (২ সপ্তাহে একবার)'}
@@ -121,7 +121,7 @@ const RecurringForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 aria-pressed={isSelected}
                 onClick={() => toggleMaterial(m.id as MaterialCategory)}
                 className={`p-2.5 rounded-xl border text-left font-bold flex items-center justify-between transition-all cursor-pointer ${
-                  isSelected ? 'bg-[#FAF5EC] border-[#25345C] text-[#25345C]' : 'bg-white border-[#EDE4D8] text-[#53616D]'
+                  isSelected ? 'bg-[#FAF5EC] border-[#124B3A] text-[#124B3A]' : 'bg-white border-[#EDE4D8] text-[#53616D]'
                 }`}
               >
                 <span>{m.label}</span>
@@ -145,7 +145,7 @@ const RecurringForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         />
       </div>
 
-      <button type="submit" className="w-full py-3.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-xs shadow-xs transition-colors cursor-pointer">
+      <button type="submit" className="w-full py-3.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-2xl font-bold text-xs shadow-xs transition-colors cursor-pointer">
         {lang === 'en' ? 'Request regular service' : 'নিয়মিত সেবার অনুরোধ করুন'}
       </button>
     </form>

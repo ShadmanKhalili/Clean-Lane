@@ -243,7 +243,10 @@ export interface CustodyEvent {
   measurementMethod: string;
   evidenceLevelResult: EvidenceLevel;
   verifiedBy: string;
+  /** `sha256:<hex>` — link hash over this record and `prevHash` (see domain/custodyChain). */
   signatureOrHash: string;
+  /** Hash of the previous record in this lot's chain (or the parent lot's last record). */
+  prevHash?: string;
 }
 
 export interface SortingTransformation {

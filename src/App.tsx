@@ -4,6 +4,7 @@ import { Header } from './components/common/Header';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { CheckCircle2 } from 'lucide-react';
 import { AppView, buildSearch, isCustomerRole, normaliseView, readRoute } from './routing';
+import { readPitchRoute, type PitchRoute } from './live/routes';
 
 // Each workspace is a separate chunk: a collector on a 3G phone should not have
 // to download the operator command centre or the brand EPR portal.
@@ -15,6 +16,29 @@ const OperatorDashboard = lazy(() => import('./components/operator/OperatorDashb
 const BrandEPRPortal = lazy(() => import('./components/brand/BrandEPRPortal').then((m) => ({ default: m.BrandEPRPortal })));
 const ChainOfCustodyView = lazy(() => import('./components/traceability/ChainOfCustodyView').then((m) => ({ default: m.ChainOfCustodyView })));
 const EvidenceModelView = lazy(() => import('./components/traceability/EvidenceModelView').then((m) => ({ default: m.EvidenceModelView })));
+
+// Pitch screens: full-screen, no app chrome, each its own chunk.
+const PitchStage = lazy(() => import('./live/ui/PitchStage'));
+const JoinScreen = lazy(() => import('./live/ui/JoinScreen'));
+const DriveScreen = lazy(() => import('./live/ui/DriveScreen'));
+const VerifyPage = lazy(() => import('./verify/VerifyPage'));
+
+const PitchScreen: React.FC<{ route: PitchRoute }> = ({ route }) => {
+  const { lang } = useApp();
+  useEffect(() => {
+    document.documentElement.lang = lang === 'bn' ? 'bn' : 'en';
+  }, [lang]);
+  return (
+    <ErrorBoundary lang={lang}>
+      <Suspense fallback={<ViewFallback />}>
+        {route.kind === 'stage' && <PitchStage />}
+        {route.kind === 'join' && <JoinScreen room={route.room} />}
+        {route.kind === 'drive' && <DriveScreen room={route.room} />}
+        {(route.kind === 'verify-lot' || route.kind === 'verify-live') && <VerifyPage route={route} />}
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
 
 const ViewFallback: React.FC = () => (
   <div role="status" aria-live="polite" className="py-24 flex flex-col items-center gap-3 text-sm text-[#53616D]">
@@ -149,12 +173,15 @@ const MainContent: React.FC = () => {
                 : 'বাংলাদেশ কঠিন বর্জ্য ব্যবস্থাপনা বিধিমালা ২০২১ অনুসরণে'}
             </span>
             <span aria-hidden="true">·</span>
-            <button
-              onClick={() => setView('evidence_model')}
-              className="hover:text-[#25345C] underline underline-offset-4 cursor-pointer font-medium"
-            >
-              {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
-            </button>
+            {/* Evidence codes are for staff and brand reviewers; customers see plain wording. */}
+            {!isCustomerRole(role) && (
+              <button
+                onClick={() => setView('evidence_model')}
+                className="hover:text-[#25345C] underline underline-offset-4 cursor-pointer font-medium"
+              >
+                {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
+              </button>
+            )}
           </div>
         </div>
       </footer>
@@ -163,9 +190,6 @@ const MainContent: React.FC = () => {
 };
 
 export default function App() {
-  return (
-    <AppProvider>
-      <MainContent />
-    </AppProvider>
-  );
+  const pitchRoute = readPitchRoute();
+  return <AppProvider>{pitchRoute ? <PitchScreen route={pitchRoute} /> : <MainContent />}</AppProvider>;
 }

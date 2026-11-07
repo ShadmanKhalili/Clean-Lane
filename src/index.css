@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-bangla: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+}
+
 @layer base {
   :root {
     --color-signature: #25345C;
@@ -23,7 +28,20 @@
   body {
     background-color: #FFF9F0;
     color: #202B38;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Bangla text gets a typeface designed for it (taller conjuncts, clearer matras). */
+  :lang(bn) {
+    font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Accessible Focus States */
@@ -32,9 +50,9 @@
   select:focus-visible,
   textarea:focus-visible,
   a:focus-visible {
-    outline: none;
-    ring: 2px solid #25345C;
-    ring-offset: 2px;
+    /* `ring` is not a CSS property — this used to hide keyboard focus entirely. */
+    outline: 2px solid #25345C;
+    outline-offset: 2px;
   }
 }
 
@@ -91,4 +109,32 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Shared motion vocabulary (pitch screens + main app). Reduced motion is handled above. */
+@keyframes cl-ring { 0% { transform: scale(1); opacity: .55 } 100% { transform: scale(2.3); opacity: 0 } }
+@keyframes cl-pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.08); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes cl-slide { from { transform: translateY(100%) } to { transform: none } }
+@keyframes cl-rise { 0% { transform: translateY(10px); opacity: 0 } 100% { transform: none; opacity: 1 } }
+@keyframes cl-stamp { 0% { transform: scale(1.6) rotate(-12deg); opacity: 0 } 70% { transform: scale(.94) rotate(2deg); opacity: 1 } 100% { transform: none } }
+@keyframes cl-draw-y { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+@keyframes cl-draw-x { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@keyframes cl-fill { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+@keyframes cl-confetti {
+  0% { transform: translate(0,0) rotate(0) scale(.4); opacity: 0 }
+  10% { opacity: 1 } 70% { opacity: 1 }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); opacity: 0 }
+}
+.cl-ring { animation: cl-ring 1.6s ease-out infinite }
+.cl-pop { animation: cl-pop .5s cubic-bezier(.2,.9,.3,1.2) both }
+.cl-rise { animation: cl-rise .45s cubic-bezier(.2,.8,.2,1) both }
+.cl-stamp { animation: cl-stamp .45s cubic-bezier(.2,.9,.3,1.2) both }
+.cl-draw-y { animation: cl-draw-y .5s cubic-bezier(.2,.8,.2,1) both }
+.cl-draw-x { animation: cl-draw-x .7s cubic-bezier(.2,.8,.2,1) both }
+.cl-fill { animation: cl-fill .9s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom }
+
+/* Headlines use the display face; Bangla keeps Hind Siliguri via :lang(bn). */
+@layer base {
+  h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+  :lang(bn) h1, :lang(bn) h2 { font-family: var(--font-bangla); letter-spacing: 0; }
 }

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, TrendingUp, Droplets, Trees, ChevronDown, ChevronUp, Leaf } from 'lucide-react';
-import { impactForKg } from '../customer/impact';
+import { MATERIALS, MaterialGlyph } from '../../design/materials';
+import { impactForKg, picturedImpact } from '../customer/impact';
+import { nf } from '../customer/ui';
 import { useCustomerData } from '../customer/useCustomerData';
 
 interface EnvironmentalImpactWidgetProps {
@@ -10,211 +12,72 @@ interface EnvironmentalImpactWidgetProps {
 }
 
 /**
- * Clean Lane Verified Circular Impact Widget
- * Live ESG, Carbon Avoidance & Landfill Diversion Metrics
- * Features Progressive Disclosure (Glance Banner -> Expanded Ledger)
+ * Impact you can picture: "about 330 half-litre bottles kept out of the canals",
+ * with kilograms as the quiet second line. Counts are indicative, from typical
+ * item weights.
  */
-export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps> = ({
-  className = '',
-  defaultExpanded = false
-}) => {
-  const { bookings, lang } = useApp();
-  const { confirmedKg: myKg, customer } = useCustomerData();
-  const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded);
-  const [viewScope, setViewScope] = useState<'mine' | 'network'>('mine');
-
-  // Hub-scale-confirmed mass only. "Mine" is the signed-in customer; "network" is every customer in the demo data.
-  const networkKg = bookings.reduce((sum, b) => sum + (b.status === 'CANCELLED' || b.status === 'MISSED' ? 0 : b.confirmedWeightKg || 0), 0);
-  const activeKg = viewScope === 'mine' ? myKg : networkKg;
-  const { co2eKg, landfillM3, bottles } = impactForKg(activeKg);
-  const co2AvoidedKg = co2eKg.toFixed(1);
-  const plasticBottlesEquivalent = bottles;
-  const landfillSpaceSavedM3 = landfillM3.toFixed(2);
-  const isOrg = customer.customerType === 'apartment' || customer.customerType === 'business';
+export const EnvironmentalImpactWidget: React.FC<EnvironmentalImpactWidgetProps> = ({ className = '', defaultExpanded = false }) => {
+  const { lang } = useApp();
+  const en = lang === 'en';
+  const { myBookings, confirmedKg, awaitingKg } = useCustomerData();
+  const [open, setOpen] = useState(defaultExpanded);
+  const items = picturedImpact(myBookings);
+  const totalKg = confirmedKg + awaitingKg;
+  const top = items[0];
+  const { co2eKg } = impactForKg(totalKg);
 
   return (
-    <div
-      className={`bg-white rounded-3xl border border-[#EDE4D8] shadow-2xs overflow-hidden text-[#202B38] transition-all ${className}`}
-    >
-      {/* 1-Line Calm Glance Banner (Always Visible) */}
-      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-[#FFF9F0] via-white to-[#F6FCF8]">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-[#C9F1DC] text-[#12613F] flex items-center justify-center shrink-0 shadow-2xs">
-            <Leaf className="w-5 h-5 text-[#12613F]" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs sm:text-sm text-[#202B38]">
-                {lang === 'en' ? 'Verified Circularity Impact' : 'পরিবেশগত সার্কুলার অর্জন'}
-              </span>
-              <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC] px-2 py-0.2 rounded-md font-bold">
-                {lang === 'en' ? 'Hub-scale confirmed' : 'হাব স্কেলে নিশ্চিত'}
-              </span>
-            </div>
-            <p className="text-xs text-[#53616D] mt-0.5">
-              {myKg > 0 ? (
-                <>
-                  <strong className="text-[#12613F] font-mono">{myKg.toFixed(1)} kg</strong> {lang === 'en' ? 'diverted from landfill' : 'ল্যান্ডফিল থেকে সরানো'} ·{' '}
-                  <strong className="text-[#25345C] font-mono">≈ {impactForKg(myKg).co2eKg.toFixed(1)} kg</strong> CO₂e {lang === 'en' ? 'avoided' : 'সাশ্রয়'}
-                </>
-              ) : lang === 'en' ? (
-                'Your impact appears here after your first weighed pickup.'
-              ) : (
-                'প্রথম ওজন করা পিকআপের পর আপনার প্রভাব এখানে দেখা যাবে।'
-              )}
+    <section className={`rounded-[28px] bg-white p-5 text-[#124B3A] ring-1 ring-[#124B3A]/10 ${className}`} aria-labelledby="impact-title">
+      <h2 id="impact-title" className="text-xs font-bold tracking-wide text-[#124B3A]/60">
+        {en ? 'What your bags did' : 'আপনার ব্যাগগুলো কী করেছে'}
+      </h2>
+      {top ? (
+        <>
+          <p className="mt-1 flex items-center gap-3 font-display text-[26px] font-extrabold leading-tight">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl" style={{ background: MATERIALS[top.material].tint }}>
+              <MaterialGlyph material={top.material} size={28} />
+            </span>
+            <span>
+              {en
+                ? `≈ ${nf(top.count, lang)} ${MATERIALS[top.material].itemEn} kept out of the canals`
+                : `≈ ${nf(top.count, lang)}টি ${MATERIALS[top.material].itemBn} খাল-নালা থেকে দূরে`}
+            </span>
+          </p>
+          {items.length > 1 && (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {items.slice(1).map((it) => (
+                <li key={it.material} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold" style={{ background: MATERIALS[it.material].tint }}>
+                  <MaterialGlyph material={it.material} size={16} />≈ {nf(it.count, lang)} {en ? MATERIALS[it.material].itemEn : MATERIALS[it.material].itemBn}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-sm font-semibold text-[#124B3A]/65">
+            {en ? `That is ${nf(totalKg, lang, 1)} kg in all.` : `মোট ${nf(totalKg, lang, 1)} কেজি।`}{' '}
+            {awaitingKg > 0 && (en ? `${nf(awaitingKg, lang, 1)} kg still waiting for the hub scale.` : `${nf(awaitingKg, lang, 1)} কেজি হাবের স্কেলের অপেক্ষায়।`)}
+          </p>
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className="mt-2 inline-flex min-h-10 items-center gap-1 rounded-xl text-sm font-bold underline-offset-4 hover:underline focus:outline-none focus-visible:ring-4 focus-visible:ring-[#CBEA70]"
+          >
+            {open ? (en ? 'Hide the rough maths' : 'হিসাব লুকান') : en ? 'How we picture it' : 'কীভাবে হিসাব করি'}
+            {open ? <ChevronUp className="h-4 w-4" aria-hidden="true" /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
+          </button>
+          {open && (
+            <p className="rounded-2xl bg-[#FAF9F5] p-3 text-xs font-medium leading-relaxed text-[#124B3A]/75">
+              {en
+                ? `We split each bag's weight across what you put in it, then divide by a typical item weight. It is a friendly estimate, not a measurement. Making new plastic instead would also have released roughly ${nf(co2eKg, lang)} kg of CO₂ (indicative).`
+                : `প্রতিটি ব্যাগের ওজন আপনার দেওয়া জিনিসের মধ্যে ভাগ করে, একটি সাধারণ জিনিসের ওজন দিয়ে ভাগ করা হয়। এটি আনুমানিক, মাপা নয়। নতুন প্লাস্টিক বানালে প্রায় ${nf(co2eKg, lang)} কেজি CO₂ নির্গত হতো (আনুমানিক)।`}
             </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-expanded={isExpanded}
-          className="self-start sm:self-auto px-3.5 py-2 rounded-xl border border-[#EDE4D8] bg-white hover:bg-[#FAF5EC] text-xs font-bold text-[#25345C] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs shrink-0 active:scale-95"
-        >
-          <span>
-            {isExpanded
-              ? lang === 'en'
-                ? 'Hide Impact Details'
-                : 'বিবরণ লুকান'
-              : lang === 'en'
-              ? 'View ESG Ledger'
-              : 'ইএসজি খতিয়ান দেখুন'}
-          </span>
-          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
-      </div>
-
-      {/* Expanded Comprehensive ESG & Carbon Ledger */}
-      {isExpanded && (
-        <div className="p-5 sm:p-6 border-t border-[#EDE4D8] space-y-4 animate-fade-in bg-white">
-          {/* Scope Switcher */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#FAF5EC]">
-            <div>
-              <span className="text-xs font-bold text-[#202B38]">
-                {lang === 'en' ? 'Audited Landfill Diversion & Emission Models' : 'যাচাইকৃত বর্জ্য অপসারণ ও কার্বন সাশ্রয়ের মডেল'}
-              </span>
-              <p className="text-[11px] text-[#53616D]">
-                {lang === 'en'
-                  ? 'Calculated based on certified digital platform scale intake at Aggregation Hub'
-                  : 'একত্রীকরণ কেন্দ্রে ডিজিটাল স্কেলের পরিমাপ অনুযায়ী প্রণীত'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1 p-1 bg-[#FFF9F0] border border-[#EDE4D8] rounded-2xl text-xs font-semibold self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setViewScope('mine')}
-                aria-pressed={viewScope === 'mine'}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                  viewScope === 'mine'
-                    ? 'bg-[#25345C] text-white shadow-2xs'
-                    : 'text-[#53616D] hover:text-[#202B38]'
-                }`}
-              >
-                {isOrg ? (lang === 'en' ? 'My site' : 'আমাদের সাইট') : lang === 'en' ? 'My household' : 'আমার বাসা'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewScope('network')}
-                aria-pressed={viewScope === 'network'}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                  viewScope === 'network'
-                    ? 'bg-[#25345C] text-white shadow-2xs'
-                    : 'text-[#53616D] hover:text-[#202B38]'
-                }`}
-              >
-                {lang === 'en' ? 'All Clean Lane customers' : 'সব ক্লিন লেন গ্রাহক'}
-              </button>
-            </div>
-          </div>
-
-          {/* 4 Core ESG Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
-            {/* Metric 1: Landfill Diverted */}
-            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex flex-col justify-between">
-              <div className="flex items-center justify-between text-[#12613F]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">
-                  {lang === 'en' ? 'Diverted' : 'অপসারিত'}
-                </span>
-                <ShieldCheck className="w-4 h-4 text-[#12613F]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black font-mono text-[#25345C] tabular-nums">
-                  {activeKg.toFixed(1)}
-                </span>
-                <span className="text-xs font-bold text-[#53616D] ml-1">kg</span>
-              </div>
-              <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? 'Kept out of the landfill' : 'ল্যান্ডফিল থেকে সরানো'}
-              </span>
-            </div>
-
-            {/* Metric 2: CO2e Avoided */}
-            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex flex-col justify-between">
-              <div className="flex items-center justify-between text-[#25345C]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">
-                  {lang === 'en' ? 'Carbon Avoided' : 'কার্বন সাশ্রয়'}
-                </span>
-                <Trees className="w-4 h-4 text-[#25345C]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black font-mono text-[#25345C] tabular-nums">
-                  {co2AvoidedKg}
-                </span>
-                <span className="text-xs font-bold text-[#53616D] ml-1">kg CO₂e</span>
-              </div>
-              <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? 'Avoided virgin resin emissions' : 'নতুন প্লাস্টিক উৎপাদন নির্গমন রোধ'}
-              </span>
-            </div>
-
-            {/* Metric 3: Bottles Recovered */}
-            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex flex-col justify-between">
-              <div className="flex items-center justify-between text-[#12613F]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">
-                  {lang === 'en' ? 'Bottles Equivalent' : 'বোতল পুনরুদ্ধার'}
-                </span>
-                <Droplets className="w-4 h-4 text-[#12613F]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black font-mono text-[#202B38] tabular-nums">
-                  {plasticBottlesEquivalent.toLocaleString()}
-                </span>
-                <span className="text-xs font-bold text-[#53616D] ml-1">units</span>
-              </div>
-              <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? 'Approx. 500 ml bottles of material' : 'আনুমানিক ৫০০ মি.লি. বোতলের সমপরিমাণ'}
-              </span>
-            </div>
-
-            {/* Metric 4: Landfill Space */}
-            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#EDE4D8] flex flex-col justify-between">
-              <div className="flex items-center justify-between text-[#7A4D00]">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">
-                  {lang === 'en' ? 'Landfill Saved' : 'জমি সাশ্রয়'}
-                </span>
-                <TrendingUp className="w-4 h-4 text-[#F5BF55]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black font-mono text-[#202B38] tabular-nums">
-                  {landfillSpaceSavedM3}
-                </span>
-                <span className="text-xs font-bold text-[#53616D] ml-1">m³</span>
-              </div>
-              <span className="text-[11px] text-[#53616D] mt-1 leading-snug">
-                {lang === 'en' ? 'Municipal volume preserved' : 'নগর বর্জ্য ভূমির আয়তন সাশ্রয়'}
-              </span>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-[#FAF5EC] text-xs text-[#53616D]">
-            {lang === 'en'
-              ? 'Based on weights confirmed at Clean Lane hub scales. Cancelled and missed pickups are excluded.'
-              : 'ক্লিন লেন হাব স্কেলে নিশ্চিত ওজনের ভিত্তিতে। বাতিল ও ছুটে যাওয়া পিকআপ বাদ।'}
-          </div>
-        </div>
+          )}
+        </>
+      ) : (
+        <p className="mt-1 text-base font-semibold text-[#124B3A]/75">
+          {en ? 'After your first weighed pickup, you will see it here as things you can picture, like bottles and boxes.' : 'প্রথম পিকআপ ওজন হলে এখানে বোতল ও বাক্সের মতো চেনা জিনিসের হিসাবে দেখতে পাবেন।'}
+        </p>
       )}
-    </div>
+    </section>
   );
 };

@@ -1,838 +1,599 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { isOverTolerance } from '../../domain/rules';
 import { canHandOverToHub } from '../../domain/lots';
-import { Modal } from '../common/Modal';
 import { useApp } from '../../context/AppContext';
 import { MaterialCategory, PickupJob, MaterialLot } from '../../types';
-import { MATERIAL_TAXONOMY } from '../../data/mockData';
+import { MaterialGlyph, MATERIALS } from '../../design/materials';
+import { Confetti, EmptyState, RickshawBand } from '../../design/Celebrate';
 import { QrCodeScannerModal } from './QrCodeScannerModal';
 import { LotHandoverModal } from './LotHandoverModal';
 import {
+  COLLECTOR_CSS,
+  Sheet,
+  SwipeToComplete,
+  SyncBanner,
+  WeighPad,
+  fmtNum,
+  pick,
+  useSunMode,
+  windowText,
+  type WeighResult
+} from './collectorKit';
+import {
+  AlertTriangle,
+  Ban,
   Briefcase,
+  Camera,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  KeyRound,
+  List,
+  MapPin,
   Navigation,
   PackageCheck,
+  Phone,
+  QrCode,
+  Sun,
   User,
   Wifi,
-  WifiOff,
-  CheckCircle,
-  Clock,
-  MapPin,
-  Phone,
-  Scale,
-  Camera,
-  AlertTriangle,
-  RefreshCw,
-  QrCode,
-  Check,
-  Ban
+  WifiOff
 } from 'lucide-react';
 
+type Destination = 'jobs' | 'route' | 'handovers' | 'account';
+type ExceptionReason = 'customer_unavailable' | 'inaccessible' | 'contaminated_stream' | 'cancelled_at_door';
+
+const ACTIVE: PickupJob['status'][] = ['PENDING', 'ACCEPTED', 'EN_ROUTE'];
+
+const OUTCOME_LABEL: Record<NonNullable<PickupJob['outcome']>, [string, string]> = {
+  COLLECTED: ['Collected', 'সংগৃহীত'],
+  PARTIALLY_COLLECTED: ['Partly collected', 'আংশিক সংগৃহীত'],
+  CUSTOMER_UNAVAILABLE: ['Customer not home', 'গ্রাহক অনুপস্থিত'],
+  CANNOT_ACCESS: ['Could not get in', 'প্রবেশ করা যায়নি'],
+  MATERIAL_UNSUITABLE: ['Material unsuitable', 'উপাদান অনুপযুক্ত']
+};
+
+const MaterialChips: React.FC<{ materials: MaterialCategory[]; lang: 'en' | 'bn'; big?: boolean }> = ({ materials, lang, big }) => (
+  <ul className="flex flex-wrap gap-2" aria-label={pick(lang, 'Expected materials', 'প্রত্যাশিত উপাদান')}>
+    {materials.map((m) => (
+      <li key={m} className="cf-chip" style={big ? { fontSize: '1.05em', minHeight: 48 } : undefined}>
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-white">
+          <MaterialGlyph material={m} size={big ? 22 : 18} />
+        </span>
+        {pick(lang, MATERIALS[m].en, MATERIALS[m].bn)}
+      </li>
+    ))}
+  </ul>
+);
+
 export const CollectorFieldApp: React.FC = () => {
-  const {
-    jobs,
-    lots,
-    acceptJob,
-    completeJob,
-    recordJobException,
-    isOfflineMode,
-    setIsOfflineMode,
-    offlineQueueCount,
-    syncOfflineQueue,
-    lang
-  } = useApp();
+  const { jobs, lots, acceptJob, completeJob, recordJobException, isOfflineMode, setIsOfflineMode, offlineQueueCount, syncOfflineQueue, lang } = useApp();
+  const t = (en: string, bn: string) => pick(lang, en, bn);
+  const [sun, setSun] = useSunMode();
 
-  // 4 Destinations: Jobs | Route | Handovers | Account
-  const [activeDestination, setActiveDestination] = useState<'jobs' | 'route' | 'handovers' | 'account'>('jobs');
+  const [dest, setDest] = useState<Destination>('jobs');
+  const [view, setView] = useState<'focus' | 'list'>('focus');
+  const [listFilter, setListFilter] = useState<'open' | 'completed' | 'exceptions'>('open');
+  const [focusIdx, setFocusIdx] = useState(0);
 
-  // Job List Filter (O01: Assigned | In progress | Completed | Exceptions)
-  const [jobFilter, setJobFilter] = useState<'assigned' | 'in_progress' | 'completed' | 'exceptions'>('assigned');
-
-  // Active Job Detail & Modal State
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [isPickupModalOpen, setIsPickupModalOpen] = useState<boolean>(false);
-
-  // QR Code Camera Scanner & Handover Modal States
-  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
-  const [scannerMode, setScannerMode] = useState<'lot' | 'job' | 'any'>('lot');
-  const [selectedLotForHandover, setSelectedLotForHandover] = useState<MaterialLot | null>(null);
-  const [associatedBagBarcode, setAssociatedBagBarcode] = useState<string>('');
-
-  // Form State for O03 & O04: Pickup Outcome & Material Capture
-  const [pickupOutcome, setPickupOutcome] = useState<
-    'COLLECTED' | 'PARTIALLY_COLLECTED' | 'CUSTOMER_UNAVAILABLE' | 'CANNOT_ACCESS' | 'MATERIAL_UNSUITABLE'
-  >('COLLECTED');
-
-  const [selectedMaterial, setSelectedMaterial] = useState<MaterialCategory>('PET_BOTTLES');
-  const [weightKg, setWeightKg] = useState<number>(6.5);
-  const [bagCount, setBagCount] = useState<number>(2);
-  const [weightBasis, setWeightBasis] = useState<'field_scale' | 'estimate' | 'not_measured'>('field_scale');
-  const [photoRecorded, setPhotoRecorded] = useState<boolean>(true);
-  const [uncollectedNotes, setUncollectedNotes] = useState<string>('');
-  const [contaminationObservation, setContaminationObservation] = useState<string>('');
-
+  const [weighJobId, setWeighJobId] = useState<string | null>(null);
   const [exceptionJobId, setExceptionJobId] = useState<string | null>(null);
-  const [exceptionReason, setExceptionReason] = useState<
-    'customer_unavailable' | 'inaccessible' | 'contaminated_stream' | 'cancelled_at_door'
-  >('customer_unavailable');
-  // The bag barcode is not part of completeJob's report, so it is kept for the on-screen receipt only.
-  const [lastPickup, setLastPickup] = useState<{ jobId: string; barcode: string } | null>(null);
-  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
+  const [exceptionReason, setExceptionReason] = useState<ExceptionReason>('customer_unavailable');
+  const [tag, setTag] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'lot' | 'job' | 'any'>('any');
+  const [lotForHandover, setLotForHandover] = useState<MaterialLot | null>(null);
+  const [receipt, setReceipt] = useState<{ jobId: string; kg: number; offline: boolean; code?: string; lotId?: string } | null>(null);
+  const [announce, setAnnounce] = useState('');
 
-  const currentJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
-  const exceptionJob = jobs.find((j) => j.id === exceptionJobId) || null;
-  const lastPickupJob = lastPickup ? jobs.find((j) => j.id === lastPickup.jobId) : undefined;
+  const todayJobs = useMemo(() => jobs.filter((j) => ACTIVE.includes(j.status) || /today/i.test(j.scheduledWindow)), [jobs]);
+  const active = useMemo(() => jobs.filter((j) => ACTIVE.includes(j.status)), [jobs]);
+  const doneToday = todayJobs.filter((j) => !ACTIVE.includes(j.status)).length;
+  const idx = active.length ? Math.min(focusIdx, active.length - 1) : 0;
+  const current = active[idx];
+  const weighJob = jobs.find((j) => j.id === weighJobId) ?? null;
+  const exceptionJob = jobs.find((j) => j.id === exceptionJobId) ?? null;
+  const awaitingHandover = lots.filter(canHandOverToHub);
   const handoverLots = [...lots].sort((a, b) => Number(canHandOverToHub(b)) - Number(canHandOverToHub(a)));
-  const awaitingHandoverCount = lots.filter(canHandOverToHub).length;
 
-  const EXCEPTION_REASONS: { id: typeof exceptionReason; en: string; bn: string }[] = [
-    { id: 'customer_unavailable', en: 'Customer unavailable', bn: 'গ্রাহক অনুপস্থিত' },
-    { id: 'inaccessible', en: 'Cannot access premises', bn: 'প্রবেশ করা যায়নি' },
-    { id: 'contaminated_stream', en: 'Material contaminated / unsuitable', bn: 'উপাদান দূষিত / অনুপযুক্ত' },
+  const EXCEPTIONS: { id: ExceptionReason; en: string; bn: string }[] = [
+    { id: 'customer_unavailable', en: 'Customer is not home', bn: 'গ্রাহক বাসায় নেই' },
+    { id: 'inaccessible', en: 'I could not get in', bn: 'ভেতরে ঢুকতে পারিনি' },
+    { id: 'contaminated_stream', en: 'Material is dirty or wrong', bn: 'উপাদান নোংরা বা ভুল' },
     { id: 'cancelled_at_door', en: 'Customer cancelled at the door', bn: 'দরজায় গ্রাহক বাতিল করেছেন' }
   ];
 
-  // Calibration is shown relative to today so the demo never displays an expired date.
-  const calibratedDaysAgo = 9;
-  const calibrationDate = new Date(Date.now() - calibratedDaysAgo * 86400000).toISOString().slice(0, 10);
-
-  const filteredJobs = jobs.filter((j) => {
-    if (jobFilter === 'assigned') return j.status === 'PENDING';
-    if (jobFilter === 'in_progress') return j.status === 'ACCEPTED' || j.status === 'EN_ROUTE';
-    if (jobFilter === 'completed') return j.status === 'COMPLETED';
-    if (jobFilter === 'exceptions') return j.status === 'EXCEPTION';
-    return true;
-  });
-
-  const handleOpenPickupFlow = (job: PickupJob) => {
-    setSelectedJobId(job.id);
-    setSelectedMaterial(job.expectedMaterials[0] || 'PET_BOTTLES');
-    setPickupOutcome('COLLECTED');
-    setWeightKg(6.5);
-    setBagCount(2);
-    setWeightBasis('field_scale');
-    setAssociatedBagBarcode(`TAG-${job.id.replace(/^JOB-/, '')}-${(job.expectedMaterials[0] || 'PET_BOTTLES').split('_')[0]}`);
-    setUncollectedNotes('');
-    setContaminationObservation('');
-    setIsPickupModalOpen(true);
-  };
-
-  const handleScanResult = (scannedText: string, matchedLot?: MaterialLot, matchedJob?: PickupJob) => {
-    if (matchedLot) {
-      setSelectedLotForHandover(matchedLot);
-    } else if (matchedJob) {
-      handleOpenPickupFlow(matchedJob);
-    } else {
-      // Check if scannedText starts with LOT- or JOB-
-      const lot = lots.find((l) => l.id.toLowerCase() === scannedText.toLowerCase());
-      if (lot) {
-        setSelectedLotForHandover(lot);
-      } else {
-        setAssociatedBagBarcode(scannedText);
-      }
-    }
-  };
-
-  const handlePickupSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedJobId) return;
-
-    completeJob(selectedJobId, {
-      outcome: pickupOutcome,
-      materialWeights: [{ category: selectedMaterial, weightKg, bagCount }],
-      totalWeightKg: pickupOutcome === 'COLLECTED' || pickupOutcome === 'PARTIALLY_COLLECTED' ? weightKg : 0,
-      weightMethod: weightBasis,
-      photoEvidenceRecorded: photoRecorded,
-      uncollectedNotes,
-      contaminationObservation
-    });
-
-    setLastPickup({ jobId: selectedJobId, barcode: associatedBagBarcode.trim() });
-    setJobFilter('completed');
-    setIsPickupModalOpen(false);
+  const openWeigh = (job: PickupJob) => {
+    setTag(`TAG-${job.id.replace(/^JOB-/, '')}-${(job.expectedMaterials[0] || 'PET_BOTTLES').split('_')[0]}`);
+    setWeighJobId(job.id);
   };
 
   const handleAccept = (job: PickupJob) => {
     acceptJob(job.id);
-    setJobFilter('in_progress');
+    setAnnounce(t(`Job accepted: ${job.customerAddress}`, `কাজ গ্রহণ করা হয়েছে: ${job.customerAddress}`));
   };
 
-  const handleExceptionSubmit = (e: React.FormEvent) => {
+  const handleWeighConfirm = (job: PickupJob, r: WeighResult) => {
+    completeJob(job.id, {
+      outcome: r.partial ? 'PARTIALLY_COLLECTED' : 'COLLECTED',
+      materialWeights: [{ category: r.material, weightKg: r.kg, bagCount: r.bags }],
+      totalWeightKg: r.kg,
+      weightMethod: r.basis,
+      photoEvidenceRecorded: r.photo,
+      uncollectedNotes: r.partial ? r.note : '',
+      contaminationObservation: ''
+    });
+    setReceipt({ jobId: job.id, kg: r.kg, offline: isOfflineMode });
+    setWeighJobId(null);
+    setAnnounce(
+      isOfflineMode
+        ? t(`${r.kg} kg saved on phone, will sync`, `${fmtNum(r.kg, 'bn')} কেজি ফোনে সংরক্ষিত, পরে সিঙ্ক হবে`)
+        : t(`${r.kg} kg recorded`, `${fmtNum(r.kg, 'bn')} কেজি রেকর্ড হয়েছে`)
+    );
+  };
+
+  const handleScanResult = (scannedText: string, matchedLot?: MaterialLot, matchedJob?: PickupJob) => {
+    if (matchedLot) setLotForHandover(matchedLot);
+    else if (matchedJob) openWeigh(matchedJob);
+    else {
+      const lot = lots.find((l) => l.id.toLowerCase() === scannedText.toLowerCase());
+      if (lot) setLotForHandover(lot);
+      else setTag(scannedText);
+    }
+  };
+
+  const submitException = (e: React.FormEvent) => {
     e.preventDefault();
     if (!exceptionJobId) return;
     recordJobException(exceptionJobId, exceptionReason);
     setExceptionJobId(null);
-    setJobFilter('exceptions');
+    setAnnounce(t('Marked as not collected. The operator has been told.', 'সংগ্রহ হয়নি বলে চিহ্নিত। অপারেটরকে জানানো হয়েছে।'));
+  };
+
+  // The receipt shows the job's own report once it lands in state.
+  const receiptJob = receipt ? jobs.find((j) => j.id === receipt.jobId) : undefined;
+
+  const TABS: { id: Destination; en: string; bn: string; icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>; badge?: number }[] = [
+    { id: 'jobs', en: 'Jobs', bn: 'কাজ', icon: Briefcase, badge: active.length },
+    { id: 'route', en: 'Route', bn: 'রুট', icon: Navigation },
+    { id: 'handovers', en: 'Hub drop-off', bn: 'হাবে জমা', icon: PackageCheck, badge: awaitingHandover.length },
+    { id: 'account', en: 'Me', bn: 'আমি', icon: User }
+  ];
+
+  /* ---------------- focus card ---------------- */
+  const FocusCard = () => {
+    if (receipt && receiptJob?.fieldReport) {
+      const fr = receiptJob.fieldReport;
+      return (
+        <section aria-labelledby="cf-done" className="cf-card relative space-y-4 p-5 text-center">
+          <Confetti count={26} top="22%" />
+          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: 'var(--prim)', color: 'var(--prim-fg)' }}>
+            <CheckCircle size={44} aria-hidden="true" />
+          </div>
+          <div>
+            <h2 id="cf-done" className="font-display text-[2.3em] font-extrabold leading-none">
+              {fmtNum(fr.totalWeightKg, lang)} {t('kg', 'কেজি')}
+            </h2>
+            <p className="mt-1 text-[1.05em] font-bold">
+              {receipt.offline ? t('Saved on phone — will sync', 'ফোনে সংরক্ষিত — পরে সিঙ্ক হবে') : t('Recorded. Nice work.', 'রেকর্ড হয়েছে। দারুণ কাজ।')}
+            </p>
+          </div>
+          <dl className="cf-soft grid grid-cols-2 gap-3 p-3 text-left text-[.9em]">
+            <div><dt className="cf-muted">{t('Customer code', 'গ্রাহক কোড')}</dt><dd className="font-mono font-extrabold">{fr.customerAckCode}</dd></div>
+            <div><dt className="cf-muted">{t('Lot', 'লট')}</dt><dd className="break-all font-mono font-extrabold">{fr.batchLotId}</dd></div>
+          </dl>
+          <p className="cf-muted text-[.9em]">{t('Next: bring it to the hub — see “Hub drop-off”.', 'এরপর: হাবে নিয়ে যান — “হাবে জমা” দেখুন।')}</p>
+          <button type="button" className="cf-btn cf-btn-primary w-full !min-h-[64px] !text-[1.1em]" onClick={() => setReceipt(null)} data-testid="receipt-next">
+            {active.length ? t('Next job', 'পরের কাজ') : t('Finish', 'শেষ')} <ChevronRight size={22} aria-hidden="true" />
+          </button>
+        </section>
+      );
+    }
+
+    if (!current) {
+      return (
+        <section className="cf-card overflow-hidden">
+          <RickshawBand height={22} />
+          <div className="p-2">
+            <EmptyState
+              title={t('All done for today', 'আজকের কাজ শেষ')}
+              body={t('Every job is collected or reported. Bring the bags to the hub and you are finished.', 'সব কাজ সংগৃহীত বা জানানো হয়েছে। ব্যাগগুলো হাবে নিয়ে গেলেই শেষ।')}
+              action={
+                <button type="button" className="cf-btn cf-btn-primary" onClick={() => setDest('handovers')}>
+                  <PackageCheck size={20} aria-hidden="true" /> {t('Go to hub drop-off', 'হাবে জমা দিতে যান')}
+                </button>
+              }
+            />
+          </div>
+        </section>
+      );
+    }
+
+    const pending = current.status === 'PENDING';
+    return (
+      <section aria-labelledby="cf-addr" className="cf-card space-y-4 p-5" key={current.id}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="cf-chip !py-1 !pl-3 whitespace-nowrap" data-testid="job-progress">
+            {t(`Job ${doneToday + idx + 1} of ${todayJobs.length}`, `${fmtNum(doneToday + idx + 1, 'bn')} / ${fmtNum(todayJobs.length, 'bn')} নম্বর কাজ`)}
+          </p>
+          <span className="cf-chip !py-1 !px-3 min-w-0 text-[.8em]" style={{ background: 'transparent' }}>
+            <Clock size={16} aria-hidden="true" /> {windowText(current.scheduledWindow, lang)}
+          </span>
+        </div>
+
+        <div>
+          <p className="cf-muted flex items-center gap-1 text-[.85em] font-bold uppercase tracking-wide">
+            <MapPin size={14} aria-hidden="true" /> {pending ? t('New job — go here', 'নতুন কাজ — এখানে যান') : t('You accepted this — go here', 'আপনি নিয়েছেন — এখানে যান')}
+          </p>
+          <h2 id="cf-addr" className="mt-1 font-display text-[1.9em] font-extrabold leading-[1.1]" style={{ overflowWrap: 'anywhere' }}>
+            {current.customerAddress}
+          </h2>
+        </div>
+
+        <div className="cf-soft flex items-start gap-3 p-3.5">
+          <KeyRound size={22} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="cf-muted text-[.8em] font-bold uppercase tracking-wide">{t('How to get in', 'কীভাবে ঢুকবেন')}</p>
+            <p className="text-[1.05em] font-semibold leading-snug">{current.accessNotes}</p>
+          </div>
+        </div>
+
+        <MaterialChips materials={current.expectedMaterials} lang={lang} big />
+
+        <a href={`tel:${current.customerPhone.replace(/\s/g, '')}`} className="cf-btn !justify-start" aria-label={t(`Call customer ${current.customerPhone}`, `গ্রাহককে ফোন করুন ${current.customerPhone}`)}>
+          <Phone size={20} aria-hidden="true" /> {t('Call', 'ফোন')} · <span className="font-mono">{current.customerPhone}</span>
+        </a>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="cf-btn !gap-1.5 !px-2 !text-[.9em] whitespace-nowrap"
+            onClick={() => {
+              setExceptionReason('customer_unavailable');
+              setExceptionJobId(current.id);
+            }}
+          >
+            <Ban size={18} aria-hidden="true" /> {t("Can't collect", 'সংগ্রহ হচ্ছে না')}
+          </button>
+          <button type="button" className="cf-btn !gap-1.5 !px-2 !text-[.9em] whitespace-nowrap" onClick={() => setFocusIdx((idx + 1) % Math.max(1, active.length))} disabled={active.length < 2}>
+            {t('Next job', 'পরের কাজ')} <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="sticky bottom-[72px] z-10 -mx-2 rounded-[28px] p-2 shadow-[0_-8px_20px_rgba(0,0,0,.08)]" style={{ background: 'var(--card)', border: 'var(--bw) solid var(--line)' }} data-testid="primary-action">
+          {pending ? (
+            <SwipeToComplete
+              key={`${current.id}-accept`}
+              lang={lang}
+              label={t('Swipe to accept', 'গ্রহণ করতে সোয়াইপ করুন')}
+              altLabel={t('Accept job', 'কাজ গ্রহণ করুন')}
+              onComplete={() => handleAccept(current)}
+            />
+          ) : (
+            <SwipeToComplete
+              key={`${current.id}-weigh`}
+              lang={lang}
+              label={t('Swipe when you have the bags', 'ব্যাগ হাতে পেলে সোয়াইপ করুন')}
+              altLabel={t('Weigh & collect', 'ওজন করে সংগ্রহ')}
+              onComplete={() => openWeigh(current)}
+            />
+          )}
+        </div>
+
+      </section>
+    );
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* 4 Collector Destinations Tab Switcher */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="grid grid-cols-4 sm:flex sm:items-center gap-1" role="tablist" aria-label={t('Collector sections', 'সংগ্রাহক বিভাগ')}>
-          {[
-            { id: 'jobs', labelEn: 'Jobs', labelBn: 'কাজের তালিকা', icon: Briefcase },
-            { id: 'route', labelEn: 'Route', labelBn: 'রুট ম্যাপ', icon: Navigation },
-            { id: 'handovers', labelEn: `Handovers (${awaitingHandoverCount})`, labelBn: `হ্যান্ডওভার (${awaitingHandoverCount})`, icon: PackageCheck },
-            { id: 'account', labelEn: 'Account', labelBn: 'অ্যাকাউন্ট', icon: User }
-          ].map((dest) => {
-            const Icon = dest.icon;
-            const isActive = activeDestination === dest.id;
-            return (
-              <button
-                key={dest.id}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveDestination(dest.id as any)}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-3.5 min-h-12 sm:min-h-11 rounded-xl text-[11px] sm:text-xs font-semibold text-center leading-tight transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} aria-hidden="true" />
-                <span>{lang === 'en' ? dest.labelEn : dest.labelBn}</span>
-              </button>
-            );
-          })}
-        </div>
+    <div className="cf-root mx-auto max-w-xl space-y-4 rounded-[32px] sm:p-2" data-sun={sun ? '1' : '0'}>
+      <style>{COLLECTOR_CSS}</style>
+      <div className="sr-only" role="status" aria-live="polite">{announce}</div>
 
-        {/* Offline Mode Switcher & Sync Status (PRD O01) */}
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          {/* Quick Camera QR Code Scanner Trigger */}
-          <button
-            onClick={() => {
-              setScannerMode('any');
-              setIsScannerOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3.5 min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
-            title={lang === 'en' ? 'Scan QR Code via Device Camera' : 'ডিভাইস ক্যামেরা দিয়ে কিউআর কোড স্ক্যান করুন'}
-          >
-            <Camera className="w-3.5 h-3.5 text-[#C9F1DC]" />
-            <span>{lang === 'en' ? 'Scan QR' : 'কিউআর স্ক্যান'}</span>
-          </button>
-
-          <button
-            onClick={() => setIsOfflineMode(!isOfflineMode)}
-            className={`flex items-center gap-1.5 px-3 min-h-11 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-              isOfflineMode
-                ? 'bg-amber-600 text-white'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            {isOfflineMode ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
-            <span>
-              {isOfflineMode
-                ? lang === 'en' ? 'Offline Mode' : 'অফলাইন মোড'
-                : lang === 'en' ? 'Online' : 'অনলাইন'}
-            </span>
-          </button>
-
-          {offlineQueueCount > 0 && (
+      {/* Destinations */}
+      <nav className="cf-card grid grid-cols-4 gap-1 p-1.5" aria-label={t('Collector sections', 'সংগ্রাহক বিভাগ')}>
+        {TABS.map((d) => {
+          const on = dest === d.id;
+          const Icon = d.icon;
+          return (
             <button
-              onClick={syncOfflineQueue}
-              className="flex items-center gap-1 px-3 min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+              key={d.id}
+              type="button"
+              aria-current={on ? 'page' : undefined}
+              onClick={() => setDest(d.id)}
+              className="relative flex min-h-[60px] flex-col items-center justify-center gap-0.5 rounded-[20px] px-1 text-[.78em] font-extrabold leading-tight"
+              style={on ? { background: 'var(--prim)', color: 'var(--prim-fg)' } : undefined}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>{lang === 'en' ? `Sync (${offlineQueueCount})` : `সিঙ্ক (${offlineQueueCount})`}</span>
+              <Icon size={22} aria-hidden={true} />
+              <span>{t(d.en, d.bn)}</span>
+              {!!d.badge && (
+                <span className="absolute right-1.5 top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[.8em] font-extrabold" style={{ background: on ? 'var(--prim-fg)' : 'var(--prim)', color: on ? 'var(--prim)' : 'var(--prim-fg)' }}>
+                  {fmtNum(d.badge, lang)}
+                </span>
+              )}
             </button>
-          )}
-        </div>
+          );
+        })}
+      </nav>
+
+      {/* Status strip: sync + sun + camera */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isOfflineMode}
+          onClick={() => setIsOfflineMode(!isOfflineMode)}
+          className="cf-btn !min-h-[48px] flex-1 !px-3 !text-[.85em]"
+          title={t('Pretend there is no signal', 'সিগন্যাল নেই এমন ভান করুন')}
+        >
+          {isOfflineMode ? <WifiOff size={18} aria-hidden="true" /> : <Wifi size={18} aria-hidden="true" />}
+          {isOfflineMode ? t('No signal (test)', 'সিগন্যাল নেই (পরীক্ষা)') : t('Online', 'অনলাইন')}
+        </button>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={sun}
+          onClick={() => setSun(!sun)}
+          className="cf-btn !min-h-[48px] flex-1 !px-3 !text-[.85em]"
+          data-testid="sun-toggle"
+          style={sun ? { background: 'var(--prim)', color: 'var(--prim-fg)' } : undefined}
+        >
+          <Sun size={18} aria-hidden="true" /> {t('Sun mode', 'রোদে পড়ার মোড')}
+        </button>
+        <button
+          type="button"
+          className="cf-btn !min-h-[48px] !w-14 !px-0"
+          aria-label={t('Scan a QR code', 'কিউআর স্ক্যান করুন')}
+          onClick={() => {
+            setScannerMode('any');
+            setIsScannerOpen(true);
+          }}
+        >
+          <Camera size={20} aria-hidden="true" />
+        </button>
       </div>
 
-      {/* ========================================================================= */}
-      {/* DESTINATION 1: JOBS (Wireframes O01 & O02) */}
-      {/* ========================================================================= */}
-      {activeDestination === 'jobs' && (
-        <div className="space-y-4">
-          {/* Header & Sub-Filter Tabs (PRD O01: Assigned | In progress | Completed | Exceptions) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-[11px] font-mono text-slate-500 uppercase tracking-wider block">
-                {lang === 'en' ? 'FIELD WORKER DISPATCH' : 'মাঠকর্মী ডিসপ্যাচ ও কার্যতালিকা'}
-              </span>
-              <h1 className="text-lg font-bold text-slate-900">
-                {lang === 'en' ? "Today's Collections" : 'আজকের সংগৃহীতব্য কাজ'}
-              </h1>
-            </div>
+      <SyncBanner lang={lang} offline={isOfflineMode} queued={offlineQueueCount} onSync={syncOfflineQueue} />
 
-            <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl text-[11px] sm:text-xs font-semibold" role="group" aria-label={t('Job filter', 'কাজের ফিল্টার')}>
-              {[
-                { id: 'assigned', labelEn: 'Assigned', labelBn: 'বরাদ্দকৃত' },
-                { id: 'in_progress', labelEn: 'In Progress', labelBn: 'চলমান' },
-                { id: 'completed', labelEn: 'Completed', labelBn: 'সম্পন্ন' },
-                { id: 'exceptions', labelEn: 'Exceptions', labelBn: 'ব্যতিক্রম' }
-              ].map((f) => (
+      {/* ============ JOBS ============ */}
+      {dest === 'jobs' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="font-display text-[1.35em] font-extrabold">{t("Today's jobs", 'আজকের কাজ')}</h1>
+            <div className="flex gap-1 rounded-full p-1" style={{ border: 'var(--bw) solid var(--line)' }} role="group" aria-label={t('View', 'দেখার ধরন')}>
+              {(['focus', 'list'] as const).map((v) => (
                 <button
-                  key={f.id}
-                  onClick={() => setJobFilter(f.id as any)}
-                  aria-pressed={jobFilter === f.id}
-                  className={`px-1 sm:px-3 min-h-11 rounded-lg transition-colors cursor-pointer ${
-                    jobFilter === f.id
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  key={v}
+                  type="button"
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                  className="flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-[.85em] font-extrabold"
+                  style={view === v ? { background: 'var(--prim)', color: 'var(--prim-fg)' } : undefined}
                 >
-                  {lang === 'en' ? f.labelEn : f.labelBn} ({jobs.filter((j) => (f.id === 'assigned' ? j.status === 'PENDING' : f.id === 'in_progress' ? j.status === 'ACCEPTED' || j.status === 'EN_ROUTE' : f.id === 'completed' ? j.status === 'COMPLETED' : j.status === 'EXCEPTION')).length})
+                  {v === 'list' && <List size={16} aria-hidden="true" />}
+                  {v === 'focus' ? t('One at a time', 'একটা একটা') : t('All', 'সব')}
                 </button>
               ))}
             </div>
           </div>
 
-          {lastPickup && lastPickupJob?.fieldReport && (
-            <div role="status" className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-xs text-emerald-950 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-sm flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                  {t('Pickup recorded', 'পিকআপ রেকর্ড হয়েছে')} · {lastPickupJob.id}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setLastPickup(null)}
-                  aria-label={t('Dismiss summary', 'সারাংশ বন্ধ করুন')}
-                  className="w-11 h-11 -m-2 flex items-center justify-center rounded-lg hover:bg-emerald-100 cursor-pointer"
-                >
-                  <span aria-hidden="true">✕</span>
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
-                <span>{t('Lot', 'লট')}: <strong>{lastPickupJob.fieldReport.batchLotId}</strong></span>
-                <span>{t('Weight', 'ওজন')}: <strong>{lastPickupJob.fieldReport.totalWeightKg} kg</strong></span>
-                <span>{t('Customer ack', 'গ্রাহক কোড')}: <strong>{lastPickupJob.fieldReport.customerAckCode}</strong></span>
-                <span>{t('Sync', 'সিঙ্ক')}: <strong>{lastPickupJob.fieldReport.syncStatus === 'synced' ? 'synced' : 'pending'}</strong></span>
-                {lastPickup.barcode && (
-                  <span className="col-span-2 break-all">{t('Sack tag scanned', 'স্ক্যান করা ব্যাগ ট্যাগ')}: <strong>{lastPickup.barcode}</strong></span>
-                )}
-              </div>
-              <p className="text-[11px] text-emerald-900/80">
-                {t('Next: take this lot to the hub — see the Handovers tab.', 'এরপর: লটটি হাবে নিয়ে যান — হ্যান্ডওভার ট্যাব দেখুন।')}
-              </p>
-            </div>
+          {view === 'focus' && (
+            <>
+              {/* progress dots */}
+              <ol className="flex gap-1.5" aria-hidden="true">
+                {todayJobs.map((j) => (
+                  <li key={j.id} className="h-2 flex-1 rounded-full" style={{ background: !ACTIVE.includes(j.status) ? 'var(--prim)' : j.id === current?.id ? 'var(--acc)' : 'var(--line)', border: 'var(--bw) solid var(--line)' }} />
+                ))}
+              </ol>
+              <FocusCard />
+            </>
           )}
 
-          {/* Sync Status Banner */}
-          <div className="px-4 py-2 bg-slate-100 rounded-xl text-xs text-slate-600 flex items-center justify-between">
-            <span className="font-mono">
-              Sync status: {offlineQueueCount === 0 ? '✓ All records synchronized' : `⚠ ${offlineQueueCount} pending offline records`}
-            </span>
-            <span className="text-[11px] text-slate-400">Large touch targets enabled</span>
-          </div>
-
-          {/* Jobs List (PRD O01 & O02) */}
-          <div className="space-y-3">
-            {filteredJobs.length === 0 ? (
-              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500">
-                No jobs found in this category.
-              </div>
-            ) : (
-              filteredJobs.map((job) => {
-                const isCompleted = job.status === 'COMPLETED';
-                const isException = job.status === 'EXCEPTION';
-
-                return (
-                  <div
-                    key={job.id}
-                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-3 transition-all"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
-                          <span className="font-bold text-slate-900">{job.id}</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="flex items-center gap-1 font-semibold text-slate-700">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            {job.scheduledWindow}
-                          </span>
-                        </div>
-
-                        <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                          <MapPin className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <span>{job.customerAddress}</span>
-                        </div>
-
-                        <div className="text-xs text-slate-600 flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{job.customerPhone}</span>
-                        </div>
-
-                        {/* Access Note excerpt */}
-                        <div className="p-2.5 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-100">
-                          <span className="font-semibold text-slate-700">Access Note: </span>
-                          {job.accessNotes}
-                        </div>
-
-                        {/* Expected Materials */}
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 pt-1">
-                          <span className="font-medium text-slate-700">Expected:</span>
-                          {job.expectedMaterials.map((m) => (
-                            <span key={m} className="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] text-slate-700">
-                              {m.replace('_', ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Action Button - Large Touch Target (PRD O01 priority) */}
-                      <div className="sm:text-right shrink-0">
-                        {!isCompleted && !isException ? (
-                          <div className="flex flex-col gap-2 w-full sm:w-52">
-                            {job.status === 'PENDING' ? (
-                              <button
-                                onClick={() => handleAccept(job)}
-                                className="w-full px-5 min-h-12 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                              >
-                                <Check className="w-4 h-4" aria-hidden="true" />
-                                <span>{t('Accept job', 'কাজ গ্রহণ করুন')}</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleOpenPickupFlow(job)}
-                                className="w-full px-5 min-h-12 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                              >
-                                <Scale className="w-4 h-4" aria-hidden="true" />
-                                <span>{t('Weigh & Pickup', 'ওজন ও পিকআপ')}</span>
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setExceptionReason('customer_unavailable');
-                                setExceptionJobId(job.id);
-                              }}
-                              className="w-full px-4 min-h-11 bg-white border border-rose-300 text-rose-800 hover:bg-rose-50 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <Ban className="w-4 h-4" aria-hidden="true" />
-                              <span>{t("Can't collect", 'সংগ্রহ করা যাচ্ছে না')}</span>
-                            </button>
-                          </div>
-                        ) : isCompleted ? (
-                          <div className="text-right">
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800">
-                              <CheckCircle className="w-4 h-4 text-emerald-600" />
-                              <span>{job.outcome || 'COLLECTED'}</span>
-                            </span>
-                            {job.fieldReport && (
-                              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
-                                {job.fieldReport.totalWeightKg} kg ({job.fieldReport.weightMethod})
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">
-                            {job.outcome?.replace(/_/g, ' ') || job.exceptionReason?.replace(/_/g, ' ')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* DESTINATION 2: ROUTE (Wireframe Route) */}
-      {/* ========================================================================= */}
-      {activeDestination === 'route' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Ordered Driving Route</h2>
-            <p className="text-xs text-slate-500">
-              Sequence planned for Dhaka Clean Lane Sector North-1 (Tariq Hossain Vehicle #DH-14).
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {jobs.map((job, idx) => (
-              <div
-                key={job.id}
-                className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start gap-3 text-xs"
-              >
-                <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-mono font-bold shrink-0">
-                  {idx + 1}
-                </div>
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">{job.customerAddress}</span>
-                    <span className="font-mono text-slate-500">{job.scheduledWindow.split(' ')[0]}</span>
-                  </div>
-                  <p className="text-slate-600">{job.accessNotes}</p>
-                  <div className="text-slate-400 text-[11px]">
-                    Expected: {job.expectedMaterials.join(', ')}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* DESTINATION 3: HANDOVERS (Wireframe O06 Handover Queue) */}
-      {/* ========================================================================= */}
-      {activeDestination === 'handovers' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Handover Queue & Hub Reception (PRD O06)</h2>
-              <p className="text-xs text-slate-500">
-                Scan QR barcodes on vehicle lots for instant custody transfer to Gulshan Aggregation Hub #3.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setScannerMode('lot');
-                setIsScannerOpen(true);
-              }}
-              className="px-4 min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors shrink-0"
-            >
-              <Camera className="w-4 h-4 text-[#C9F1DC]" />
-              <span>Scan Lot QR Tag (Camera)</span>
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {handoverLots.map((lot) => (
-              <div
-                key={lot.id}
-                className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5 text-xs shadow-2xs hover:border-slate-400 transition-colors"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <QrCode className="w-4 h-4 text-[#25345C]" />
-                    <span className="font-mono font-bold text-slate-900">{lot.id}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="text-slate-600 font-semibold">{lot.material.replace(/_/g, ' ')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                      Custodian: {lot.currentCustodian}
-                    </span>
-                    {canHandOverToHub(lot) ? (
-                      <button
-                        onClick={() => setSelectedLotForHandover(lot)}
-                        className="px-3 min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
-                      >
-                        <Scale className="w-3.5 h-3.5" aria-hidden="true" />
-                        <span>{t('Verify Handover', 'হস্তান্তর যাচাই')}</span>
-                      </button>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-slate-500">
-                        {t('Handed over', 'হস্তান্তরিত')} · {lot.evidenceLevel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 font-mono text-slate-700 pt-1 border-t border-slate-100">
-                  <div>
-                    Field Net Weight: <strong>{lot.initialFieldWeightKg} kg</strong>
-                  </div>
-                  <div>
-                    Hub Platform Scale: <strong>{lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Awaiting scale'}</strong>
-                  </div>
-                </div>
-
-                {isOverTolerance(lot.discrepancyPercentage) && (
-                  <div className="p-2.5 bg-amber-50 rounded-lg text-amber-900 text-[11px] flex items-center gap-1.5 border border-amber-200">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                    <span>Discrepancy Flag: Delta {lot.discrepancyPercentage}% recorded. Requires supervisor signoff.</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* DESTINATION 4: ACCOUNT */}
-      {/* ========================================================================= */}
-      {activeDestination === 'account' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 text-xs">
-          <h2 className="text-base font-bold text-slate-900">{t('Collector Profile & Equipment', 'সংগ্রাহক প্রোফাইল ও সরঞ্জাম')}</h2>
-          <div className="space-y-2 divide-y divide-slate-100">
-            <div className="pt-2 flex justify-between">
-              <span className="text-slate-500">Worker ID:</span>
-              <span className="font-mono font-bold text-slate-900">COL-TARIQ-01 (#TH-882)</span>
-            </div>
-            <div className="pt-2 flex justify-between">
-              <span className="text-slate-500">Assigned Vehicle:</span>
-              <span className="font-semibold text-slate-800">Electric Cargo Trike #DH-14</span>
-            </div>
-            <div className="pt-2 flex justify-between">
-              <span className="text-slate-500">Portable Scale Model:</span>
-              <span className="font-semibold text-slate-800">Certified Hanging Scale HS-50</span>
-            </div>
-            <div className="pt-2 flex justify-between">
-              <span className="text-slate-500">{t('Scale last calibrated:', 'স্কেল সর্বশেষ ক্যালিব্রেট:')}</span>
-              <span className="font-mono text-emerald-800 font-bold text-right">
-                {calibrationDate} ({t(`${calibratedDaysAgo} days ago · valid 30 days · sample`, `${calibratedDaysAgo} দিন আগে · ৩০ দিন বৈধ · নমুনা`)})
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: PICKUP OUTCOME & MATERIAL CAPTURE (Wireframes O03, O04, O05) */}
-      {/* ========================================================================= */}
-      <Modal
-        open={isPickupModalOpen && Boolean(currentJob)}
-        onClose={() => setIsPickupModalOpen(false)}
-        size="md"
-        dismissible={false}
-        title={currentJob?.customerAddress}
-        description={t('Pickup execution (PRD O03–O05)', 'পিকআপ সম্পাদন (PRD O03–O05)')}
-        closeLabel={t('Close pickup form', 'পিকআপ ফর্ম বন্ধ করুন')}
-      >
-        <form onSubmit={handlePickupSubmit} className="space-y-4 text-xs">
-          <fieldset>
-            <legend className="block font-bold text-slate-900 mb-2">{t('1. Collection Outcome *', '১. সংগ্রহের ফলাফল *')}</legend>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {[
-                { id: 'COLLECTED', label: 'Collected', bn: 'সংগৃহীত' },
-                { id: 'PARTIALLY_COLLECTED', label: 'Partially Collected', bn: 'আংশিক সংগৃহীত' },
-                { id: 'CUSTOMER_UNAVAILABLE', label: 'Customer Unavailable', bn: 'গ্রাহক অনুপস্থিত' },
-                { id: 'CANNOT_ACCESS', label: 'Cannot Access', bn: 'প্রবেশ করা যায়নি' },
-                { id: 'MATERIAL_UNSUITABLE', label: 'Material Unsuitable', bn: 'উপাদান অনুপযুক্ত' }
-              ].map((out) => (
-                <button
-                  key={out.id}
-                  type="button"
-                  aria-pressed={pickupOutcome === out.id}
-                  onClick={() => setPickupOutcome(out.id as any)}
-                  className={`p-2.5 min-h-11 rounded-xl border text-center font-semibold transition-all cursor-pointer ${
-                    pickupOutcome === out.id
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {t(out.label, out.bn)}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {(pickupOutcome === 'COLLECTED' || pickupOutcome === 'PARTIALLY_COLLECTED') && (
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div>
-                <label htmlFor="pickup-material" className="block font-medium text-slate-700 mb-1">{t('Material Fraction', 'উপাদানের ধরন')}</label>
-                <select
-                  id="pickup-material"
-                  value={selectedMaterial}
-                  onChange={(e) => setSelectedMaterial(e.target.value as MaterialCategory)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 text-slate-800 font-medium"
-                >
-                  {Object.values(MATERIAL_TAXONOMY).map((mat) => (
-                    <option key={mat.id} value={mat.id}>
-                      {mat.name} ({mat.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="pickup-weight" className="block font-medium text-slate-700 mb-1">{t('Quantity (kg) *', 'পরিমাণ (কেজি) *')}</label>
-                  <input
-                    id="pickup-weight"
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    required
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-base font-bold text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="pickup-bags" className="block font-medium text-slate-700 mb-1">{t('Container Count', 'ব্যাগের সংখ্যা')}</label>
-                  <input
-                    id="pickup-bags"
-                    type="number"
-                    min="1"
-                    required
-                    value={bagCount}
-                    onChange={(e) => setBagCount(parseInt(e.target.value) || 1)}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-base font-bold text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="pickup-basis" className="block font-medium text-slate-700 mb-1">{t('Measurement Basis *', 'পরিমাপের ভিত্তি *')}</label>
-                <select
-                  id="pickup-basis"
-                  value={weightBasis}
-                  onChange={(e) => setWeightBasis(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 min-h-11 text-slate-800"
-                >
-                  <option value="field_scale">Certified Portable Scale (HS-50)</option>
-                  <option value="estimate">Field Visual Estimate (Marked as unmeasured)</option>
-                  <option value="not_measured">Not Measured at Doorstep</option>
-                </select>
-                <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  PRD O04 Guardrail: An estimated weight is never presented downstream as a confirmed scale weight.
-                </span>
-              </div>
-
-              {pickupOutcome === 'PARTIALLY_COLLECTED' && (
-                <div>
-                  <label htmlFor="pickup-uncollected" className="block font-medium text-amber-800 mb-1">
-                    {t('Uncollected Items & Reason (PRD Flow E)', 'যা সংগ্রহ হয়নি ও কারণ')}
-                  </label>
-                  <input
-                    id="pickup-uncollected"
-                    type="text"
-                    value={uncollectedNotes}
-                    onChange={(e) => setUncollectedNotes(e.target.value)}
-                    placeholder="e.g. Cardboard collected; wet milk cartons left behind."
-                    className="w-full bg-white border border-amber-300 rounded-lg p-2 min-h-11 text-slate-800"
-                  />
-                </div>
-              )}
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <label htmlFor="pickup-barcode" className="font-bold text-slate-900 block text-xs">{t('Physical Sack Barcode / Tag ID', 'ব্যাগের বারকোড / ট্যাগ আইডি')}</label>
+          {view === 'list' && (
+            <>
+              <div className="grid grid-cols-3 gap-1" role="group" aria-label={t('Job filter', 'কাজের ফিল্টার')}>
+                {([
+                  ['open', 'To do', 'বাকি', active.length],
+                  ['completed', 'Done', 'শেষ', jobs.filter((j) => j.status === 'COMPLETED').length],
+                  ['exceptions', 'Not collected', 'সংগ্রহ হয়নি', jobs.filter((j) => j.status === 'EXCEPTION').length]
+                ] as const).map(([id, en, bn, n]) => (
                   <button
+                    key={id}
                     type="button"
-                    onClick={() => {
-                      setScannerMode('any');
-                      setIsScannerOpen(true);
-                    }}
-                    className="text-[11px] font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer min-h-11 px-1"
+                    aria-pressed={listFilter === id}
+                    onClick={() => setListFilter(id)}
+                    className="cf-btn !min-h-[52px] !px-1 !text-[.82em]"
+                    style={listFilter === id ? { background: 'var(--prim)', color: 'var(--prim-fg)' } : undefined}
                   >
-                    <Camera className="w-3.5 h-3.5 text-[#25345C]" aria-hidden="true" />
-                    <span>{t('Scan Barcode (Camera)', 'বারকোড স্ক্যান')}</span>
+                    {t(en, bn)} ({fmtNum(n, lang)})
                   </button>
-                </div>
-                <input
-                  id="pickup-barcode"
-                  type="text"
-                  value={associatedBagBarcode}
-                  onChange={(e) => setAssociatedBagBarcode(e.target.value)}
-                  placeholder="e.g. TAG-101-PET"
-                  className="w-full bg-white border border-slate-300 rounded-lg p-2 min-h-11 font-mono text-xs text-slate-900"
-                />
+                ))}
               </div>
-
-              <label htmlFor="pickup-photo" className="flex items-center justify-between p-3 min-h-11 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                <span className="font-medium text-slate-700">{t('Photo Proof Captured', 'ছবির প্রমাণ নেওয়া হয়েছে')}</span>
-                <input
-                  id="pickup-photo"
-                  type="checkbox"
-                  checked={photoRecorded}
-                  onChange={(e) => setPhotoRecorded(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 rounded"
-                />
-              </label>
-            </div>
+              {(() => {
+                const rows = jobs.filter((j) => (listFilter === 'open' ? ACTIVE.includes(j.status) : listFilter === 'completed' ? j.status === 'COMPLETED' : j.status === 'EXCEPTION'));
+                if (!rows.length)
+                  return (
+                    <EmptyState
+                      title={listFilter === 'open' ? t('Nothing left to do', 'আর কোনো কাজ বাকি নেই') : listFilter === 'completed' ? t('No pickups finished yet', 'এখনো কোনো পিকআপ শেষ হয়নি') : t('No missed pickups', 'কোনো পিকআপ বাদ যায়নি')}
+                      body={listFilter === 'completed' ? t('Finished pickups appear here with their weight.', 'শেষ হওয়া পিকআপ ওজনসহ এখানে দেখা যাবে।') : t('Good. New jobs show up here as they are assigned.', 'ভালো। নতুন কাজ বরাদ্দ হলে এখানে আসবে।')}
+                    />
+                  );
+                return rows.map((job) => (
+                  <article key={job.id} className="cf-card space-y-2 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="text-[1.1em] font-extrabold leading-snug">{job.customerAddress}</h2>
+                      <span className="cf-muted shrink-0 font-mono text-[.75em]">{job.id.replace('JOB-', '')}</span>
+                    </div>
+                    <p className="cf-muted flex items-center gap-1.5 text-[.9em] font-semibold"><Clock size={14} aria-hidden="true" /> {windowText(job.scheduledWindow, lang)}</p>
+                    <MaterialChips materials={job.expectedMaterials} lang={lang} />
+                    {ACTIVE.includes(job.status) ? (
+                      <button
+                        type="button"
+                        className="cf-btn cf-btn-primary w-full"
+                        onClick={() => {
+                          setFocusIdx(Math.max(0, active.findIndex((a) => a.id === job.id)));
+                          setView('focus');
+                        }}
+                      >
+                        {t('Open this job', 'এই কাজ খুলুন')} <ChevronRight size={18} aria-hidden="true" />
+                      </button>
+                    ) : job.status === 'COMPLETED' && job.fieldReport ? (
+                      <p className="flex items-center gap-2 font-extrabold">
+                        <CheckCircle size={18} aria-hidden="true" /> {fmtNum(job.fieldReport.totalWeightKg, lang)} {t('kg', 'কেজি')} · {job.outcome ? t(...OUTCOME_LABEL[job.outcome]) : ''}
+                        {job.fieldReport.syncStatus === 'pending_sync_offline' && <span className="cf-chip !py-0.5 !text-[.8em]">{t('on phone', 'ফোনে')}</span>}
+                      </p>
+                    ) : (
+                      <p className="flex items-center gap-2 font-extrabold"><Ban size={18} aria-hidden="true" /> {job.outcome ? t(...OUTCOME_LABEL[job.outcome]) : job.exceptionReason?.replace(/_/g, ' ')}</p>
+                    )}
+                  </article>
+                ));
+              })()}
+            </>
           )}
+        </div>
+      )}
 
-          {pickupOutcome !== 'COLLECTED' && pickupOutcome !== 'PARTIALLY_COLLECTED' && (
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <label htmlFor="pickup-reason" className="block font-medium text-slate-700">{t('Reason & Guidance Note', 'কারণ ও নির্দেশনা')}</label>
-              <textarea
-                id="pickup-reason"
-                rows={2}
-                value={uncollectedNotes}
-                onChange={(e) => setUncollectedNotes(e.target.value)}
-                placeholder="e.g. Mixed bio-waste present; provided guidance on rinsing."
-                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-800"
-              />
-            </div>
-          )}
-
-          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsPickupModalOpen(false)}
-              className="px-4 min-h-11 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
-            >
-              {t('Cancel', 'বাতিল')}
-            </button>
-            <button
-              type="submit"
-              className="px-5 min-h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer transition-colors shadow-xs"
-            >
-              {isOfflineMode ? t('Save Locally on Device', 'ডিভাইসে সংরক্ষণ') : t('Submit Pickup', 'পিকআপ জমা দিন')}
-            </button>
+      {/* ============ ROUTE ============ */}
+      {dest === 'route' && (
+        <section className="space-y-3" aria-labelledby="cf-route">
+          <div>
+            <h1 id="cf-route" className="font-display text-[1.35em] font-extrabold">{t('Your route today', 'আজকের রুট')}</h1>
+            <p className="cf-muted text-[.9em]">{t('Stops in the order planned for your trike.', 'ট্রাইকের জন্য ঠিক করা ক্রমে স্টপ।')}</p>
           </div>
-        </form>
-      </Modal>
+          {todayJobs.length === 0 ? (
+            <EmptyState title={t('No stops yet', 'এখনো কোনো স্টপ নেই')} body={t('When the operator assigns jobs, your route appears here.', 'অপারেটর কাজ দিলে রুট এখানে দেখা যাবে।')} />
+          ) : (
+            <ol className="space-y-2">
+              {todayJobs.map((job, i) => (
+                <li key={job.id} className="cf-card flex items-start gap-3 p-4" style={!ACTIVE.includes(job.status) ? { opacity: 0.6 } : undefined}>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg font-extrabold" style={{ background: 'var(--prim)', color: 'var(--prim-fg)' }}>{fmtNum(i + 1, lang)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-extrabold leading-snug">{job.customerAddress}</p>
+                    <p className="cf-muted text-[.88em]">{windowText(job.scheduledWindow, lang)}</p>
+                    <div className="mt-2"><MaterialChips materials={job.expectedMaterials} lang={lang} /></div>
+                  </div>
+                  {!ACTIVE.includes(job.status) && <CheckCircle size={22} aria-label={t('Finished', 'শেষ')} />}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      )}
 
-      <Modal
-        open={Boolean(exceptionJob)}
-        onClose={() => setExceptionJobId(null)}
-        size="sm"
-        title={t("Can't collect — reason", 'সংগ্রহ করা যাচ্ছে না — কারণ')}
-        description={exceptionJob?.customerAddress}
-        closeLabel={t('Close', 'বন্ধ করুন')}
-      >
-        <form onSubmit={handleExceptionSubmit} className="space-y-3 text-xs">
-          <fieldset className="space-y-2">
-            <legend className="sr-only">{t('Reason', 'কারণ')}</legend>
-            {EXCEPTION_REASONS.map((r) => (
-              <label
-                key={r.id}
-                className={`flex items-center gap-3 p-3 min-h-11 rounded-xl border cursor-pointer font-semibold ${
-                  exceptionReason === r.id ? 'border-rose-500 bg-rose-50 text-rose-950' : 'border-slate-200 text-slate-700'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="exception-reason"
-                  value={r.id}
-                  checked={exceptionReason === r.id}
-                  onChange={() => setExceptionReason(r.id)}
-                  className="w-4 h-4"
-                />
-                {t(r.en, r.bn)}
-              </label>
+      {/* ============ HUB DROP-OFF ============ */}
+      {dest === 'handovers' && (
+        <section className="space-y-3" aria-labelledby="cf-hub">
+          <div>
+            <h1 id="cf-hub" className="font-display text-[1.35em] font-extrabold">{t('Hub drop-off', 'হাবে জমা')}</h1>
+            <p className="cf-muted text-[.9em]">{t('Bring each lot to the Gulshan hub. The hub scale confirms the weight.', 'প্রতিটি লট গুলশান হাবে আনুন। হাবের স্কেল ওজন নিশ্চিত করে।')}</p>
+          </div>
+          <button type="button" className="cf-btn cf-btn-primary w-full" onClick={() => { setScannerMode('lot'); setIsScannerOpen(true); }}>
+            <Camera size={20} aria-hidden="true" /> {t('Scan the lot tag', 'লটের ট্যাগ স্ক্যান করুন')}
+          </button>
+          {handoverLots.length === 0 ? (
+            <EmptyState title={t('Nothing to drop off', 'জমা দেওয়ার কিছু নেই')} body={t('Once you collect a pickup, its lot waits here for the hub.', 'পিকআপ সংগ্রহ করলে তার লট এখানে হাবের জন্য অপেক্ষা করবে।')} />
+          ) : (
+            handoverLots.map((lot) => (
+              <article key={lot.id} className="cf-card space-y-2 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-white"><MaterialGlyph material={lot.material} size={22} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-extrabold leading-tight">{t(MATERIALS[lot.material].en, MATERIALS[lot.material].bn)}</p>
+                    <p className="cf-muted flex items-center gap-1 font-mono text-[.75em]"><QrCode size={12} aria-hidden="true" /> {lot.id}</p>
+                  </div>
+                  <span className="font-mono text-[.8em] font-bold cf-muted">{lot.evidenceLevel}</span>
+                </div>
+                <p className="text-[.95em]">
+                  {t('You weighed', 'আপনার ওজন')}: <strong>{fmtNum(lot.initialFieldWeightKg, lang)} {t('kg', 'কেজি')}</strong>
+                  {' · '}
+                  {t('Hub scale', 'হাবের স্কেল')}: <strong>{lot.verifiedHubWeightKg ? `${fmtNum(lot.verifiedHubWeightKg, lang)} ${t('kg', 'কেজি')}` : t('not yet', 'এখনো না')}</strong>
+                </p>
+                {isOverTolerance(lot.discrepancyPercentage) && (
+                  <p className="cf-calm flex items-center gap-2 p-2.5 text-[.88em] font-semibold">
+                    <AlertTriangle size={16} aria-hidden="true" /> {t(`Weights differ by ${lot.discrepancyPercentage}%. A supervisor will look at it.`, `ওজনে ${fmtNum(String(lot.discrepancyPercentage), lang)}% পার্থক্য। সুপারভাইজার দেখবেন।`)}
+                  </p>
+                )}
+                {canHandOverToHub(lot) ? (
+                  <button type="button" className="cf-btn cf-btn-primary w-full" onClick={() => setLotForHandover(lot)}>{t('Hand over at hub', 'হাবে হস্তান্তর')}</button>
+                ) : (
+                  <p className="cf-muted flex items-center gap-1.5 text-[.9em] font-bold"><CheckCircle size={16} aria-hidden="true" /> {t('Handed over', 'হস্তান্তরিত')}</p>
+                )}
+              </article>
+            ))
+          )}
+        </section>
+      )}
+
+      {/* ============ ME ============ */}
+      {dest === 'account' && (
+        <section className="cf-card space-y-1 p-5" aria-labelledby="cf-me">
+          <h1 id="cf-me" className="font-display text-[1.35em] font-extrabold">{t('Me & my equipment', 'আমি ও আমার সরঞ্জাম')}</h1>
+          <dl className="divide-y" style={{ borderColor: 'var(--line)' }}>
+            {[
+              [t('Name', 'নাম'), 'Tariq Hossain · #TH-882'],
+              [t('Vehicle', 'যানবাহন'), t('Electric cargo trike #DH-14', 'বৈদ্যুতিক কার্গো ট্রাইক #DH-14')],
+              [t('Scale', 'স্কেল'), t('Certified hanging scale HS-50', 'সনদপ্রাপ্ত ঝুলন্ত স্কেল HS-50')],
+              [t('Scale checked', 'স্কেল পরীক্ষা'), t('9 days ago · good for 30 days (sample)', '৯ দিন আগে · ৩০ দিন বৈধ (নমুনা)')]
+            ].map(([k, v]) => (
+              <div key={k} className="flex flex-wrap justify-between gap-x-4 py-3" style={{ borderColor: 'var(--line)' }}>
+                <dt className="cf-muted font-semibold">{k}</dt>
+                <dd className="font-extrabold">{v}</dd>
+              </div>
             ))}
-          </fieldset>
-          <p className="text-[11px] text-slate-500">
-            {t('The booking is marked missed and the operator is alerted.', 'বুকিং মিসড হিসেবে চিহ্নিত হবে এবং অপারেটরকে জানানো হবে।')}
-          </p>
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setExceptionJobId(null)} className="px-4 min-h-11 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer">
-              {t('Cancel', 'বাতিল')}
-            </button>
-            <button type="submit" className="px-5 min-h-11 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-bold cursor-pointer">
-              {t('Record exception', 'ব্যতিক্রম রেকর্ড করুন')}
-            </button>
-          </div>
-        </form>
-      </Modal>
+          </dl>
+        </section>
+      )}
 
-      {/* ========================================================================= */}
-      {/* QR CODE CAMERA SCANNER MODAL */}
-      {/* ========================================================================= */}
+      {/* ============ SHEETS ============ */}
+      {weighJob && (
+        <WeighPad
+          key={weighJob.id}
+          lang={lang}
+          who={weighJob.customerAddress.split(',')[0]}
+          materials={weighJob.expectedMaterials}
+          offline={isOfflineMode}
+          tag={tag}
+          onTag={setTag}
+          onScan={() => {
+            setScannerMode('any');
+            setIsScannerOpen(true);
+          }}
+          onCancel={() => setWeighJobId(null)}
+          onConfirm={(r) => handleWeighConfirm(weighJob, r)}
+        />
+      )}
+
+      {exceptionJob && (
+        <Sheet label={t("Can't collect — why?", 'সংগ্রহ হচ্ছে না — কেন?')} onClose={() => setExceptionJobId(null)}>
+          <form onSubmit={submitException} className="space-y-3">
+            <div>
+              <h2 className="font-display text-[1.3em] font-extrabold">{t("Why can't you collect?", 'কেন সংগ্রহ করতে পারছেন না?')}</h2>
+              <p className="cf-muted text-[.9em]">{exceptionJob.customerAddress}</p>
+            </div>
+            <fieldset className="space-y-2">
+              <legend className="sr-only">{t('Reason', 'কারণ')}</legend>
+              {EXCEPTIONS.map((r) => (
+                <label key={r.id} className="cf-card flex min-h-[60px] cursor-pointer items-center gap-3 !rounded-2xl px-4 font-extrabold" style={exceptionReason === r.id ? { background: 'var(--prim)', color: 'var(--prim-fg)' } : undefined}>
+                  <input type="radio" name="cf-exc" checked={exceptionReason === r.id} onChange={() => setExceptionReason(r.id)} className="h-5 w-5" />
+                  {t(r.en, r.bn)}
+                </label>
+              ))}
+            </fieldset>
+            <p className="cf-muted text-[.88em]">{t('The booking is marked missed and the operator is told straight away.', 'বুকিং মিসড হিসেবে চিহ্নিত হবে এবং অপারেটর সাথে সাথে জানবেন।')}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className="cf-btn" onClick={() => setExceptionJobId(null)}>{t('Cancel', 'বাতিল')}</button>
+              <button type="submit" className="cf-btn cf-btn-primary">{t('Report it', 'জানিয়ে দিন')}</button>
+            </div>
+          </form>
+        </Sheet>
+      )}
+
       <QrCodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScanResult={handleScanResult}
         mode={scannerMode}
-        title={
-          scannerMode === 'lot'
-            ? 'Scan Lot Handover QR Tag'
-            : scannerMode === 'job'
-            ? 'Scan Customer Booking Ticket'
-            : 'Scan QR Barcode'
-        }
+        title={scannerMode === 'lot' ? t('Scan the lot tag', 'লটের ট্যাগ স্ক্যান করুন') : scannerMode === 'job' ? t('Scan the booking ticket', 'বুকিং টিকিট স্ক্যান করুন') : t('Scan a QR code', 'কিউআর স্ক্যান করুন')}
       />
-
-      {/* ========================================================================= */}
-      {/* HUB HANDOVER & PLATFORM SCALE VERIFICATION MODAL */}
-      {/* ========================================================================= */}
-      <LotHandoverModal
-        isOpen={Boolean(selectedLotForHandover)}
-        onClose={() => setSelectedLotForHandover(null)}
-        lot={selectedLotForHandover}
-      />
+      <LotHandoverModal isOpen={Boolean(lotForHandover)} onClose={() => setLotForHandover(null)} lot={lotForHandover} />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
 import { GitBranch, ArrowRight, Search, FileText } from 'lucide-react';
+import { verifyLotUrl } from '../../live/routes';
 
 export const ChainOfCustodyView: React.FC = () => {
   const { lots, custodyEvents, sortingTransformations, processingDispositions, lang } = useApp();
@@ -49,7 +50,7 @@ export const ChainOfCustodyView: React.FC = () => {
           {lang === 'en' ? 'Material Lot Custody & Transformation Inspector' : 'ম্যাটেরিয়াল লট কাস্টডি ও রূপান্তর ট্র্যাকার'}
         </h1>
         <p className="text-xs text-slate-500 max-w-2xl">
-          PRD § 9.2: Every material lot preserves its physical sender, receiver, certified scale measurement, transformation splits, and cryptographic hash proof.
+          Every material lot preserves its physical sender, receiver, certified scale measurement, transformation splits, and cryptographic hash proof.
         </p>
 
         {/* Search + Lot Selector */}
@@ -103,6 +104,14 @@ export const ChainOfCustodyView: React.FC = () => {
                   ACTIVE LOT IDENTIFIER
                 </span>
                 <h3 className="text-lg font-bold font-mono text-slate-900">{selectedLot.id}</h3>
+                <a
+                  href={verifyLotUrl(selectedLot.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center min-h-11 text-xs font-semibold text-emerald-800 underline underline-offset-2"
+                >
+                  {lang === 'en' ? 'Verify journey ↗' : 'যাত্রা যাচাই ↗'}
+                </a>
               </div>
               <EvidenceBadge level={selectedLot.evidenceLevel} />
             </div>
@@ -250,7 +259,7 @@ export const ChainOfCustodyView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400 font-mono">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 pt-1 text-[10px] text-slate-400 font-mono break-all">
                       <span>Hash: {evt.signatureOrHash}</span>
                       <span>{evt.timestamp.replace('T', ' ').slice(0, 19)}</span>
                     </div>
@@ -281,7 +290,7 @@ export const ChainOfCustodyView: React.FC = () => {
             {relevantSorting.length > 0 && (
               <div className="pt-4 border-t border-slate-200 space-y-3">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                  Documented Sorting Splits (PRD § T-04)
+                  Documented sorting splits
                 </h4>
                 {relevantSorting.map((sort) => (
                   <div key={sort.id} className="p-4 bg-cyan-50/40 border border-cyan-100 rounded-xl space-y-2 text-xs">

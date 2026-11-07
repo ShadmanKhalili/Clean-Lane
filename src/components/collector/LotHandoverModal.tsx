@@ -42,7 +42,7 @@ export const LotHandoverModal: React.FC<LotHandoverModalProps> = ({ isOpen, onCl
       onClose={onClose}
       size="md"
       title={t('Lot handover to hub', 'হাবে লট হস্তান্তর')}
-      description={t('Hub custody transfer (O06) — certified platform scale reading', 'হাব হেফাজত স্থানান্তর (O06)')}
+      description={t('Hand the bag to the hub and record the certified scale reading', 'ব্যাগ হাবে দিন এবং সনদপ্রাপ্ত স্কেলের ওজন লিখুন')}
     >
       <form onSubmit={handleSubmitHandover} className="space-y-4 text-xs" id="lot-handover-form">
         <div className="p-4 bg-[#FFF9F0] border border-[#EDE4D8] rounded-2xl space-y-2">

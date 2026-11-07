@@ -4,7 +4,6 @@ import { AppNotification, UserRole } from '../../types';
 import { useTranslation } from '../../utils/translations';
 import {
   ShieldCheck,
-  WifiOff,
   Sparkles,
   HelpCircle,
   User,
@@ -16,7 +15,7 @@ import {
   ChevronDown,
   Bell
 } from 'lucide-react';
-import { USER_ROLES } from '../../routing';
+import { DemoModePill } from './DemoModePill';
 
 // Modals are only downloaded the first time they are opened.
 const InvestorLoopDemonstrator = lazy(() => import('./InvestorLoopDemonstrator').then((m) => ({ default: m.InvestorLoopDemonstrator })));
@@ -40,9 +39,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     setRole,
     lang,
     setLang,
-    isOfflineMode,
-    offlineQueueCount,
-    syncOfflineQueue,
     savedLocations,
     selectedLocationId,
     notifications,
@@ -78,26 +74,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
   return (
     <>
+      <DemoModePill />
       <header className="sticky top-0 z-40 bg-white border-b border-[#EDE4D8] shadow-2xs">
-        {/* Offline Alert Banner if collector */}
-        {isOfflineMode && role === 'collector' && (
-          <div className="bg-[#B46A14] text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <WifiOff className="w-4 h-4 text-white" />
-              <span>
-                {lang === 'en'
-                  ? `Field Offline Simulation Active · ${offlineQueueCount} records queued`
-                  : `অফলাইন মোড সক্রিয় · ${offlineQueueCount} রেকর্ড জমা রয়েছে`}
-              </span>
-            </div>
-            <button
-              onClick={syncOfflineQueue}
-              className="px-2.5 py-0.5 bg-[#172521] text-white rounded-lg text-xs hover:bg-black transition-colors cursor-pointer"
-            >
-              {lang === 'en' ? 'Reconnect & Sync' : 'পুনঃসংযোগ ও সিঙ্ক'}
-            </button>
-          </div>
-        )}
+        {/* Offline state for collectors is shown by the calm banner inside the collector app. */}
 
         {/* Top Bar: Brand, 3 Navigation Tabs, Help & Account */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
@@ -221,22 +200,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
 
           {/* Zone 3: Actions - Help & Account (Paired Icons + Labels) */}
           <div className="flex items-center gap-2">
-            {/* Persona switcher — the demo is multi-stakeholder, so make it one click away. */}
-            <label className="hidden lg:flex items-center gap-2 pl-3 pr-1 py-1 rounded-xl border border-[#EDE4D8] bg-[#FAF9F5] text-[11px] font-semibold text-[#53625C]">
-              <span>{lang === 'en' ? 'Viewing as' : 'যে হিসেবে দেখছেন'}</span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="bg-white border border-[#EDE4D8] rounded-lg px-2 py-1 text-xs font-bold text-[#172521] cursor-pointer"
-              >
-                {USER_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {roleLabels[r][lang]}
-                  </option>
-                ))}
-              </select>
-            </label>
-
             {/* Help Button (In Header) */}
             <button
               onClick={() => setIsHelpOpen(true)}

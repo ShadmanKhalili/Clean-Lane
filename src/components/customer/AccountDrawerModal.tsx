@@ -79,7 +79,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             onClick={() => setActiveSection('profile')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'profile'
-                ? 'bg-[#25345C] text-white shadow-2xs'
+                ? 'bg-[#124B3A] text-white shadow-2xs'
                 : 'text-[#53616D] hover:bg-[#FAF5EC]'
             }`}
           >
@@ -91,7 +91,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             onClick={() => setActiveSection('locations')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'locations'
-                ? 'bg-[#25345C] text-white shadow-2xs'
+                ? 'bg-[#124B3A] text-white shadow-2xs'
                 : 'text-[#53616D] hover:bg-[#FAF5EC]'
             }`}
           >
@@ -103,7 +103,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             onClick={() => setActiveSection('organisation')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'organisation'
-                ? 'bg-[#25345C] text-white shadow-2xs'
+                ? 'bg-[#124B3A] text-white shadow-2xs'
                 : 'text-[#53616D] hover:bg-[#FAF5EC]'
             }`}
           >
@@ -115,7 +115,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             onClick={() => setActiveSection('settings')}
             className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               activeSection === 'settings'
-                ? 'bg-[#25345C] text-white shadow-2xs'
+                ? 'bg-[#124B3A] text-white shadow-2xs'
                 : 'text-[#53616D] hover:bg-[#FAF5EC]'
             }`}
           >
@@ -144,7 +144,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Customer ID' : 'গ্রাহক আইডি'}</span>
-                    <span className="font-mono text-[#25345C]">{currentCustomer.id}</span>
+                    <span className="font-mono text-[#124B3A]">{currentCustomer.id}</span>
                   </div>
                   <div className="flex justify-between items-center pt-1 border-t border-[#FAF5EC]">
                     <span className="text-[#53616D]">{lang === 'en' ? 'Verification' : 'যাচাই অবস্থা'}</span>
@@ -158,7 +158,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
               {/* Language Selection */}
               <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-3">
                 <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-[#25345C]" />
+                  <Globe className="w-4 h-4 text-[#124B3A]" />
                   <span className="font-bold text-sm text-[#202B38]">
                     {lang === 'en' ? 'Interface Language' : 'ভাষার পছন্দ'}
                   </span>
@@ -169,7 +169,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     onClick={() => setLang('en')}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
                       lang === 'en'
-                        ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs'
+                        ? 'bg-[#124B3A] text-white border-[#124B3A] shadow-2xs'
                         : 'bg-[#FAF5EC] text-[#202B38] border-[#EDE4D8] hover:bg-[#EDE4D8]'
                     }`}
                   >
@@ -181,7 +181,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     onClick={() => setLang('bn')}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
                       lang === 'bn'
-                        ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs'
+                        ? 'bg-[#124B3A] text-white border-[#124B3A] shadow-2xs'
                         : 'bg-[#FAF5EC] text-[#202B38] border-[#EDE4D8] hover:bg-[#EDE4D8]'
                     }`}
                   >
@@ -194,7 +194,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
               {/* Notifications Settings */}
               <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-3">
                 <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-[#25345C]" />
+                  <Bell className="w-4 h-4 text-[#124B3A]" />
                   <span className="font-bold text-sm text-[#202B38]">
                     {lang === 'en' ? 'Notifications & Reminders' : 'বিজ্ঞপ্তি ও অ্যালার্ট'}
                   </span>
@@ -322,7 +322,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                 <button
                   type="button"
                   onClick={onOpenOnboarding}
-                  className="px-3 py-1.5 bg-[#25345C] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#1B2644]"
+                  className="px-3 py-1.5 bg-[#124B3A] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#0E3A2D]"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>{lang === 'en' ? 'Add Address' : 'নতুন ঠিকানা'}</span>
@@ -338,8 +338,8 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     onClick={() => setSelectedLocationId(loc.id)}
                     className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                       selectedLocationId === loc.id
-                        ? 'bg-white border-[#25345C] shadow-xs'
-                        : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/40'
+                        ? 'bg-white border-[#124B3A] shadow-xs'
+                        : 'bg-white border-[#EDE4D8] hover:border-[#124B3A]/40'
                     }`}
                   >
                     <div className="space-y-0.5">
@@ -358,7 +358,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                       <p className="text-xs text-[#53616D]">{loc.address}</p>
                     </div>
                     {selectedLocationId === loc.id && (
-                      <Check className="w-4 h-4 text-[#25345C] shrink-0" aria-hidden="true" />
+                      <Check className="w-4 h-4 text-[#124B3A] shrink-0" aria-hidden="true" />
                     )}
                   </button>
                 ))}
@@ -371,7 +371,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div className="p-4 bg-white rounded-2xl border border-[#EDE4D8] space-y-3">
                 <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4 text-[#25345C]" aria-hidden="true" />
+                  <Building className="w-4 h-4 text-[#124B3A]" aria-hidden="true" />
                   <span className="font-bold text-sm text-[#202B38]">
                     {lang === 'en' ? 'Apartment & Business Access' : 'ভবন ও প্রাতিষ্ঠানিক ব্যবস্থাপনা'}
                   </span>
@@ -412,7 +412,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                         setRole('customer_apartment');
                         onClose();
                       }}
-                      className="w-full py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                      className="w-full py-2.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
                     >
                       {lang === 'en' ? 'View as apartment committee' : 'ভবন কমিটি হিসেবে দেখুন'}
                     </button>
@@ -424,7 +424,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                         setRole('customer_business');
                         onClose();
                       }}
-                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#25345C] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#124B3A] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
                     >
                       {lang === 'en' ? 'View as business / café' : 'ব্যবসা প্রতিষ্ঠান হিসেবে দেখুন'}
                     </button>
@@ -436,7 +436,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                         setRole('customer_household');
                         onClose();
                       }}
-                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#25345C] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
+                      className="w-full py-2.5 bg-white border border-[#EDE4D8] hover:bg-[#FAF5EC] text-[#124B3A] rounded-xl font-bold text-xs transition-colors cursor-pointer text-center"
                     >
                       {lang === 'en' ? 'Back to household view' : 'গৃহস্থালি ভিউতে ফিরুন'}
                     </button>
@@ -450,7 +450,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
           {activeSection === 'settings' && (
             <div className="space-y-3 animate-fade-in">
               <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">
-                {lang === 'en' ? 'System Verification Protocols' : 'সিস্টেম যাচাই প্রটোকল'}
+                {lang === 'en' ? 'How verification works' : 'যাচাই কীভাবে কাজ করে'}
               </span>
 
               {onOpenEvidenceModel && (
@@ -466,10 +466,10 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                     <FileCheck2 className="w-4 h-4 text-[#12613F]" />
                     <div>
                       <span className="font-bold text-[#202B38] block">
-                        {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
+                        {lang === 'en' ? 'How we prove every kilo' : 'প্রতিটি কেজি কীভাবে প্রমাণ করি'}
                       </span>
                       <span className="text-[11px] text-[#53616D]">
-                        {lang === 'en' ? 'Cryptographic scale weight and GPS ledger standards' : 'ডিজিটাল স্কেল ও জিপিএস প্রমাণপত্র অডিট মান'}
+                        {lang === 'en' ? 'Scale weights and sealed handover records' : 'স্কেলের ওজন ও সিল করা হস্তান্তর রেকর্ড'}
                       </span>
                     </div>
                   </div>
@@ -487,7 +487,7 @@ export const AccountDrawerModal: React.FC<AccountDrawerModalProps> = ({
                   className="w-full p-3.5 bg-white border border-[#EDE4D8] rounded-2xl flex items-center justify-between text-left hover:bg-[#FAF5EC] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="w-4 h-4 text-[#25345C]" />
+                    <Sparkles className="w-4 h-4 text-[#124B3A]" />
                     <div>
                       <span className="font-bold text-[#202B38] block">
                         {lang === 'en' ? 'Investor Brief & Unit Economics' : 'ইনভেস্টর বিবরণ ও ইউনিট অর্থনীতি'}

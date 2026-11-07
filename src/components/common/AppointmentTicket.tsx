@@ -1,11 +1,12 @@
 import React from 'react';
 import { Booking } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { MapPin, ChevronRight, Sparkles, Truck, XCircle } from 'lucide-react';
-import { MaterialIllustration } from './MaterialIllustrations';
-import { MATERIAL_TAXONOMY } from '../../data/mockData';
+import { ChevronRight, ClipboardList, MapPin, Truck, XCircle } from 'lucide-react';
+import { JourneyLine } from '../../design/JourneyLine';
+import { MaterialChips, useJourney } from '../customer/BookingBits';
 import { formatBookingDate, relativeDayLabel } from '../customer/dates';
 import { isCancellable } from '../customer/useCustomerData';
+import { DANGER_GHOST, GHOST, PRIMARY } from '../customer/ui';
 
 interface AppointmentTicketProps {
   booking: Booking;
@@ -19,6 +20,7 @@ interface AppointmentTicketProps {
   isConfirmationView?: boolean;
 }
 
+/** A pickup ticket: when, where, what, and the journey your bag will take. */
 export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
   booking,
   onOpenChecklist,
@@ -29,192 +31,76 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
   isConfirmationView = false
 }) => {
   const { lang } = useApp();
+  const en = lang === 'en';
+  const journey = useJourney(booking);
+  const rel = relativeDayLabel(booking.scheduledDate, lang);
+  const full = formatBookingDate(booking.scheduledDate, lang);
+  const collector = collectorName || booking.collectorName;
 
   return (
-    <div
-      className={`relative bg-white rounded-[32px] border-2 border-[#25345C] shadow-md overflow-hidden text-[#202B38] ${className}`}
-    >
-      {/* Top Ticket Header Bar */}
-      <div className="bg-[#25345C] text-white px-5 sm:px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#C9F1DC] animate-pulse" />
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#C9F1DC]">
-            {isConfirmationView
-              ? lang === 'en'
-                ? 'Appointment Confirmed ✓'
-                : 'বুকিং রসিদ ✓'
-              : lang === 'en'
-              ? 'Upcoming Pickup Ticket'
-              : 'আসন্ন সংগ্রহ রসিদ'}
-          </span>
-        </div>
-        <span className="text-xs font-mono text-[#C9F1DC] font-bold bg-[#1B2644] px-2.5 py-1 rounded-lg border border-[#C9F1DC]/20">
-          #{booking.id}
-        </span>
+    <div className={`relative overflow-hidden rounded-[28px] bg-white text-[#124B3A] ring-2 ring-[#124B3A] ${className}`}>
+      <div className="flex items-center justify-between bg-[#124B3A] px-5 py-3 text-[#CBEA70]">
+        <span className="text-sm font-extrabold">{isConfirmationView ? (en ? 'You are booked ✓' : 'বুকিং হয়েছে ✓') : en ? 'Your pickup' : 'আপনার পিকআপ'}</span>
+        <span className="rounded-lg bg-white/10 px-2 py-0.5 text-xs font-bold tabular-nums">#{booking.id}</span>
       </div>
 
-      {/* Main Ticket Upper Section */}
-      <div className="p-5 sm:p-6 space-y-4">
-        {/* Date & Time Window Highlight */}
-        <div className="space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#53616D] block">
-            {lang === 'en' ? 'Collection Window' : 'সংগ্রহের নির্ধারিত সময়'}
-          </span>
-          <h3 className="text-2xl sm:text-3xl font-black text-[#25345C] tracking-tight">
-            {relativeDayLabel(booking.scheduledDate, lang)}{' '}
-            <span className="text-[#12613F] font-bold">
-              ({booking.scheduledTimeWindow})
-            </span>
+      <div className="space-y-4 p-5">
+        <div>
+          <p className="text-xs font-bold text-[#124B3A]/60">{en ? 'Collector comes' : 'সংগ্রাহক আসবেন'}</p>
+          <h3 className="font-display text-[28px] font-extrabold leading-tight">
+            {rel} <span className="text-[#3C7A55]">({booking.scheduledTimeWindow})</span>
           </h3>
-          {relativeDayLabel(booking.scheduledDate, lang) !== formatBookingDate(booking.scheduledDate, lang) && (
-            <p className="text-xs font-semibold text-[#53616D]">{formatBookingDate(booking.scheduledDate, lang)}</p>
-          )}
-          <p className="text-xs text-[#53616D] flex items-center gap-1.5 pt-1">
-            <MapPin className="w-3.5 h-3.5 text-[#25345C] shrink-0" aria-hidden="true" />
+          {rel !== full && <p className="text-sm font-semibold text-[#124B3A]/65">{full}</p>}
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm font-medium text-[#124B3A]/75">
+            <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{booking.address}</span>
           </p>
-          {(collectorName || booking.collectorName) && (
-            <p className="text-xs text-[#53616D] flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-[#25345C] shrink-0" aria-hidden="true" />
-              <span className="truncate">
-                {lang === 'en' ? 'Collector: ' : 'সংগ্রাহক: '}
-                {collectorName || booking.collectorName}
-              </span>
+          {collector && (
+            <p className="flex items-center gap-1.5 text-sm font-medium text-[#124B3A]/75">
+              <Truck className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{collector}</span>
             </p>
           )}
         </div>
 
-        {/* Selected Material Cards & Illustrations */}
-        <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#EDE4D8] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 overflow-x-auto py-0.5">
-            {booking.materials.map((m) => {
-              const tax = MATERIAL_TAXONOMY[m.category];
-              const matName = tax
-                ? lang === 'en'
-                  ? tax.name.split('(')[0].trim()
-                  : tax.nameBn
-                : m.category.replace(/_/g, ' ');
+        <MaterialChips booking={booking} size="md" />
 
-              return (
-                <div
-                  key={m.category}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-[#EDE4D8] text-xs font-bold text-[#202B38] shrink-0 shadow-2xs"
-                >
-                  <MaterialIllustration category={m.category} size="sm" />
-                  <span className="truncate max-w-[150px]">{matName}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          <span className="text-[11px] font-mono text-[#12613F] font-bold bg-[#C9F1DC] px-2.5 py-1 rounded-lg shrink-0">
-            {lang === 'en' ? 'Clean Stream' : 'পরিচ্ছন্ন ধারা'}
-          </span>
-        </div>
-
-        {/* Signature Curved Path Motif (Materials Ready → Collected → Checked) */}
-        <div className="py-1">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#53616D] px-1 mb-1.5">
-            <span className="text-[#12613F]">
-              {lang === 'en' ? '1. Materials ready' : '১. উপাদান প্রস্তুত'}
-            </span>
-            <span className="text-[#25345C]">
-              {lang === 'en' ? '2. Doorstep pickup' : '২. ডোরস্টেপ সংগ্রহ'}
-            </span>
-            <span className="text-[#7A4D00]">
-              {lang === 'en' ? '3. Hub scale check' : '৩. হাবে ওজন যাচাই'}
-            </span>
-          </div>
-          {/* Subtle curved pathway SVG */}
-          <svg viewBox="0 0 320 18" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-4">
-            <path
-              d="M 12 9 C 70 9, 100 4, 160 4 C 220 4, 250 14, 308 9"
-              stroke="#EDE4D8"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            <circle cx="12" cy="9" r="4.5" fill="#12613F" />
-            <circle cx="160" cy="4" r="4.5" fill="#25345C" />
-            <circle cx="308" cy="9" r="4.5" fill="#F5BF55" stroke="#25345C" strokeWidth="1.5" />
-          </svg>
+        <div className="rounded-2xl bg-[#FAF9F5] p-3">
+          <p className="mb-2 text-xs font-bold text-[#124B3A]/60">{en ? 'Where your bag goes next' : 'আপনার ব্যাগ এরপর কোথায় যাবে'}</p>
+          <JourneyLine stops={journey.stops} lang={lang} orientation="horizontal" />
         </div>
       </div>
 
-      {/* TICKET PERFORATION & CUTOUT NOTCHES */}
-      <div className="relative flex items-center justify-between my-1">
-        {/* Left Circular Punch Notch */}
-        <div className="w-6 h-6 -ml-3 rounded-full bg-[#FFF9F0] border-r-2 border-[#25345C] shrink-0" />
-        {/* Dashed Perforation Line */}
-        <div className="flex-1 border-t-2 border-dashed border-[#EDE4D8] mx-2" />
-        {/* Right Circular Punch Notch */}
-        <div className="w-6 h-6 -mr-3 rounded-full bg-[#FFF9F0] border-l-2 border-[#25345C] shrink-0" />
+      <div className="relative flex items-center" aria-hidden="true">
+        <span className="-ml-3 h-6 w-6 rounded-full bg-[#FAF9F5] ring-2 ring-[#124B3A]" />
+        <span className="mx-2 flex-1 border-t-2 border-dashed border-[#124B3A]/20" />
+        <span className="-mr-3 h-6 w-6 rounded-full bg-[#FAF9F5] ring-2 ring-[#124B3A]" />
       </div>
 
-      {/* Lower Ticket Stub: Preparation & Scan Code */}
-      <div className="p-5 sm:p-6 bg-[#FAF5EC]/40 space-y-4">
-        {/* Preparation Prompt Banner */}
-        <div className="p-3.5 bg-white border border-[#EDE4D8] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-start sm:items-center gap-2.5">
-            <Sparkles className="w-4 h-4 text-[#7A4D00] shrink-0 mt-0.5 sm:mt-0" />
-            <span className="font-medium text-[#202B38]">
-              {lang === 'en'
-                ? 'Rinse bottles, flatten boxes & place bags outside 15 mins prior.'
-                : 'বোতল পরিষ্কার করুন ও কার্টুন চ্যাপ্টা করে ১৫ মিনিট পূর্বে প্রস্তুত রাখুন।'}
-            </span>
-          </div>
-
+      <div className="space-y-3 bg-[#FAF9F5]/60 p-5">
+        <p className="text-sm font-semibold">
+          {en ? 'Rinse bottles, flatten boxes, and put the bag out 15 minutes before.' : 'বোতল ধুয়ে, বাক্স চ্যাপ্টা করে ১৫ মিনিট আগে ব্যাগ বাইরে রাখুন।'}
+        </p>
+        {onTrackStatus && (
+          <button type="button" onClick={onTrackStatus} className={PRIMARY}>
+            {en ? 'See pickup details' : 'পিকআপের বিবরণ দেখুন'}
+            <ChevronRight className="h-5 w-5" aria-hidden="true" />
+          </button>
+        )}
+        <div className="flex flex-wrap items-center justify-center gap-x-3">
           {onOpenChecklist && (
-            <button
-              type="button"
-              onClick={onOpenChecklist}
-              className="px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl font-bold text-xs shrink-0 cursor-pointer transition-colors active:scale-95"
-            >
-              {lang === 'en' ? 'Preparation Checklist' : 'প্রস্তুতি চেকলিস্ট'}
+            <button type="button" onClick={onOpenChecklist} className={GHOST}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              {en ? 'Preparation checklist' : 'প্রস্তুতির তালিকা'}
+            </button>
+          )}
+          {onCancel && isCancellable(booking) && (
+            <button type="button" onClick={onCancel} className={DANGER_GHOST}>
+              <XCircle className="h-4 w-4" aria-hidden="true" />
+              {en ? 'Cancel pickup' : 'পিকআপ বাতিল করুন'}
             </button>
           )}
         </div>
-
-        {/* Barcode & Reference Stamp */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="font-mono text-[11px] text-[#53616D]">
-            <span>{lang === 'en' ? 'DOORSTEP TAG: ' : 'ডোরস্টেপ ট্যাগ: '}</span>
-            <strong className="text-[#25345C]">{booking.id}</strong>
-          </div>
-          {/* Subtle simulated barcode glyph */}
-          <div className="flex items-center gap-0.5 opacity-60">
-            <span className="w-0.5 h-6 bg-[#25345C]" />
-            <span className="w-1.5 h-6 bg-[#25345C]" />
-            <span className="w-0.5 h-6 bg-[#25345C]" />
-            <span className="w-1 h-6 bg-[#25345C]" />
-            <span className="w-0.5 h-6 bg-[#25345C]" />
-            <span className="w-1.5 h-6 bg-[#25345C]" />
-            <span className="w-0.5 h-6 bg-[#25345C]" />
-            <span className="w-1 h-6 bg-[#25345C]" />
-          </div>
-        </div>
-
-        {/* Primary Action */}
-        {onTrackStatus && (
-          <button
-            type="button"
-            onClick={onTrackStatus}
-            className="w-full min-h-[50px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer active:scale-[0.985]"
-          >
-            <span>{lang === 'en' ? 'Track Live Status' : 'লাইভ ট্র্যাকিং দেখুন'}</span>
-            <ChevronRight className="w-4 h-4 text-[#C9F1DC]" aria-hidden="true" />
-          </button>
-        )}
-
-        {onCancel && isCancellable(booking) && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="mx-auto flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:underline cursor-pointer"
-          >
-            <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>{lang === 'en' ? 'Cancel pickup' : 'পিকআপ বাতিল করুন'}</span>
-          </button>
-        )}
       </div>
     </div>
   );

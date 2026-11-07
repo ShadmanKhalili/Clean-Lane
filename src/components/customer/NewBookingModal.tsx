@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MaterialCategory } from '../../types';
 import { Check, CheckCircle2, ArrowRight, ArrowLeft, MapPin, Sparkles, ChevronDown, ChevronUp, Info, AlertCircle } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Modal } from '../common/Modal';
 import { MaterialIllustration } from '../common/MaterialIllustrations';
 import { AppointmentTicket } from '../common/AppointmentTicket';
 import { useTranslation } from '../../utils/translations';
+import { Confetti } from '../../design/Celebrate';
 import { addDays, formatBookingDate, toIsoDate } from './dates';
 
 interface NewBookingModalProps {
@@ -14,6 +15,14 @@ interface NewBookingModalProps {
   onClose: () => void;
   onOpenRecurring?: () => void;
   initialSelectedCats?: MaterialCategory[];
+  /** Pre-fills materials and address ("Same as last time") and starts at the time-slot step. */
+  preset?: BookingPreset;
+}
+
+export interface BookingPreset {
+  materials: MaterialCategory[];
+  address?: string;
+  accessInstructions?: string;
 }
 
 type DayId = 'today' | 'tomorrow' | 'day_after';
@@ -98,9 +107,11 @@ const BookingFlow: React.FC<{
   onClose: () => void;
   onOpenRecurring?: () => void;
   initialSelectedCats?: MaterialCategory[];
+  preset?: BookingPreset;
   step: 1 | 2 | 3 | 4;
   setStep: (s: 1 | 2 | 3 | 4) => void;
-}> = ({ onClose, onOpenRecurring, initialSelectedCats, step: currentStep, setStep: setCurrentStep }) => {
+}> = ({ onClose, onOpenRecurring, initialSelectedCats: initialCatsProp, preset, step: currentStep, setStep: setCurrentStep }) => {
+  const initialSelectedCats = preset?.materials ?? initialCatsProp;
   const { lang, savedLocations, selectedLocationId, serviceZones, createBooking, currentCustomer } = useApp();
   const t = useTranslation(lang);
 
@@ -110,7 +121,7 @@ const BookingFlow: React.FC<{
   const locationUnavailable = currentLocation?.status === 'unavailable';
 
   // Address follows the selected saved location until the customer types over it.
-  const [addressOverride, setAddressOverride] = useState<string | null>(null);
+  const [addressOverride, setAddressOverride] = useState<string | null>(preset?.address ?? null);
   const address = addressOverride ?? currentLocation?.address ?? '';
   const [isEditingAddress, setIsEditingAddress] = useState(false);
 
@@ -135,7 +146,7 @@ const BookingFlow: React.FC<{
   const [scheduledDay, setScheduledDay] = useState<DayId>(firstOk.day);
   const [scheduledWindow, setScheduledWindow] = useState<WindowId>(firstOk.win);
   const [showAddNote, setShowAddNote] = useState(false);
-  const [accessNote, setAccessNote] = useState(currentLocation?.accessInstructions ?? '');
+  const [accessNote, setAccessNote] = useState(preset?.accessInstructions ?? currentLocation?.accessInstructions ?? '');
 
   const [createdBooking, setCreatedBooking] = useState<ReturnType<typeof createBooking> | null>(null);
 
@@ -190,7 +201,7 @@ const BookingFlow: React.FC<{
   };
 
   const primaryBtn =
-    'w-full min-h-[48px] bg-[#25345C] hover:bg-[#1B2644] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+    'w-full min-h-[48px] bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
   return (
     <div className="space-y-5 text-xs text-[#202B38]">
@@ -220,7 +231,7 @@ const BookingFlow: React.FC<{
                   aria-pressed={isSelected}
                   onClick={() => toggleMaterial(item.id)}
                   className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer relative flex items-start gap-3.5 ${
-                    isSelected ? 'bg-[#FAF5EC] border-[#25345C] shadow-xs' : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/30'
+                    isSelected ? 'bg-[#FAF5EC] border-[#124B3A] shadow-xs' : 'bg-white border-[#EDE4D8] hover:border-[#124B3A]/30'
                   }`}
                 >
                   <MaterialIllustration category={item.id} size="md" className="shrink-0 mt-0.5" />
@@ -249,7 +260,7 @@ const BookingFlow: React.FC<{
           <button
             type="button"
             onClick={() => setShowExamples(true)}
-            className="text-xs font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
+            className="text-xs font-bold text-[#124B3A] hover:underline flex items-center gap-1 cursor-pointer"
           >
             <Info className="w-3.5 h-3.5 text-[#12613F]" aria-hidden="true" />
             <span>
@@ -274,7 +285,7 @@ const BookingFlow: React.FC<{
                   aria-pressed={approxQuantity === q.id}
                   onClick={() => setApproxQuantity(q.id)}
                   className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
-                    approxQuantity === q.id ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs' : 'bg-white text-[#53616D] border-[#EDE4D8]'
+                    approxQuantity === q.id ? 'bg-[#124B3A] text-white border-[#124B3A] shadow-2xs' : 'bg-white text-[#53616D] border-[#EDE4D8]'
                   }`}
                 >
                   {lang === 'en' ? q.labelEn : q.labelBn}
@@ -357,7 +368,7 @@ const BookingFlow: React.FC<{
               <button
                 type="button"
                 onClick={() => setIsEditingAddress(!isEditingAddress)}
-                className="text-xs font-bold text-[#25345C] hover:underline cursor-pointer"
+                className="text-xs font-bold text-[#124B3A] hover:underline cursor-pointer"
               >
                 {isEditingAddress ? (lang === 'en' ? 'Done' : 'ঠিক আছে') : t.changeAddress}
               </button>
@@ -373,7 +384,7 @@ const BookingFlow: React.FC<{
                   type="text"
                   value={address}
                   onChange={(e) => setAddressOverride(e.target.value)}
-                  className="w-full bg-white border border-[#25345C] rounded-xl p-2.5 text-xs font-medium"
+                  className="w-full bg-white border border-[#124B3A] rounded-xl p-2.5 text-xs font-medium"
                 />
               </>
             ) : (
@@ -405,7 +416,7 @@ const BookingFlow: React.FC<{
                     aria-pressed={scheduledDay === d.id}
                     onClick={() => chooseDay(d.id)}
                     className={`p-3 rounded-2xl border text-center font-bold text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                      scheduledDay === d.id ? 'bg-[#25345C] text-white border-[#25345C] shadow-2xs' : 'bg-white text-[#53616D] border-[#EDE4D8] hover:bg-[#FAF5EC]'
+                      scheduledDay === d.id ? 'bg-[#124B3A] text-white border-[#124B3A] shadow-2xs' : 'bg-white text-[#53616D] border-[#EDE4D8] hover:bg-[#FAF5EC]'
                     }`}
                   >
                     <span className="block">{lang === 'en' ? d.labelEn : d.labelBn}</span>
@@ -432,7 +443,7 @@ const BookingFlow: React.FC<{
                   aria-pressed={scheduledWindow === w}
                   onClick={() => setScheduledWindow(w)}
                   className={`p-3.5 rounded-2xl border text-left font-bold text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                    scheduledWindow === w ? 'bg-[#FAF5EC] border-[#25345C] text-[#25345C]' : 'bg-white border-[#EDE4D8] text-[#53616D]'
+                    scheduledWindow === w ? 'bg-[#FAF5EC] border-[#124B3A] text-[#124B3A]' : 'bg-white border-[#EDE4D8] text-[#53616D]'
                   }`}
                 >
                   <span className="flex items-center justify-between">
@@ -486,7 +497,7 @@ const BookingFlow: React.FC<{
                   onClose();
                   onOpenRecurring();
                 }}
-                className="px-3 py-1.5 bg-white border border-[#EDE4D8] text-[#25345C] rounded-xl font-bold text-xs hover:bg-[#EDE4D8] cursor-pointer"
+                className="px-3 py-1.5 bg-white border border-[#EDE4D8] text-[#124B3A] rounded-xl font-bold text-xs hover:bg-[#EDE4D8] cursor-pointer"
               >
                 {lang === 'en' ? 'Set up' : 'সেটআপ'}
               </button>
@@ -527,7 +538,7 @@ const BookingFlow: React.FC<{
 
             <div className="space-y-0.5">
               <span className="text-[11px] font-bold text-[#53616D] uppercase tracking-wider block">{t.assignedTimeWindow}</span>
-              <p className="text-sm font-black text-[#25345C]">
+              <p className="text-sm font-black text-[#124B3A]">
                 {formatBookingDate(scheduledIso, lang)} · {scheduledWindow === 'morning' ? t.morningSlot : t.afternoonSlot}
               </p>
             </div>
@@ -550,7 +561,7 @@ const BookingFlow: React.FC<{
 
             <div className="flex justify-between items-center text-xs">
               <span className="font-semibold text-[#53616D]">{t.provisionalPaymentBasis}:</span>
-              <span className="font-mono font-bold text-[#25345C]">
+              <span className="font-mono font-bold text-[#124B3A]">
                 {RATES.doorstepPointsPerKg} pts / kg {lang === 'en' ? 'verified' : 'যাচাইকৃত'}
               </span>
             </div>
@@ -570,13 +581,14 @@ const BookingFlow: React.FC<{
 
       {/* STEP 4 */}
       {currentStep === 4 && createdBooking && (
-        <div className="space-y-5 animate-fade-in text-center">
+        <div className="relative space-y-5 animate-fade-in text-center">
+          <Confetti top="40px" count={24} />
           <div className="w-14 h-14 rounded-full bg-[#C9F1DC] text-[#12613F] flex items-center justify-center mx-auto shadow-xs">
             <CheckCircle2 className="w-7 h-7" aria-hidden="true" />
           </div>
 
           <div className="space-y-1">
-            <h4 className="text-xl font-black text-[#202B38]">{t.step4Heading}</h4>
+            <h4 className="text-xl font-black text-[#202B38]">{lang === 'en' ? 'Your bag’s journey starts now' : 'আপনার ব্যাগের যাত্রা এখন শুরু'}</h4>
             <p className="text-xs text-[#53616D] font-mono">
               {lang === 'en' ? `Booking reference: #${createdBooking.id}` : `বুকিং কোড: #${createdBooking.id}`}
             </p>
@@ -608,7 +620,7 @@ const BookingFlow: React.FC<{
         title={t.sortingGuide}
         closeLabel={t.close}
         footer={
-          <button type="button" onClick={() => setShowExamples(false)} className="w-full py-2.5 bg-[#25345C] text-white rounded-xl font-bold text-xs cursor-pointer">
+          <button type="button" onClick={() => setShowExamples(false)} className="w-full py-2.5 bg-[#124B3A] text-white rounded-xl font-bold text-xs cursor-pointer">
             {t.close}
           </button>
         }
@@ -643,10 +655,14 @@ const BookingFlow: React.FC<{
   );
 };
 
-export const NewBookingModal: React.FC<NewBookingModalProps> = ({ isOpen, onClose, onOpenRecurring, initialSelectedCats }) => {
+export const NewBookingModal: React.FC<NewBookingModalProps> = ({ isOpen, onClose, onOpenRecurring, initialSelectedCats, preset }) => {
   const { lang } = useApp();
   const t = useTranslation(lang);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+
+  useEffect(() => {
+    if (isOpen && preset) setStep(2);
+  }, [isOpen, preset]);
 
   const handleClose = () => {
     setStep(1);
@@ -670,7 +686,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({ isOpen, onClos
       }
       closeLabel={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
     >
-      <BookingFlow onClose={handleClose} onOpenRecurring={onOpenRecurring} initialSelectedCats={initialSelectedCats} step={step} setStep={setStep} />
+      <BookingFlow onClose={handleClose} onOpenRecurring={onOpenRecurring} initialSelectedCats={initialSelectedCats} preset={preset} step={step} setStep={setStep} />
     </Modal>
   );
 };

@@ -175,7 +175,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors shrink-0"
+            className="px-5 py-2.5 bg-[#124B3A] hover:bg-[#0E3A2D] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors shrink-0"
           >
             {lang === 'en' ? 'Got it, I am ready' : 'বুঝেছি, প্রস্তুত'}
           </button>
@@ -186,14 +186,14 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
           <div className="flex items-center gap-4 text-[#53616D]">
             {(notification?.scheduledCollectionDate || booking?.scheduledDate) && (
               <span className="flex items-center gap-1.5 font-semibold text-[#202B38]">
-                <Clock className="w-3.5 h-3.5 text-[#25345C]" />
+                <Clock className="w-3.5 h-3.5 text-[#124B3A]" />
                 {formatBookingDate(notification?.scheduledCollectionDate || booking?.scheduledDate, lang)} (
                 {notification?.scheduledTimeWindow || booking?.scheduledTimeWindow})
               </span>
             )}
             {(notification?.address || booking?.address) && (
               <span className="hidden sm:flex items-center gap-1.5 text-[#53616D]">
-                <MapPin className="w-3.5 h-3.5 text-[#25345C]" />
+                <MapPin className="w-3.5 h-3.5 text-[#124B3A]" />
                 {(notification?.address || booking?.address || '').split(',')[0]}
               </span>
             )}
@@ -203,11 +203,11 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
             type="button"
             aria-pressed={speaking}
             onClick={handleSpeak}
-            className="px-3 py-1.5 bg-white border border-[#EDE4D8] rounded-xl text-xs font-bold text-[#25345C] hover:bg-[#EDF1F9] flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-white border border-[#EDE4D8] rounded-xl text-xs font-bold text-[#124B3A] hover:bg-[#EDF1F9] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Volume2
               className={`w-3.5 h-3.5 ${
-                speaking ? 'text-rose-600 animate-pulse' : 'text-[#25345C]'
+                speaking ? 'text-rose-600 animate-pulse' : 'text-[#124B3A]'
               }`}
             />
             <span>
@@ -248,7 +248,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
                     className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                       isDone
                         ? 'bg-[#E8FAF1] border-[#C9F1DC]'
-                        : 'bg-white border-[#EDE4D8] hover:border-[#25345C]/30'
+                        : 'bg-white border-[#EDE4D8] hover:border-[#124B3A]/30'
                     }`}
                   >
                     <div
@@ -303,7 +303,7 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
                     className="p-3.5 rounded-2xl bg-white border border-[#EDE4D8] space-y-2 shadow-xs"
                   >
                     <div className="flex items-center justify-between border-b border-[#FAF5EC] pb-2">
-                      <span className="font-bold text-xs text-[#25345C]">
+                      <span className="font-bold text-xs text-[#124B3A]">
                         {lang === 'en' ? mat.name : mat.nameBn}
                       </span>
                       <span className="text-[10px] font-mono text-[#12613F] bg-[#C9F1DC]/50 px-2 py-0.5 rounded-md font-semibold">
@@ -348,8 +348,8 @@ export const PreparationGuidanceModal: React.FC<PreparationGuidanceModalProps> =
           </div>
 
           {/* Gate Placement Note */}
-          <div className="p-3.5 bg-[#EDF1F9] border border-[#25345C]/15 rounded-2xl flex items-center gap-3 text-xs text-[#25345C]">
-            <DoorOpen className="w-4 h-4 shrink-0 text-[#25345C]" />
+          <div className="p-3.5 bg-[#EDF1F9] border border-[#124B3A]/15 rounded-2xl flex items-center gap-3 text-xs text-[#124B3A]">
+            <DoorOpen className="w-4 h-4 shrink-0 text-[#124B3A]" />
             <span className="font-medium">
               {lang === 'en' ? prep.gatePlacementNote : prep.gatePlacementNoteBn}
             </span>

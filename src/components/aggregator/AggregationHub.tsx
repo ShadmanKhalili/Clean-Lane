@@ -143,7 +143,7 @@ export const AggregationHub: React.FC = () => {
             {t('Aggregation Intake, Scale Verification & Sorting', 'একত্রীকরণ কেন্দ্র: গ্রহণ, স্কেল যাচাই ও বাছাই')}
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
-            PRD § 9 & Journey C: Certified reception weights without overwriting field records. Full residue accounting prevents unverified material loss.
+            Certified reception weights without overwriting field records. Full residue accounting prevents unverified material loss.
           </p>
         </div>
 
@@ -367,7 +367,7 @@ export const AggregationHub: React.FC = () => {
               Weight Discrepancy & Variance Resolver
             </h3>
             <p className="text-xs text-slate-500">
-              PRD § T-03: When receiving party records a different weight, both values are preserved without overwriting history.
+              When the receiving party records a different weight, both values are preserved without overwriting history.
             </p>
           </div>
 
@@ -454,7 +454,7 @@ export const AggregationHub: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">Sorting & Residue Split</h3>
-                <p className="text-xs text-slate-500">PRD § T-04: Split lots into clean fractions</p>
+                <p className="text-xs text-slate-500">Split lots into clean fractions</p>
               </div>
             </div>
 
@@ -530,7 +530,7 @@ export const AggregationHub: React.FC = () => {
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
                     <span className="font-semibold text-rose-900 flex items-center gap-1">
                       <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                      Residue & Contamination Accounting (PRD § T-05)
+                      Residue & contamination accounting
                     </span>
                     <p className="text-[11px] text-rose-950">
                       Material must never vanish from the accounting ledger.
