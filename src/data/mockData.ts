@@ -272,7 +272,7 @@ export const INITIAL_BOOKINGS: Booking[] = [
     materialPayoutBdt: 451,
     earnedPoints: 705,
     pointsStatus: 'available',
-    discrepancyFlag: true,
+    discrepancyFlag: false,
     notes: 'Field weight 14.8 kg, hub scale measured 14.1 kg (-4.7% moisture loss / minor residual moisture). Accepted.',
     createdAt: '2026-10-02T11:00:00Z',
     updatedAt: '2026-10-04T10:15:00Z'
@@ -342,7 +342,7 @@ export const INITIAL_MATERIAL_LOTS: MaterialLot[] = [
     evidenceLevel: 'E2',
     discrepancyPercentage: -4.7,
     discrepancyResolved: true,
-    childLotIds: ['LOT-SORT-095-A', 'LOT-SORT-095-RES'],
+    childLotIds: ['LOT-SORT-095-A', 'LOT-SORT-095-B'],
     createdAt: '2026-10-03T12:20:00Z',
     updatedAt: '2026-10-04T10:15:00Z'
   },
@@ -378,6 +378,33 @@ export const INITIAL_MATERIAL_LOTS: MaterialLot[] = [
     sortingLossResidueKg: 1.2,
     createdAt: '2026-09-22T10:15:00Z',
     updatedAt: '2026-09-25T11:45:00Z'
+  },
+  // Sorting outputs of LOT-2026-095-PET (see SORT-TR-2026-095), baled and awaiting dispatch.
+  {
+    id: 'LOT-SORT-095-A',
+    material: 'PET_BOTTLES',
+    primaryCollector: 'Tariq Hossain',
+    initialFieldWeightKg: 12.4,
+    verifiedHubWeightKg: 12.4,
+    currentCustodian: 'AGGREGATION_HUB',
+    location: 'Baled at Gulshan Hub #3 -> Ready for Bengal Polymers & Flake Mill',
+    evidenceLevel: 'E2',
+    parentLotId: 'LOT-2026-095-PET',
+    createdAt: '2026-10-04T11:00:00Z',
+    updatedAt: '2026-10-04T11:00:00Z'
+  },
+  {
+    id: 'LOT-SORT-095-B',
+    material: 'PET_BOTTLES',
+    primaryCollector: 'Tariq Hossain',
+    initialFieldWeightKg: 1.2,
+    verifiedHubWeightKg: 1.2,
+    currentCustodian: 'AGGREGATION_HUB',
+    location: 'Baled at Gulshan Hub #3 -> Ready for National Textile Fiber Recycling',
+    evidenceLevel: 'E2',
+    parentLotId: 'LOT-2026-095-PET',
+    createdAt: '2026-10-04T11:00:00Z',
+    updatedAt: '2026-10-04T11:00:00Z'
   }
 ];
 
@@ -452,6 +479,21 @@ export const INITIAL_SORTING_TRANSFORMATIONS: SortingTransformation[] = [
 
 export const INITIAL_PROCESSING_DISPOSITIONS: ProcessingDisposition[] = [
   {
+    // Aggregate of the 78 pre-platform-migration September PET lots that back
+    // evidence package EVP-2026-UB-001 (1,250 kg claimed of 1,288.4 kg yield).
+    id: 'PROC-DISP-2026-09-PETBATCH',
+    lotId: 'LOT-BATCH-2026-09-PET',
+    processorName: 'Bengal Polymers & Flake Mill',
+    facilityLocation: 'Bengal Polymers & Flake Mill, Savar',
+    intakeTimestamp: '2026-09-26T09:00:00Z',
+    processType: 'MECHANICAL_PET_FLAKING',
+    outputYieldKg: 1288.4,
+    processLossKg: 96.6,
+    dispositionCertificateId: 'CERT-DISP-BENGAL-2026-0917',
+    completedAt: '2026-09-30T16:00:00Z',
+    evidenceLevel: 'E4'
+  },
+  {
     id: 'PROC-DISP-2026-092',
     lotId: 'LOT-2026-092-OCC',
     processorName: 'Meghna Paper & Pulp Recycling Line 2',
@@ -467,6 +509,28 @@ export const INITIAL_PROCESSING_DISPOSITIONS: ProcessingDisposition[] = [
 ];
 
 export const INITIAL_POINTS_LEDGER: PointsLedgerEntry[] = [
+  {
+    id: 'PTS-2026-000A',
+    customerId: 'CUST-H-801',
+    timestamp: '2026-09-25T17:05:00Z',
+    ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
+    sourceEvent: 'DROPOFF_SCALE_VERIFIED',
+    description: 'Drop-off at Gulshan Hub #3: 3.6 kg clear PET verified on certified scale',
+    type: 'CREDIT',
+    amount: 180,
+    status: 'AVAILABLE'
+  },
+  {
+    id: 'PTS-2026-000B',
+    customerId: 'CUST-H-801',
+    timestamp: '2026-09-30T14:10:00Z',
+    ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
+    sourceEvent: 'REWARD_REDEMPTION_FULFILLED',
+    description: 'Redeemed ৳100 Direct Mobile Airtime (RED-2026-01)',
+    type: 'DEBIT',
+    amount: -180,
+    status: 'REDEEMED'
+  },
   {
     id: 'PTS-2026-001',
     customerId: 'CUST-H-801',

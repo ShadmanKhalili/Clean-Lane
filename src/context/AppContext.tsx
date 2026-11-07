@@ -3,6 +3,8 @@ import { usePersistentState, clearPersistedState } from '../hooks/usePersistentS
 import { rebaseSeed } from '../utils/seedTime';
 import { shortId } from '../utils/id';
 import { readRoute } from '../routing';
+import { customerForRole, type CustomerProfile } from '../domain/customers';
+import { canHandOverToHub, intakeLots } from '../domain/lots';
 import {
   assessScaleReading,
   computePointBalances,
@@ -85,6 +87,16 @@ const SEED = rebaseSeed({
   orgMembers: INITIAL_ORG_MEMBERS,
   notifications: INITIAL_NOTIFICATIONS
 });
+
+const PROCESSOR_LOCATIONS: Record<string, string> = {
+  bengal: 'Bengal Polymers & Flake Mill, Savar',
+  meghna: 'Meghna Industrial Park, Narayanganj',
+  national: 'National Textile Fibre Works, Gazipur',
+  apex: 'Apex Eco-Flakes, Tongi'
+};
+const facilityLocationFor = (processorName: string) =>
+  Object.entries(PROCESSOR_LOCATIONS).find(([k]) => processorName.toLowerCase().includes(k))?.[1] ??
+  `${processorName} (location per disposition certificate)`;
 
 interface AppContextType {
   role: UserRole;
@@ -172,11 +184,23 @@ interface AppContextType {
     certId: string
   ) => void;
   redeemReward: (rewardId: string) => { success: boolean; message: string; couponCode?: string };
-  fileComplaint: (type: any, description: string, bookingId?: string) => void;
-  createEvidencePackage: (pkg: Omit<EvidencePackage, 'id' | 'approvedDate'>) => void;
+  /** Returns the case id shown to the customer (the same id the operator sees). */
+  fileComplaint: (type: any, description: string, bookingId?: string) => string;
+  /** Refuses claims larger than the unallocated processed pool (no double counting). */
+  createEvidencePackage: (pkg: Omit<EvidencePackage, 'id' | 'approvedDate'>) => { success: boolean; message: string; id?: string };
   runAcceptanceScenario: (scenarioId: number) => { title: string; outcomeText: string };
 
+  // Newly wired actions
+  reassignJob: (jobId: string, collectorName: string, reason: string) => void;
+  resolveComplaint: (complaintId: string, resolution: string) => void;
+  dispatchLotToProcessor: (lotId: string, processorName: string) => void;
+
+  /** The customer account behind the current customer persona. */
+  currentCustomer: CustomerProfile;
+
   // Computed Summaries
+  /** Processed (E4) mass not yet attributed to any evidence package. */
+  unallocatedProcessedKg: number;
   customerAvailablePoints: number;
   customerPendingPoints: number;
   totalCollectedKg: number;
@@ -196,6 +220,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [lang, setLang] = usePersistentState<'en' | 'bn'>('lang', 'en');
+  const currentCustomer = customerForRole(role);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
   const [activeToast, setActiveToast] = useState<string | null>(null);
@@ -296,11 +321,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [bookings.length]);
 
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (msg: string) => {
     setActiveToast(msg);
-    setTimeout(() => {
-      setActiveToast((current) => (current === msg ? null : current));
-    }, 4000);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setActiveToast(null), 4500);
   };
 
   const resetDemoData = () => {
@@ -548,10 +573,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Create completed booking record directly at E2: Quantity confirmed (PRD Flow C)
     const newBooking: Booking = {
       id: trxId,
-      customerId: 'CUST-H-801',
-      customerName: 'Nasreen Akhter',
-      customerType: 'household',
-      phone: '+880 1712 345678',
+      customerId: currentCustomer.id,
+      customerName: currentCustomer.name,
+      customerType: currentCustomer.customerType,
+      phone: currentCustomer.phone,
       address: point.address,
       zoneId: point.zoneId,
       scheduledDate: nowIso.split('T')[0],
@@ -576,7 +601,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPointsLedger((prev) => [
       {
         id: `PTS-${shortId()}`,
-        customerId: 'CUST-H-801',
+        customerId: currentCustomer.id,
         timestamp: nowIso,
         ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
         sourceEvent: 'DROPOFF_SCALE_VERIFIED',
@@ -677,6 +702,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const verifyHubScaleWeight = (lotId: string, hubWeightKg: number, notes?: string) => {
     const lot = lots.find((l) => l.id === lotId);
     if (!lot) return;
+    // A lot can be weighed into the hub exactly once; re-weighing an E3/E4 lot
+    // used to reset it to E2 and issue the customer's points a second time.
+    if (!canHandOverToHub(lot)) {
+      showToast(`${lotId} is already in ${lot.currentCustodian.replace(/_/g, ' ').toLowerCase()} custody — no changes made.`);
+      return;
+    }
+    const lotCustomerId = bookings.find((b) => b.id === lot.sourceBookingId)?.customerId ?? currentCustomer.id;
 
     const { deltaPercent, isDiscrepant } = assessScaleReading(lot.initialFieldWeightKg, hubWeightKg);
     const nowIso = new Date().toISOString();
@@ -725,7 +757,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPointsLedger((prev) => [
           {
             id: `PTS-${shortId()}`,
-            customerId: 'CUST-H-801',
+            customerId: lotCustomerId,
             timestamp: nowIso,
             ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
             sourceEvent: 'HUB_SCALE_QUANTITY_CONFIRMED',
@@ -773,16 +805,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resolveDiscrepancy = (lotId: string, resolutionReason: string) => {
-    setLots((prev) =>
-      prev.map((l) => (l.id === lotId ? { ...l, discrepancyResolved: true } : l))
-    );
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.notes?.includes(lotId) || b.id.includes(lotId.slice(4, 7))
-          ? { ...b, status: 'QUANTITY_CONFIRMED', discrepancyFlag: false, pointsStatus: 'available' }
-          : b
-      )
-    );
+    const lot = lots.find((l) => l.id === lotId);
+    if (!lot) return;
+    const nowIso = new Date().toISOString();
+    const booking = bookings.find((b) => b.id === lot.sourceBookingId);
+    const confirmedKg = lot.verifiedHubWeightKg ?? lot.initialFieldWeightKg;
+
+    setLots((prev) => prev.map((l) => (l.id === lotId ? { ...l, discrepancyResolved: true, updatedAt: nowIso } : l)));
+
+    // Only the booking this lot actually came from — previously a fuzzy substring
+    // match could confirm unrelated bookings.
+    if (booking) {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === booking.id ? { ...b, status: 'QUANTITY_CONFIRMED', discrepancyFlag: false, pointsStatus: 'available', updatedAt: nowIso } : b
+        )
+      );
+      // Points were withheld while under review; credit them now (once).
+      const alreadyCredited = pointsLedger.some(
+        (e) => e.linkedBookingId === booking.id && e.type === 'CREDIT' && e.status === 'AVAILABLE'
+      );
+      if (!alreadyCredited) {
+        setPointsLedger((prev) => [
+          {
+            id: `PTS-${shortId()}`,
+            customerId: booking.customerId,
+            timestamp: nowIso,
+            ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
+            sourceEvent: 'DISCREPANCY_RESOLVED_QUANTITY_CONFIRMED',
+            description: `Review closed for lot ${lotId}: ${confirmedKg} kg confirmed.`,
+            type: 'CREDIT',
+            amount: pointsForWeight(confirmedKg),
+            status: 'AVAILABLE',
+            linkedBookingId: booking.id
+          },
+          ...releasePendingHolds(prev, booking.id)
+        ]);
+      }
+    }
     addAuditLog('DISCREPANCY_RESOLVED', 'MaterialLot', lotId, resolutionReason);
     showToast(`Discrepancy for ${lotId} marked resolved. Audit note logged.`);
   };
@@ -795,6 +855,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     const parentLot = lots.find((l) => l.id === inputLotId);
     if (!parentLot) return;
+    if ((parentLot.childLotIds?.length ?? 0) > 0) {
+      showToast(`${inputLotId} has already been sorted.`);
+      return;
+    }
+    const inputKg = parentLot.verifiedHubWeightKg || parentLot.initialFieldWeightKg;
+    const outputKg = outputs.reduce((a, o) => a + o.outputWeightKg, 0) + residueKg;
+    if (outputKg > inputKg * 1.001) {
+      showToast(`Sorted output (${outputKg.toFixed(1)} kg) cannot exceed the input lot (${inputKg} kg).`);
+      return;
+    }
 
     const nowIso = new Date().toISOString();
     const transformationId = `SORT-TR-${shortId()}`;
@@ -858,12 +928,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     processLossKg: number,
     certId: string
   ) => {
+    const lot = lots.find((l) => l.id === lotId);
+    if (!lot) return;
+    if (processingDispositions.some((d) => d.lotId === lotId)) {
+      showToast(`${lotId} already has a processing outcome on record.`);
+      return;
+    }
+    const inputKg = lot.verifiedHubWeightKg ?? lot.initialFieldWeightKg;
+    if (outputYieldKg < 0 || processLossKg < 0 || outputYieldKg + processLossKg > inputKg * 1.001) {
+      showToast(`Yield + loss (${(outputYieldKg + processLossKg).toFixed(1)} kg) must not exceed the ${inputKg} kg received.`);
+      return;
+    }
     const nowIso = new Date().toISOString();
     const dispRecord: ProcessingDisposition = {
       id: `PROC-DISP-${shortId()}`,
       lotId,
       processorName,
-      facilityLocation: 'Bengal Polymers & Flake Mill, Savar',
+      facilityLocation: facilityLocationFor(processorName),
       intakeTimestamp: nowIso,
       processType,
       outputYieldKg,
@@ -890,8 +971,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     // Advance booking if matching
-    const lot = lots.find((l) => l.id === lotId);
-    if (lot?.sourceBookingId) {
+    if (lot.sourceBookingId) {
       setBookings((prev) =>
         prev.map((b) =>
           b.id === lot.sourceBookingId
@@ -938,7 +1018,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Ledger debit
     const ledgerEntry: PointsLedgerEntry = {
       id: `PTS-${shortId()}`,
-      customerId: 'CUST-H-801',
+      customerId: currentCustomer.id,
       timestamp: nowIso,
       ruleVersion: 'RULES_V1.2_GULSHAN_CLEANLANE',
       sourceEvent: 'REWARD_REDEMPTION_FULFILLED',
@@ -952,7 +1032,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Redemption record
     const redRecord: CustomerRedemption = {
       id: `RED-${shortId()}`,
-      customerId: 'CUST-H-801',
+      customerId: currentCustomer.id,
       rewardId,
       rewardTitle: reward.title,
       pointsDeducted: reward.pointsCost,
@@ -971,8 +1051,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nowIso = new Date().toISOString();
     const newComp: ServiceComplaint = {
       id: `CMP-${shortId()}`,
-      customerId: 'CUST-H-801',
-      customerName: 'Nasreen Akhter',
+      customerId: currentCustomer.id,
+      customerName: currentCustomer.name,
       type,
       bookingId,
       description,
@@ -982,9 +1062,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setComplaints((prev) => [newComp, ...prev]);
     addAuditLog('COMPLAINT_FILED', 'ServiceComplaint', newComp.id, `Complaint: ${type}`);
     showToast(`Support ticket ${newComp.id} submitted. Our clean lane coordinator is reviewing.`);
+    return newComp.id;
+  };
+
+  const resolveComplaint = (complaintId: string, resolution: string) => {
+    const nowIso = new Date().toISOString();
+    setComplaints((prev) =>
+      prev.map((c) => (c.id === complaintId ? { ...c, status: 'RESOLVED', resolutionNotes: resolution, resolvedAt: nowIso } : c))
+    );
+    addAuditLog('COMPLAINT_RESOLVED', 'ServiceComplaint', complaintId, resolution);
+    showToast(`Case ${complaintId} resolved. Customer notified.`);
+  };
+
+  const reassignJob = (jobId: string, collectorName: string, reason: string) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId ? { ...j, collectorName, collectorId: `COL-${collectorName.split(' ')[0].toUpperCase()}`, status: 'ACCEPTED' } : j
+      )
+    );
+    addAuditLog('JOB_REASSIGNED', 'PickupJob', jobId, reason, job.collectorName, collectorName);
+    showToast(`${jobId} reassigned to ${collectorName}.`);
+  };
+
+  /** Hub → processor dispatch: advances a leaf lot to E3 (in transit to recycler). */
+  const dispatchLotToProcessor = (lotId: string, processorName: string) => {
+    const lot = lots.find((l) => l.id === lotId);
+    if (!lot || lot.currentCustodian !== 'AGGREGATION_HUB' || lot.evidenceLevel !== 'E2' || (lot.childLotIds?.length ?? 0) > 0) {
+      showToast(`${lotId} is not ready for dispatch.`);
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const kg = lot.verifiedHubWeightKg ?? lot.initialFieldWeightKg;
+    setLots((prev) =>
+      prev.map((l) =>
+        l.id === lotId
+          ? { ...l, currentCustodian: 'PROCESSOR_FACILITY', evidenceLevel: 'E3', location: `In transit to ${processorName}`, updatedAt: nowIso }
+          : l
+      )
+    );
+    setCustodyEvents((prev) => [
+      {
+        id: `CUST-EV-${shortId()}`,
+        lotId,
+        timestamp: nowIso,
+        sender: 'Gulshan Aggregation Hub #3',
+        receiver: processorName,
+        location: 'Gulshan Aggregation Hub #3 (Dispatch Bay)',
+        quantityKg: kg,
+        measurementMethod: 'Dispatch manifest against certified hub weight',
+        evidenceLevelResult: 'E3',
+        verifiedBy: 'Rahmat Ali (Weighmaster)',
+        signatureOrHash: `sha256:${Math.random().toString(16).slice(2, 12)}`
+      },
+      ...prev
+    ]);
+    if (lot.sourceBookingId) {
+      setBookings((prev) => prev.map((b) => (b.id === lot.sourceBookingId ? { ...b, evidenceLevel: 'E3', updatedAt: nowIso } : b)));
+    }
+    addAuditLog('LOT_DISPATCHED', 'MaterialLot', lotId, `Dispatched ${kg} kg to ${processorName}. Evidence Level E3.`);
+    showToast(`${lotId} dispatched to ${processorName} (E3).`);
   };
 
   const createEvidencePackage = (pkg: Omit<EvidencePackage, 'id' | 'approvedDate'>) => {
+    if (!(pkg.evidencedWeightKg > 0)) {
+      return { success: false, message: 'Evidenced weight must be greater than zero.' };
+    }
+    if (pkg.evidencedWeightKg > unallocatedProcessedKg + 1e-9) {
+      return {
+        success: false,
+        message: `Only ${unallocatedProcessedKg.toFixed(1)} kg of processed (E4) material is unallocated. A claim of ${pkg.evidencedWeightKg} kg would double-count recovered mass.`
+      };
+    }
     const id = `EVP-${shortId()}`;
     const newPkg: EvidencePackage = {
       ...pkg,
@@ -994,6 +1144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEvidencePackages((prev) => [newPkg, ...prev]);
     addAuditLog('EVIDENCE_PACKAGE_APPROVED', 'EvidencePackage', id, `E5 evidence package created for ${pkg.sponsorName}`);
     showToast(`Evidence Package ${id} sealed and approved for EPR reporting.`);
+    return { success: true, message: `Evidence package ${id} sealed.`, id };
   };
 
   const runAcceptanceScenario = (scenarioId: number): { title: string; outcomeText: string } => {
@@ -1240,14 +1391,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // see domain/rules.ts for the ledger semantics.
   const { available: customerAvailablePoints, pending: customerPendingPoints } = computePointBalances(
     pointsLedger,
-    'CUST-H-801'
+    currentCustomer.id
   );
 
   // Accurate Pilot KPIs (Reporting rule: Collected, Accepted, Processed, Verified counted separately)
-  const totalCollectedKg = lots.reduce((acc, l) => acc + l.initialFieldWeightKg, 0);
-  const totalAcceptedKg = lots.reduce((acc, l) => acc + (l.verifiedHubWeightKg || 0), 0);
+  // Sorting outputs (child lots) are excluded so sorted mass is not counted twice.
+  const totalCollectedKg = intakeLots(lots).reduce((acc, l) => acc + l.initialFieldWeightKg, 0);
+  const totalAcceptedKg = intakeLots(lots).reduce((acc, l) => acc + (l.verifiedHubWeightKg || 0), 0);
   const totalProcessedKg = processingDispositions.reduce((acc, p) => acc + p.outputYieldKg, 0);
   const totalVerifiedEprKg = evidencePackages.reduce((acc, ep) => acc + ep.evidencedWeightKg, 0);
+  const unallocatedProcessedKg = Math.max(0, Number((totalProcessedKg - totalVerifiedEprKg).toFixed(1)));
+  // Campaign progress is derived from sealed packages rather than hand-typed numbers.
+  const campaignsWithAllocation = campaigns.map((c) => ({
+    ...c,
+    allocatedVerifiedKg: evidencePackages.filter((p) => p.campaignId === c.id).reduce((a, p) => a + p.evidencedWeightKg, 0)
+  }));
 
   return (
     <AppContext.Provider
@@ -1270,7 +1428,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rewards,
         redemptions,
         complaints,
-        campaigns,
+        campaigns: campaignsWithAllocation,
         evidencePackages,
         serviceZones,
         auditLogs,
@@ -1311,7 +1469,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordDropOffDeposit,
         requestRecurringService,
         addSavedLocation,
-        runAcceptanceScenario
+        runAcceptanceScenario,
+        reassignJob,
+        resolveComplaint,
+        dispatchLotToProcessor,
+        currentCustomer,
+        unallocatedProcessedKg
       }}
     >
       {children}

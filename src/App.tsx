@@ -111,7 +111,7 @@ const MainContent: React.FC = () => {
       </a>
 
       {/* Toast — announced to screen readers */}
-      <div aria-live="polite" role="status" className="fixed bottom-24 md:bottom-6 right-4 md:right-6 left-4 md:left-auto z-50 flex justify-end pointer-events-none">
+      <div aria-live="polite" role="status" className="fixed bottom-24 md:bottom-6 right-4 md:right-6 left-4 md:left-auto z-[80] flex justify-end pointer-events-none">
         {activeToast && (
           <div className="animate-fade-in max-w-sm bg-[#172521] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-[#25345C] pointer-events-auto">
             <CheckCircle2 className="w-4 h-4 text-[#C9F1DC] shrink-0" aria-hidden="true" />

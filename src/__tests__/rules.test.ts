@@ -91,3 +91,55 @@ describe('releasePendingHolds', () => {
     expect(computePointBalances(releasePendingHolds(ledger, 'B1'), 'C1').pending).toBe(175);
   });
 });
+
+import { isWithinReminderWindow } from '../services/notificationService';
+import { canHandOverToHub, intakeLots, isReadyForProcessing, isReadyToSort } from '../domain/lots';
+import type { MaterialLot } from '../types';
+
+describe('isWithinReminderWindow', () => {
+  const now = new Date('2026-11-07T10:00:00');
+  it('fires only for today or tomorrow', () => {
+    expect(isWithinReminderWindow('2026-11-07', now)).toBe(true);
+    expect(isWithinReminderWindow('2026-11-08', now)).toBe(true);
+    expect(isWithinReminderWindow('2026-11-10', now)).toBe(false);
+    expect(isWithinReminderWindow('2026-11-01', now)).toBe(false);
+  });
+});
+
+describe('lot lifecycle', () => {
+  const base: MaterialLot = {
+    id: 'L1',
+    material: 'PET_BOTTLES',
+    primaryCollector: 'X',
+    initialFieldWeightKg: 10,
+    currentCustodian: 'COLLECTOR',
+    location: '',
+    evidenceLevel: 'E1',
+    createdAt: '',
+    updatedAt: ''
+  };
+  const atHub: MaterialLot = { ...base, currentCustodian: 'AGGREGATION_HUB', evidenceLevel: 'E2', verifiedHubWeightKg: 10 };
+  const parent: MaterialLot = { ...atHub, childLotIds: ['C1'] };
+  const child: MaterialLot = { ...atHub, id: 'C1', parentLotId: 'L1', initialFieldWeightKg: 9 };
+
+  it('allows a single hub handover', () => {
+    expect(canHandOverToHub(base)).toBe(true);
+    expect(canHandOverToHub(atHub)).toBe(false);
+  });
+
+  it('never re-sorts a sorted lot or its outputs', () => {
+    expect(isReadyToSort(atHub)).toBe(true);
+    expect(isReadyToSort(parent)).toBe(false);
+    expect(isReadyToSort(child)).toBe(false);
+  });
+
+  it('processes only leaf lots, once', () => {
+    expect(isReadyForProcessing(parent, [])).toBe(false);
+    expect(isReadyForProcessing(child, [])).toBe(true);
+    expect(isReadyForProcessing(child, [{ lotId: 'C1' } as never])).toBe(false);
+  });
+
+  it('excludes sorting outputs from intake totals', () => {
+    expect(intakeLots([parent, child]).map((l) => l.id)).toEqual(['L1']);
+  });
+});

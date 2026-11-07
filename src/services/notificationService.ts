@@ -249,9 +249,22 @@ export const INITIAL_NOTIFICATIONS: AppNotification[] = [
  * Automated reminder dispatcher engine
  * Evaluates all upcoming bookings and triggers 24h reminder when due
  */
+/**
+ * A "24h reminder" is only due when the collection is today or tomorrow.
+ * Previously every open booking received one immediately, whatever its date.
+ */
+export function isWithinReminderWindow(scheduledDate: string, now: Date = new Date()): boolean {
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const parsed = Date.parse(`${scheduledDate}T00:00:00Z`);
+  if (Number.isNaN(parsed)) return /^(today|tomorrow)$/i.test(scheduledDate.trim());
+  const days = Math.round((parsed - today) / 86_400_000);
+  return days === 0 || days === 1;
+}
+
 export function evaluateAutomatedReminders(
   bookings: Booking[],
-  existingNotifications: AppNotification[]
+  existingNotifications: AppNotification[],
+  now: Date = new Date()
 ): {
   newReminders: AppNotification[];
   logs: string[];
@@ -261,9 +274,10 @@ export function evaluateAutomatedReminders(
 
   const eligibleBookings = bookings.filter(
     (b) =>
-      b.status === 'REQUESTED' ||
-      b.status === 'CONFIRMED' ||
-      b.status === 'COLLECTOR_ASSIGNED'
+      (b.status === 'REQUESTED' ||
+        b.status === 'CONFIRMED' ||
+        b.status === 'COLLECTOR_ASSIGNED') &&
+      isWithinReminderWindow(b.scheduledDate, now)
   );
 
   for (const booking of eligibleBookings) {
