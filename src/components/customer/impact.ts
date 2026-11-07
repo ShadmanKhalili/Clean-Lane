@@ -1,3 +1,7 @@
+import type { Booking, MaterialCategory } from '../../types';
+import { bandMidpointKg } from '../../domain/rules';
+import { MATERIALS, relatableCount } from '../../design/materials';
+
 /**
  * Indicative per-kg conversion factors for customer-facing impact figures.
  * These are blended, rounded planning factors for mixed PET / HDPE / paper / metal
@@ -26,3 +30,46 @@ export const impactForKg = (kg: number): ImpactFigures => ({
   landfillM3: kg * INDICATIVE_LANDFILL_M3_PER_KG,
   bottles: Math.round(kg * INDICATIVE_BOTTLES_PER_KG)
 });
+
+/* ---------------------------------------------------------------------------
+ * Impact you can picture
+ * ------------------------------------------------------------------------- */
+
+/** Weighed kilograms: hub-confirmed where we have it, otherwise the collector's doorstep weight. */
+export const weighedKgOf = (b: Booking): number => {
+  if (b.status === 'CANCELLED' || b.status === 'MISSED') return 0;
+  return b.confirmedWeightKg && b.confirmedWeightKg > 0 ? b.confirmedWeightKg : b.fieldWeightKg && b.fieldWeightKg > 0 ? b.fieldWeightKg : 0;
+};
+
+/**
+ * Splits each weighed booking's kilograms across its materials in proportion
+ * to the customer's own weight bands (equal split when bands are unreadable).
+ * The result is indicative: the hub scale weighs a bag, not each material.
+ */
+export const kgByMaterial = (bookings: Booking[]): Partial<Record<MaterialCategory, number>> => {
+  const out: Partial<Record<MaterialCategory, number>> = {};
+  for (const b of bookings) {
+    const kg = weighedKgOf(b);
+    if (kg <= 0 || b.materials.length === 0) continue;
+    const weights = b.materials.map((m) => bandMidpointKg(m.approximateBandKg));
+    const total = weights.reduce((a, x) => a + x, 0);
+    b.materials.forEach((m, i) => {
+      const share = total > 0 ? weights[i] / total : 1 / b.materials.length;
+      out[m.category] = (out[m.category] ?? 0) + kg * share;
+    });
+  }
+  return out;
+};
+
+export interface PicturedItem {
+  material: MaterialCategory;
+  kg: number;
+  count: number;
+}
+
+/** Items you can picture, biggest count first. */
+export const picturedImpact = (bookings: Booking[]): PicturedItem[] =>
+  (Object.entries(kgByMaterial(bookings)) as [MaterialCategory, number][])
+    .map(([material, kg]) => ({ material, kg, count: relatableCount(material, kg) }))
+    .filter((x) => x.count > 0 && MATERIALS[x.material])
+    .sort((a, b) => b.count - a.count);
