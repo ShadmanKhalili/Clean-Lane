@@ -23,3 +23,17 @@ describe('routing', () => {
     expect(normaliseView('operator', null)).toBe('overview');
   });
 });
+
+import { readPitchRoute } from '../live/routes';
+
+describe('pitch routes', () => {
+  it('parses pitch screens and rejects malformed room codes', () => {
+    expect(readPitchRoute('?pitch')).toEqual({ kind: 'stage' });
+    expect(readPitchRoute('?join=ab3d')).toEqual({ kind: 'join', room: 'AB3D' });
+    expect(readPitchRoute('?join=ABCO')).toBeNull(); // O is excluded from codes
+    expect(readPitchRoute('?drive=K7PX')).toEqual({ kind: 'drive', room: 'K7PX' });
+    expect(readPitchRoute('?verify=LOT-2026-095-PET')).toEqual({ kind: 'verify-lot', lotId: 'LOT-2026-095-PET' });
+    expect(readPitchRoute('?verify=live:K7PX:LV-ABC234')).toEqual({ kind: 'verify-live', room: 'K7PX', bookingId: 'LV-ABC234' });
+    expect(readPitchRoute('?as=collector')).toBeNull();
+  });
+});

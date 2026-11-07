@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
  * Bump STORAGE_VERSION whenever the shape of persisted data changes; older
  * snapshots are then ignored instead of crashing the app with a stale schema.
  */
-export const STORAGE_VERSION = 1;
+// v2: custody records gained real hash-chain seals.
+export const STORAGE_VERSION = 2;
 export const STORAGE_PREFIX = `cleanlane:v${STORAGE_VERSION}:`;
 
 const read = <T,>(key: string, fallback: T): T => {

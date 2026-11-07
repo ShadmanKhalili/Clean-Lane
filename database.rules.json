@@ -1,0 +1,52 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        ".validate": "$room.matches(/^[A-HJ-NP-Z2-9]{4}$/)",
+        "bookings": {
+          ".read": true,
+          ".write": "!newData.exists()",
+          ".indexOn": ["createdAt"],
+          "$id": {
+            ".write": true,
+            ".validate": "$id.matches(/^LV-[A-HJ-NP-Z2-9]{6}$/) && newData.hasChildren(['id', 'name', 'area', 'x', 'y', 'materials', 'stage', 'createdAt', 'updatedAt', 'chain']) && newData.child('id').val() === $id",
+            "id": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+            "area": { ".validate": "newData.val().matches(/^(uttara|mirpur|bashundhara|baridhara|gulshan|banani|mohakhali|tejgaon|dhanmondi|motijheel)$/)" },
+            "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "y": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 130" },
+            "materials": {
+              "$i": { ".validate": "$i.matches(/^[0-5]$/) && newData.val().matches(/^(PET_BOTTLES|HDPE_RIGID|CARDBOARD_OCC|ALUMINUM_CANS|LDPE_FILM|TETRAPAK_BEVERAGE)$/)" }
+            },
+            "stage": { ".validate": "newData.val().matches(/^(booked|accepted|collected|verified|dispatched|recycled)$/)" },
+            "collector": { ".validate": "newData.isString() && newData.val().length <= 24" },
+            "weightKg": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 200" },
+            "hubWeightKg": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 200" },
+            "points": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
+            "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+            "updatedAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+            "simulated": { ".validate": "newData.isBoolean()" },
+            "chain": {
+              "$seq": {
+                ".validate": "$seq.matches(/^[0-9]$/) && newData.hasChildren(['seq', 'stage', 'at', 'actor', 'note', 'prevHash', 'hash'])",
+                "seq": { ".validate": "newData.isNumber()" },
+                "stage": { ".validate": "newData.isString() && newData.val().length <= 16" },
+                "at": { ".validate": "newData.isString() && newData.val().length <= 32" },
+                "actor": { ".validate": "newData.isString() && newData.val().length <= 48" },
+                "note": { ".validate": "newData.isString() && newData.val().length <= 96" },
+                "kg": { ".validate": "newData.isNumber()" },
+                "prevHash": { ".validate": "newData.isString() && newData.val().length === 64" },
+                "hash": { ".validate": "newData.isString() && newData.val().length === 64" },
+                "$other": { ".validate": false }
+              }
+            },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
