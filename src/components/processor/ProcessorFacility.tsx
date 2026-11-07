@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
-import { Factory, CheckCircle, FileText, ArrowRight, ShieldCheck, Flame, RefreshCcw } from 'lucide-react';
+import { isReadyForProcessing } from '../../domain/lots';
+import { KNOWN_PROCESSORS, PROCESS_TYPE_LABELS, defaultProcessorForLot, routeFor } from './materialRouting';
+import { Factory, FileText, RefreshCcw } from 'lucide-react';
 
 export const ProcessorFacility: React.FC = () => {
   const {
@@ -10,24 +12,49 @@ export const ProcessorFacility: React.FC = () => {
     recordProcessingOutcome,
     lang
   } = useApp();
+  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
 
   const [selectedLotId, setSelectedLotId] = useState<string>('');
   const [processorName, setProcessorName] = useState<string>('Bengal Polymers & Flake Mill');
   const [processType, setProcessType] = useState<
     'MECHANICAL_PET_FLAKING' | 'HDPE_PELLETIZING' | 'PULPING_AND_CORRUGATING' | 'ALUMINUM_SMELTING'
   >('MECHANICAL_PET_FLAKING');
-  const [outputYieldKg, setOutputYieldKg] = useState<number>(7.6);
-  const [processLossKg, setProcessLossKg] = useState<number>(0.6);
+  const [outputYieldKg, setOutputYieldKg] = useState<number>(0);
+  const [processLossKg, setProcessLossKg] = useState<number>(0);
   const [certId, setCertId] = useState<string>(`CERT-DISP-BP-${Math.floor(1000 + Math.random() * 9000)}`);
 
-  // Lots ready for processing: EvidenceLevel E2 or E3
-  const eligibleLots = lots.filter(
-    (l) => (l.evidenceLevel === 'E2' || l.evidenceLevel === 'E3') && l.currentCustodian !== 'FINISHED_RECOVERED'
-  );
+  // Leaf lots (never a parent whose children were sorted out) with no outcome on record yet.
+  const eligibleLots = lots.filter((l) => isReadyForProcessing(l, processingDispositions));
+  const selectedLot = lots.find((l) => l.id === selectedLotId);
+  const receivedKg = selectedLot ? selectedLot.verifiedHubWeightKg ?? selectedLot.initialFieldWeightKg : 0;
+  const accountedKg = Number((outputYieldKg + processLossKg).toFixed(2));
+  const massError = !selectedLot
+    ? null
+    : outputYieldKg < 0 || processLossKg < 0
+    ? t('Yield and loss cannot be negative.', 'আউটপুট ও ক্ষতি ঋণাত্মক হতে পারে না।')
+    : accountedKg > receivedKg + 0.001
+    ? t(
+        `Yield + loss (${accountedKg} kg) exceeds the ${receivedKg} kg received. Reduce one of them.`,
+        `আউটপুট + ক্ষতি (${accountedKg} কেজি) প্রাপ্ত ${receivedKg} কেজির বেশি।`
+      )
+    : null;
+
+  const handleLotChange = (lotId: string) => {
+    setSelectedLotId(lotId);
+    const chosen = lots.find((l) => l.id === lotId);
+    if (chosen) {
+      const w = chosen.verifiedHubWeightKg ?? chosen.initialFieldWeightKg;
+      const route = routeFor(chosen.material);
+      setProcessType(route.processType);
+      setProcessorName(defaultProcessorForLot(chosen));
+      setOutputYieldKg(Number((w * 0.92).toFixed(1)));
+      setProcessLossKg(Number((w - Number((w * 0.92).toFixed(1))).toFixed(1)));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLotId) return;
+    if (!selectedLotId || massError) return;
 
     recordProcessingOutcome(
       selectedLotId,
@@ -54,7 +81,7 @@ export const ProcessorFacility: React.FC = () => {
             <span>Department of Environment Licensed Mill (Savar & Narayanganj)</span>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-            {lang === 'en' ? 'Processor Receipt & Final Recovery Disposition' : 'রিসাইক্লার মিল ও প্রক্রিয়াকরণ ফলাফল'}
+            {t('Processor Receipt & Final Recovery Disposition', 'রিসাইক্লার মিল ও প্রক্রিয়াকরণ ফলাফল')}
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
             PRD § 9 & 1.3: Document mechanical recycling conversion, actual yield, and process loss. Advances lot to <strong>Evidence Level E4 (Processing outcome confirmed)</strong>.
@@ -77,22 +104,15 @@ export const ProcessorFacility: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">
-                Select Incoming Bale / Lot *
+              <label htmlFor="proc-lot" className="block font-medium text-slate-700 mb-1">
+                {t('Select Incoming Bale / Lot *', 'আগত বেল / লট নির্বাচন *')}
               </label>
               <select
+                id="proc-lot"
                 required
                 value={selectedLotId}
-                onChange={(e) => {
-                  setSelectedLotId(e.target.value);
-                  const chosen = lots.find((l) => l.id === e.target.value);
-                  if (chosen) {
-                    const w = chosen.verifiedHubWeightKg || chosen.initialFieldWeightKg;
-                    setOutputYieldKg(Number((w * 0.92).toFixed(1)));
-                    setProcessLossKg(Number((w * 0.08).toFixed(1)));
-                  }
-                }}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono text-slate-900"
+                onChange={(e) => handleLotChange(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-slate-900"
               >
                 <option value="">-- Choose eligible lot --</option>
                 {eligibleLots.map((lot) => (
@@ -101,44 +121,57 @@ export const ProcessorFacility: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {eligibleLots.length === 0 && (
+                <p className="text-[11px] text-slate-500 mt-1">No lots are waiting for processing. Dispatch a lot from the aggregation hub.</p>
+              )}
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">
+              <label htmlFor="proc-facility" className="block font-medium text-slate-700 mb-1">
                 Processing Facility & Line
               </label>
               <input
+                id="proc-facility"
                 type="text"
+                list="proc-facility-list"
                 required
                 value={processorName}
                 onChange={(e) => setProcessorName(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-800"
+                className="w-full bg-white border border-slate-300 rounded-lg p-2 min-h-11 text-slate-800"
               />
+              <datalist id="proc-facility-list">
+                {KNOWN_PROCESSORS.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Conversion Technology</label>
+              <label htmlFor="proc-type" className="block font-medium text-slate-700 mb-1">Conversion Technology</label>
               <select
+                id="proc-type"
                 value={processType}
                 onChange={(e) => setProcessType(e.target.value as any)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-800 font-medium"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 text-slate-800 font-medium"
               >
-                <option value="MECHANICAL_PET_FLAKING">Mechanical Hot-Wash PET Flaking</option>
-                <option value="HDPE_PELLETIZING">HDPE Extrusion & Pelletizing</option>
-                <option value="PULPING_AND_CORRUGATING">Hydrapulping & Corrugating Linerboard</option>
-                <option value="ALUMINUM_SMELTING">Secondary Aluminum Ingot Smelting</option>
+                {(Object.keys(PROCESS_TYPE_LABELS) as (keyof typeof PROCESS_TYPE_LABELS)[]).map((k) => (
+                  <option key={k} value={k}>{PROCESS_TYPE_LABELS[k]}</option>
+                ))}
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label htmlFor="proc-yield" className="block font-medium text-slate-700 mb-1">
                   Finished Yield (kg) *
                 </label>
                 <input
+                  id="proc-yield"
                   type="number"
                   step="0.1"
+                  min="0"
                   required
+                  aria-invalid={Boolean(massError)}
                   value={outputYieldKg}
                   onChange={(e) => setOutputYieldKg(parseFloat(e.target.value) || 0)}
                   className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900"
@@ -146,13 +179,16 @@ export const ProcessorFacility: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label htmlFor="proc-loss" className="block font-medium text-slate-700 mb-1">
                   Process Loss (kg) *
                 </label>
                 <input
+                  id="proc-loss"
                   type="number"
                   step="0.1"
+                  min="0"
                   required
+                  aria-invalid={Boolean(massError)}
                   value={processLossKg}
                   onChange={(e) => setProcessLossKg(parseFloat(e.target.value) || 0)}
                   className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900"
@@ -160,11 +196,24 @@ export const ProcessorFacility: React.FC = () => {
               </div>
             </div>
 
+            {selectedLot && (
+              <div
+                role={massError ? 'alert' : 'status'}
+                className={`p-3 rounded-xl border text-[11px] ${
+                  massError ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
+              >
+                <span className="font-mono">Received {receivedKg} kg · yield + loss {accountedKg} kg</span>
+                {massError && <div className="font-semibold mt-1">{massError}</div>}
+              </div>
+            )}
+
             <div>
-              <label className="block font-medium text-slate-700 mb-1">
+              <label htmlFor="proc-cert" className="block font-medium text-slate-700 mb-1">
                 Disposition Certificate ID *
               </label>
               <input
+                id="proc-cert"
                 type="text"
                 required
                 value={certId}
@@ -179,14 +228,14 @@ export const ProcessorFacility: React.FC = () => {
 
             <button
               type="submit"
-              disabled={!selectedLotId}
-              className={`w-full py-2.5 rounded-xl font-semibold shadow-xs transition-colors ${
-                selectedLotId
+              disabled={!selectedLotId || Boolean(massError)}
+              className={`w-full min-h-11 rounded-xl font-semibold shadow-xs transition-colors ${
+                selectedLotId && !massError
                   ? 'bg-indigo-700 hover:bg-indigo-800 text-white cursor-pointer'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               }`}
             >
-              Issue Certificate & Confirm E4
+              {t('Issue Certificate & Confirm E4', 'সনদ ইস্যু করে E4 নিশ্চিত করুন')}
             </button>
           </form>
         </div>

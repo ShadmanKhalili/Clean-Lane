@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { isOverTolerance } from '../../domain/rules';
+import { assessScaleReading, isOverTolerance } from '../../domain/rules';
+import { canHandOverToHub, isReadyToSort, isSplit } from '../../domain/lots';
 import { useApp } from '../../context/AppContext';
-import { MaterialLot } from '../../types';
 import { EvidenceBadge } from '../common/EvidenceBadge';
+import { Modal } from '../common/Modal';
+import { KNOWN_PROCESSORS, defaultProcessorForLot, routeFor } from '../processor/materialRouting';
+import hubImg from '../../assets/images/facility_aggregation_hub_1791258410874.jpg';
 import {
   Scale,
   Split,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  ArrowRight,
-  ShieldCheck,
-  FileCheck,
+  Truck,
   Building2,
   Trash2
 } from 'lucide-react';
@@ -22,8 +20,10 @@ export const AggregationHub: React.FC = () => {
     verifyHubScaleWeight,
     resolveDiscrepancy,
     commitSorting,
+    dispatchLotToProcessor,
     lang
   } = useApp();
+  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
 
   const [activeTab, setActiveTab] = useState<'intake' | 'discrepancies' | 'sorting'>('intake');
 
@@ -38,22 +38,44 @@ export const AggregationHub: React.FC = () => {
 
   // Sorting Transformation State
   const [sortingLotId, setSortingLotId] = useState<string>('');
-  const [gradeAWeight, setGradeAWeight] = useState<number>(10.5);
-  const [coloredWeight, setColoredWeight] = useState<number>(2.5);
-  const [residueKg, setResidueKg] = useState<number>(0.8);
+  const [gradeAWeight, setGradeAWeight] = useState<number>(0);
+  const [coloredWeight, setColoredWeight] = useState<number>(0);
+  const [residueKg, setResidueKg] = useState<number>(0);
+  const [dispatchTargets, setDispatchTargets] = useState<Record<string, string>>({});
   const [residueDesc, setResidueDesc] = useState<string>(
     'Non-recyclable adhesive labels and moisture loss residue recorded in environmental waste ledger.'
   );
 
-  const pendingIntakeLots = lots.filter(
-    (l) => l.evidenceLevel === 'E1' || !l.verifiedHubWeightKg
+  const pendingIntakeLots = lots.filter(canHandOverToHub);
+  const discrepantLots = lots.filter((l) => isOverTolerance(l.discrepancyPercentage) && !l.discrepancyResolved);
+  const readyToSortLots = lots.filter(isReadyToSort);
+  // Leaf lots at the hub at E2 can leave for a recycler; E3 lots are shown as already dispatched.
+  const dispatchableLots = lots.filter(
+    (l) => l.currentCustodian === 'AGGREGATION_HUB' && l.evidenceLevel === 'E2' && !isSplit(l)
   );
-  const discrepantLots = lots.filter(
-    (l) => l.discrepancyPercentage !== undefined && !l.discrepancyResolved
-  );
-  const readyToSortLots = lots.filter(
-    (l) => l.evidenceLevel === 'E2' && (!l.childLotIds || l.childLotIds.length === 0)
-  );
+  const inTransitLots = lots.filter((l) => l.evidenceLevel === 'E3' && !isSplit(l));
+
+  const sortingLot = lots.find((l) => l.id === sortingLotId);
+  const sortingRoute = sortingLot ? routeFor(sortingLot.material) : null;
+  const sortingInputKg = sortingLot ? sortingLot.verifiedHubWeightKg ?? sortingLot.initialFieldWeightKg : 0;
+  const sortingOutputKg = gradeAWeight + coloredWeight + residueKg;
+  const sortingGapKg = Number((sortingInputKg - sortingOutputKg).toFixed(2));
+  const sortingBalanceError = !sortingLot
+    ? null
+    : sortingGapKg < -0.05
+    ? t(
+        `Outputs (${sortingOutputKg.toFixed(1)} kg) exceed the input lot (${sortingInputKg} kg). Reduce a fraction.`,
+        `আউটপুট (${sortingOutputKg.toFixed(1)} কেজি) ইনপুট লটের (${sortingInputKg} কেজি) চেয়ে বেশি।`
+      )
+    : sortingGapKg > 0.5
+    ? t(
+        `${sortingGapKg.toFixed(1)} kg of the input is unaccounted for. Allocate it to a fraction or to residue.`,
+        `ইনপুটের ${sortingGapKg.toFixed(1)} কেজি হিসাবে নেই। কোনো ভগ্নাংশ বা অবশিষ্টে যোগ করুন।`
+      )
+    : null;
+
+  const intakeLot = lots.find((l) => l.id === selectedLotId);
+  const intakeAssessment = intakeLot ? assessScaleReading(intakeLot.initialFieldWeightKg, hubScaleWeight) : null;
 
   const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,37 +97,22 @@ export const AggregationHub: React.FC = () => {
     if (!sortingLotId) return;
 
     const parent = lots.find((l) => l.id === sortingLotId);
-    if (!parent) return;
-
-    const parentWeight = parent.verifiedHubWeightKg || parent.initialFieldWeightKg;
-    const totalOutput = gradeAWeight + coloredWeight + residueKg;
-
-    if (Math.abs(totalOutput - parentWeight) > 0.5) {
-      if (
-        !confirm(
-          `Mass balance note: Output sum (${totalOutput.toFixed(1)} kg) differs from input (${parentWeight.toFixed(
-            1
-          )} kg) by >0.5 kg. Proceed with documented mass discrepancy?`
-        )
-      ) {
-        return;
-      }
-    }
+    if (!parent || sortingBalanceError || !sortingRoute) return;
 
     commitSorting(
       sortingLotId,
       [
         {
-          materialGrade: 'Grade A Clear Flake Precursor (Food Grade Quality)',
+          materialGrade: sortingRoute.primary.grade,
           outputWeightKg: gradeAWeight,
           childLotId: `${sortingLotId}-A`,
-          destinationProcessor: 'Bengal Polymers & Flake Mill'
+          destinationProcessor: sortingRoute.primary.processor
         },
         {
-          materialGrade: 'Color / Light Opaque Fraction',
+          materialGrade: sortingRoute.secondary.grade,
           outputWeightKg: coloredWeight,
           childLotId: `${sortingLotId}-B`,
-          destinationProcessor: 'National Textile Fiber Recycling'
+          destinationProcessor: sortingRoute.secondary.processor
         }
       ],
       residueKg,
@@ -115,21 +122,25 @@ export const AggregationHub: React.FC = () => {
     setSortingLotId('');
   };
 
+  const handleDispatch = (lotId: string, fallback: string) => {
+    dispatchLotToProcessor(lotId, dispatchTargets[lotId] || fallback);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Building2 className="w-4 h-4 text-emerald-700" />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+            <Building2 className="w-4 h-4 text-emerald-700" aria-hidden="true" />
             <span className="font-semibold text-slate-800">Gulshan Aggregation Hub #3</span>
             <span aria-hidden="true">·</span>
             <span>Weighmaster: Rahmat Ali (ID #WM-44)</span>
             <span aria-hidden="true">·</span>
-            <span className="text-emerald-700 font-medium">Scale Calibrated 2026-10-01</span>
+            <span className="text-emerald-700 font-medium">Scale #GW-01 certified</span>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-            {lang === 'en' ? 'Aggregation Intake, Scale Verification & Sorting' : 'একত্রীকরণ কেন্দ্র ও স্কেল যাচাইকরণ'}
+            {t('Aggregation Intake, Scale Verification & Sorting', 'একত্রীকরণ কেন্দ্র: গ্রহণ, স্কেল যাচাই ও বাছাই')}
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
             PRD § 9 & Journey C: Certified reception weights without overwriting field records. Full residue accounting prevents unverified material loss.
@@ -140,13 +151,10 @@ export const AggregationHub: React.FC = () => {
         <div className="hidden lg:flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
           <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-slate-200">
             <img
-              src="/src/assets/images/facility_aggregation_hub_1791258410874.jpg"
-              alt="Gulshan Hub"
-              referrerPolicy="no-referrer"
+              src={hubImg}
+              alt="Gulshan Aggregation Hub #3 weighing and sorting floor"
+              loading="lazy"
               className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
             />
           </div>
           <div className="text-[11px] leading-tight pr-2">
@@ -156,37 +164,24 @@ export const AggregationHub: React.FC = () => {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 self-start md:self-auto">
-          <button
-            onClick={() => setActiveTab('intake')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'intake'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Scale Intake ({pendingIntakeLots.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('discrepancies')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'discrepancies'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Discrepancies ({discrepantLots.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('sorting')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === 'sorting'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Sorting & Residue ({readyToSortLots.length})
-          </button>
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 w-full md:w-auto" role="tablist" aria-label={t('Hub sections', 'হাব বিভাগ')}>
+          {([
+            { id: 'intake', en: `Scale Intake (${pendingIntakeLots.length})`, bn: `স্কেল গ্রহণ (${pendingIntakeLots.length})` },
+            { id: 'discrepancies', en: `Discrepancies (${discrepantLots.length})`, bn: `অসঙ্গতি (${discrepantLots.length})` },
+            { id: 'sorting', en: `Sorting & Dispatch (${readyToSortLots.length + dispatchableLots.length})`, bn: `বাছাই ও প্রেরণ (${readyToSortLots.length + dispatchableLots.length})` }
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-2 sm:px-3 min-h-11 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors cursor-pointer leading-tight ${
+                activeTab === tab.id ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {t(tab.en, tab.bn)}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -207,10 +202,11 @@ export const AggregationHub: React.FC = () => {
 
             <form onSubmit={handleIntakeSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Select Incoming Batch Lot *
+                <label htmlFor="intake-lot" className="block font-medium text-slate-700 mb-1">
+                  {t('Select Incoming Batch Lot *', 'আগত লট নির্বাচন করুন *')}
                 </label>
                 <select
+                  id="intake-lot"
                   required
                   value={selectedLotId}
                   onChange={(e) => {
@@ -218,7 +214,7 @@ export const AggregationHub: React.FC = () => {
                     const chosen = lots.find((l) => l.id === e.target.value);
                     if (chosen) setHubScaleWeight(chosen.initialFieldWeightKg);
                   }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-slate-900"
                 >
                   <option value="">-- Choose incoming lot --</option>
                   {pendingIntakeLots.map((lot) => (
@@ -247,12 +243,14 @@ export const AggregationHub: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-medium text-slate-700 mb-1">
+                    <label htmlFor="intake-weight" className="block font-medium text-slate-700 mb-1">
                       Certified Scale Weight (kg) *
                     </label>
                     <input
+                      id="intake-weight"
                       type="number"
                       step="0.1"
+                      min="0.1"
                       required
                       value={hubScaleWeight}
                       onChange={(e) => setHubScaleWeight(parseFloat(e.target.value) || 0)}
@@ -261,41 +259,34 @@ export const AggregationHub: React.FC = () => {
                   </div>
 
                   {/* Real-time Delta Indicator */}
-                  {(() => {
-                    const chosen = lots.find((l) => l.id === selectedLotId);
-                    if (!chosen) return null;
-                    const delta = hubScaleWeight - chosen.initialFieldWeightKg;
-                    const deltaPct = ((delta / chosen.initialFieldWeightKg) * 100).toFixed(1);
-                    const isHigh = isOverTolerance(parseFloat(deltaPct));
-
-                    return (
-                      <div
-                        className={`p-3 rounded-xl border text-xs ${
-                          isHigh
-                            ? 'bg-amber-50 border-amber-200 text-amber-900'
-                            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                        }`}
-                      >
-                        <div className="flex justify-between font-mono font-bold">
-                          <span>Discrepancy Delta:</span>
-                          <span>
-                            {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} kg ({deltaPct}%)
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] leading-tight">
-                          {isHigh
-                            ? '⚠️ Variance exceeds ±5% threshold! Will be flagged for supervisor review.'
-                            : '✓ Within allowable ±5% moisture and portable scale calibration tolerance.'}
-                        </p>
+                  {intakeAssessment && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs ${
+                        intakeAssessment.isDiscrepant
+                          ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      }`}
+                    >
+                      <div className="flex justify-between font-mono font-bold">
+                        <span>Discrepancy Delta:</span>
+                        <span>
+                          {intakeAssessment.deltaKg > 0 ? `+${intakeAssessment.deltaKg.toFixed(1)}` : intakeAssessment.deltaKg.toFixed(1)} kg ({intakeAssessment.deltaPercent.toFixed(1)}%)
+                        </span>
                       </div>
-                    );
-                  })()}
+                      <p className="mt-1 text-[11px] leading-tight">
+                        {intakeAssessment.isDiscrepant
+                          ? 'Variance exceeds the ±5% threshold. Will be flagged for supervisor review.'
+                          : 'Within allowable ±5% moisture and portable scale calibration tolerance.'}
+                      </p>
+                    </div>
+                  )}
 
                   <div>
-                    <label className="block font-medium text-slate-700 mb-1">
+                    <label htmlFor="intake-notes" className="block font-medium text-slate-700 mb-1">
                       Scale Calibration Log / Notes
                     </label>
                     <input
+                      id="intake-notes"
                       type="text"
                       value={scaleNotes}
                       onChange={(e) => setScaleNotes(e.target.value)}
@@ -305,9 +296,10 @@ export const AggregationHub: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold shadow-xs cursor-pointer"
+                    disabled={!(hubScaleWeight > 0)}
+                    className="w-full min-h-11 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl font-semibold shadow-xs cursor-pointer"
                   >
-                    Confirm Weight & Advance to E2
+                    {t('Confirm Weight & Advance to E2', 'ওজন নিশ্চিত করে E2-তে উন্নীত করুন')}
                   </button>
                 </>
               )}
@@ -319,6 +311,9 @@ export const AggregationHub: React.FC = () => {
             <h3 className="text-base font-bold text-slate-900">
               Active Lots at Aggregation Hub
             </h3>
+            {pendingIntakeLots.length === 0 && (
+              <p className="text-xs text-slate-500">No lots are waiting for the scale. Collectors hand lots over from the field app.</p>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
@@ -337,7 +332,7 @@ export const AggregationHub: React.FC = () => {
                     <tr key={lot.id} className="hover:bg-slate-50/60">
                       <td className="py-3 px-3 font-bold text-slate-900">{lot.id}</td>
                       <td className="py-3 px-3 font-sans text-slate-700">
-                        {lot.material.replace('_', ' ')}
+                        {lot.material.replace(/_/g, ' ')}
                       </td>
                       <td className="py-3 px-3 text-slate-600">{lot.initialFieldWeightKg} kg</td>
                       <td className="py-3 px-3 text-slate-900 font-bold">
@@ -405,7 +400,7 @@ export const AggregationHub: React.FC = () => {
 
                   <button
                     onClick={() => setDiscrepancyLotId(lot.id)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs shadow-xs self-start sm:self-auto"
+                    className="px-4 min-h-11 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs shadow-xs self-start sm:self-auto cursor-pointer"
                   >
                     Resolve Discrepancy
                   </button>
@@ -414,49 +409,38 @@ export const AggregationHub: React.FC = () => {
             )}
           </div>
 
-          {/* Discrepancy Resolution Modal */}
-          {discrepancyLotId && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">
-                <h4 className="text-base font-bold text-slate-900">Resolve Weight Discrepancy</h4>
-                <p className="text-xs text-slate-500">
-                  Document the physical or environmental reason for the variance on lot {discrepancyLotId}.
-                </p>
-
-                <form onSubmit={handleResolveSubmit} className="space-y-4 text-xs">
-                  <div>
-                    <label className="block font-medium text-slate-700 mb-1">
-                      Resolution Reason / Audit Explanation *
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={resolutionReason}
-                      onChange={(e) => setResolutionReason(e.target.value)}
-                      placeholder="e.g. Moisture evaporation observed in uncrushed PET bottles during warm transit; calibrated scale log GW-01 confirmed."
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-800"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDiscrepancyLotId(null)}
-                      className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold"
-                    >
-                      Commit Resolution to Audit Log
-                    </button>
-                  </div>
-                </form>
+          <Modal
+            open={Boolean(discrepancyLotId)}
+            onClose={() => setDiscrepancyLotId(null)}
+            size="sm"
+            title="Resolve Weight Discrepancy"
+            description={`Document the physical or environmental reason for the variance on lot ${discrepancyLotId}.`}
+          >
+            <form onSubmit={handleResolveSubmit} className="space-y-4 text-xs">
+              <div>
+                <label htmlFor="resolution-reason" className="block font-medium text-slate-700 mb-1">
+                  Resolution Reason / Audit Explanation *
+                </label>
+                <textarea
+                  id="resolution-reason"
+                  rows={3}
+                  required
+                  value={resolutionReason}
+                  onChange={(e) => setResolutionReason(e.target.value)}
+                  placeholder="e.g. Moisture evaporation observed in uncrushed PET bottles during warm transit; calibrated scale log GW-01 confirmed."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-800"
+                />
               </div>
-            </div>
-          )}
+              <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setDiscrepancyLotId(null)} className="px-4 min-h-11 bg-white border border-slate-300 text-slate-700 rounded-lg cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold cursor-pointer">
+                  Commit Resolution to Audit Log
+                </button>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
 
@@ -476,21 +460,24 @@ export const AggregationHub: React.FC = () => {
 
             <form onSubmit={handleSortSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Input Lot *</label>
+                <label htmlFor="sort-lot" className="block font-medium text-slate-700 mb-1">{t('Input Lot *', 'ইনপুট লট *')}</label>
                 <select
+                  id="sort-lot"
                   required
                   value={sortingLotId}
                   onChange={(e) => {
                     setSortingLotId(e.target.value);
                     const chosen = lots.find((l) => l.id === e.target.value);
                     if (chosen) {
-                      const w = chosen.verifiedHubWeightKg || chosen.initialFieldWeightKg;
-                      setGradeAWeight(Number((w * 0.8).toFixed(1)));
-                      setColoredWeight(Number((w * 0.15).toFixed(1)));
-                      setResidueKg(Number((w * 0.05).toFixed(1)));
+                      const w = chosen.verifiedHubWeightKg ?? chosen.initialFieldWeightKg;
+                      const a = Number((w * 0.8).toFixed(1));
+                      const b = Number((w * 0.15).toFixed(1));
+                      setGradeAWeight(a);
+                      setColoredWeight(b);
+                      setResidueKg(Number((w - a - b).toFixed(1)));
                     }
                   }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-slate-900"
                 >
                   <option value="">-- Choose verified E2 lot --</option>
                   {readyToSortLots.map((lot) => (
@@ -506,12 +493,15 @@ export const AggregationHub: React.FC = () => {
                   <div className="p-3 bg-slate-50 rounded-xl space-y-2">
                     <span className="font-semibold text-slate-800 block">Output Fractions</span>
                     <div>
-                      <label className="block text-slate-600 mb-1">
-                        Grade A Clear PET Precursor (kg):
+                      <label htmlFor="sort-a" className="block text-slate-600 mb-1">
+                        {sortingRoute?.primary.grade} (kg):
                       </label>
+                      <p className="text-[10px] text-slate-500 mb-1">→ {sortingRoute?.primary.processor}</p>
                       <input
+                        id="sort-a"
                         type="number"
                         step="0.1"
+                        min="0"
                         required
                         value={gradeAWeight}
                         onChange={(e) => setGradeAWeight(parseFloat(e.target.value) || 0)}
@@ -520,12 +510,15 @@ export const AggregationHub: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-slate-600 mb-1">
-                        Colored / Mixed Plastic Fraction (kg):
+                      <label htmlFor="sort-b" className="block text-slate-600 mb-1">
+                        {sortingRoute?.secondary.grade} (kg):
                       </label>
+                      <p className="text-[10px] text-slate-500 mb-1">→ {sortingRoute?.secondary.processor}</p>
                       <input
+                        id="sort-b"
                         type="number"
                         step="0.1"
+                        min="0"
                         required
                         value={coloredWeight}
                         onChange={(e) => setColoredWeight(parseFloat(e.target.value) || 0)}
@@ -543,10 +536,12 @@ export const AggregationHub: React.FC = () => {
                       Material must never vanish from the accounting ledger.
                     </p>
                     <div>
-                      <label className="block text-rose-900 mb-1">Unusable Residue (kg):</label>
+                      <label htmlFor="sort-residue" className="block text-rose-900 mb-1">Unusable Residue (kg):</label>
                       <input
+                        id="sort-residue"
                         type="number"
                         step="0.1"
+                        min="0"
                         required
                         value={residueKg}
                         onChange={(e) => setResidueKg(parseFloat(e.target.value) || 0)}
@@ -555,8 +550,9 @@ export const AggregationHub: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-rose-900 mb-1">Residue Destination / RDF Note:</label>
+                      <label htmlFor="sort-residue-note" className="block text-rose-900 mb-1">Residue Destination / RDF Note:</label>
                       <input
+                        id="sort-residue-note"
                         type="text"
                         value={residueDesc}
                         onChange={(e) => setResidueDesc(e.target.value)}
@@ -565,11 +561,37 @@ export const AggregationHub: React.FC = () => {
                     </div>
                   </div>
 
+                  <div
+                    role={sortingBalanceError ? 'alert' : 'status'}
+                    className={`p-3 rounded-xl border text-[11px] font-mono ${
+                      sortingBalanceError ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    }`}
+                  >
+                    <div>
+                      Input {sortingInputKg} kg · Outputs + residue {sortingOutputKg.toFixed(1)} kg · Gap {sortingGapKg.toFixed(1)} kg
+                    </div>
+                    {sortingBalanceError ? (
+                      <div className="font-sans mt-1">{sortingBalanceError}</div>
+                    ) : (
+                      <div className="font-sans mt-1">{t('Mass balance reconciles.', 'ভরের হিসাব মিলেছে।')}</div>
+                    )}
+                    {sortingGapKg > 0.5 && (
+                      <button
+                        type="button"
+                        onClick={() => setResidueKg(Number((residueKg + sortingGapKg).toFixed(1)))}
+                        className="mt-2 px-3 min-h-11 bg-white border border-amber-400 text-amber-900 rounded-lg font-sans font-semibold cursor-pointer"
+                      >
+                        {t('Record the gap as residue', 'পার্থক্য অবশিষ্ট হিসেবে লিখুন')}
+                      </button>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-cyan-800 hover:bg-cyan-900 text-white rounded-xl font-semibold shadow-xs cursor-pointer"
+                    disabled={Boolean(sortingBalanceError)}
+                    className="w-full min-h-11 bg-cyan-800 hover:bg-cyan-900 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold shadow-xs cursor-pointer"
                   >
-                    Commit Transformation & Child Lots
+                    {t('Commit Transformation & Child Lots', 'বাছাই নিশ্চিত করুন ও চাইল্ড লট তৈরি করুন')}
                   </button>
                 </>
               )}
@@ -578,35 +600,84 @@ export const AggregationHub: React.FC = () => {
 
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <h3 className="text-base font-bold text-slate-900">
-              Downstream Dispatch Manifests (E3 Staging)
+              {t('Downstream Dispatch Manifests (E3 Staging)', 'ডাউনস্ট্রিম প্রেরণ ম্যানিফেস্ট (E3)')}
             </h3>
             <p className="text-xs text-slate-500">
-              Sorted bales ready for licensed recyclers (Bengal Polymers, Meghna Paper, Savar Flake Line).
+              Hub-verified leaf lots ready for licensed recyclers. Dispatch records a custody event and advances the lot to E3.
             </p>
 
             <div className="space-y-3">
-              {lots
-                .filter((l) => l.parentLotId)
-                .map((child) => (
+              {dispatchableLots.length === 0 && (
+                <div className="p-6 text-center bg-slate-50 rounded-xl text-xs text-slate-500">
+                  No E2 lots are waiting at the hub. Weigh a lot in, or sort one into fractions.
+                </div>
+              )}
+              {dispatchableLots.map((lot) => {
+                const fallback = defaultProcessorForLot(lot);
+                const kg = lot.verifiedHubWeightKg ?? lot.initialFieldWeightKg;
+                return (
                   <div
-                    key={child.id}
-                    className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    key={lot.id}
+                    className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-3 text-xs"
                   >
-                    <div>
-                      <div className="font-mono font-bold text-slate-900">{child.id}</div>
-                      <div className="text-slate-600 mt-0.5">{child.location}</div>
-                      <div className="text-slate-400 text-[11px]">
-                        Parent Lot: {child.parentLotId} · Certified Mass: {child.initialFieldWeightKg} kg
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-mono font-bold text-slate-900 break-all">{lot.id}</div>
+                        <div className="text-slate-600 mt-0.5">{routeFor(lot.material).label} · {lot.location}</div>
+                        <div className="text-slate-500 text-[11px]">
+                          {lot.parentLotId ? `Sorted from ${lot.parentLotId} · ` : ''}Certified mass: {kg} kg
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <EvidenceBadge level={lot.evidenceLevel} />
+                        <span className="font-mono font-bold text-slate-900">{kg} kg</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <EvidenceBadge level={child.evidenceLevel} />
-                      <span className="font-mono font-bold text-slate-900">
-                        {child.initialFieldWeightKg} kg
-                      </span>
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                      <div className="flex-1">
+                        <label htmlFor={`dispatch-${lot.id}`} className="block text-[11px] font-medium text-slate-600 mb-1">
+                          {t('Destination processor', 'গন্তব্য প্রসেসর')}
+                        </label>
+                        <select
+                          id={`dispatch-${lot.id}`}
+                          value={dispatchTargets[lot.id] ?? fallback}
+                          onChange={(e) => setDispatchTargets((prev) => ({ ...prev, [lot.id]: e.target.value }))}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2 min-h-11 text-slate-800"
+                        >
+                          {Array.from(new Set([fallback, ...KNOWN_PROCESSORS])).map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDispatch(lot.id, fallback)}
+                        className="px-4 min-h-11 bg-cyan-800 hover:bg-cyan-900 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Truck className="w-4 h-4" aria-hidden="true" />
+                        {t('Dispatch to processor', 'প্রসেসরে প্রেরণ')}
+                      </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
+
+              {inTransitLots.length > 0 && (
+                <div className="pt-2">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    {t('Dispatched (E3)', 'প্রেরিত (E3)')}
+                  </h4>
+                  <ul className="space-y-1.5">
+                    {inTransitLots.map((lot) => (
+                      <li key={lot.id} className="flex items-center justify-between gap-2 text-xs px-3 py-2 rounded-lg border border-slate-200">
+                        <span className="font-mono font-bold text-slate-800 break-all">{lot.id}</span>
+                        <span className="text-slate-500 text-right">{lot.location}</span>
+                        <EvidenceBadge level={lot.evidenceLevel} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>

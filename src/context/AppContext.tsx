@@ -1079,7 +1079,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!job) return;
     setJobs((prev) =>
       prev.map((j) =>
-        j.id === jobId ? { ...j, collectorName, collectorId: `COL-${collectorName.split(' ')[0].toUpperCase()}`, status: 'ACCEPTED' } : j
+        // Reassignment changes who owns the job, not its progress.
+        j.id === jobId ? { ...j, collectorName, collectorId: `COL-${collectorName.split(' ')[0].toUpperCase()}` } : j
       )
     );
     addAuditLog('JOB_REASSIGNED', 'PickupJob', jobId, reason, job.collectorName, collectorName);

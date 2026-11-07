@@ -1,34 +1,43 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { isOverTolerance } from '../../domain/rules';
 import { useApp } from '../../context/AppContext';
 import { EvidenceBadge } from '../common/EvidenceBadge';
-import { Booking, MaterialLot, PickupJob } from '../../types';
+import { Modal } from '../common/Modal';
+import { ServiceComplaint } from '../../types';
 import {
   LayoutDashboard,
   Calendar,
   Truck,
-  Layers,
   Gift,
   Users,
   Building,
   BarChart3,
   Settings,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
-  MapPin,
   Scale,
-  ArrowRight,
-  ShieldCheck,
-  FileText,
-  Search,
-  Filter,
-  DollarSign,
   Bell,
-  Smartphone,
-  MessageSquare,
-  Sparkles
+  Sparkles,
+  History
 } from 'lucide-react';
+
+type Workspace =
+  | 'overview'
+  | 'bookings'
+  | 'dispatch'
+  | 'material'
+  | 'rewards'
+  | 'customers'
+  | 'partners'
+  | 'reports'
+  | 'audit'
+  | 'settings';
+
+const COMPLAINT_BADGE: Record<ServiceComplaint['status'], string> = {
+  OPEN: 'bg-rose-100 text-rose-800',
+  INVESTIGATING: 'bg-amber-100 text-amber-800',
+  RESOLVED: 'bg-emerald-100 text-emerald-800',
+  REJECTED: 'bg-slate-200 text-slate-700'
+};
 
 export const OperatorDashboard: React.FC = () => {
   const {
@@ -40,19 +49,20 @@ export const OperatorDashboard: React.FC = () => {
     complaints,
     rewards,
     notifications,
+    pointsLedger,
+    reassignJob,
+    resolveComplaint,
     triggerManual24hReminderCheck,
     totalCollectedKg,
     totalAcceptedKg,
     totalProcessedKg,
     totalVerifiedEprKg,
-    lang,
-    showToast
+    lang
   } = useApp();
 
   // 9 Workspaces: Overview, Bookings, Dispatch, Material, Rewards, Customers, Partners, Reports, Settings
-  const [activeWorkspace, setActiveWorkspace] = useState<
-    'overview' | 'bookings' | 'dispatch' | 'material' | 'rewards' | 'customers' | 'partners' | 'reports' | 'settings'
-  >('overview');
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('overview');
+  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
 
   // Side Filters for Zone and Provider (PRD A01)
   const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>('all');
@@ -63,46 +73,112 @@ export const OperatorDashboard: React.FC = () => {
   const [newCollectorName, setNewCollectorName] = useState<string>('Enterprise Route #2 (Kamrul)');
   const [reassignReason, setReassignReason] = useState<string>('');
 
-  // Commercial ledger calculations
-  const totalServiceFees = bookings.reduce((acc, b) => acc + (b.serviceFeeBdt || 0), 0);
-  const totalMaterialPayouts = bookings.reduce((acc, b) => acc + (b.materialPayoutBdt || 0), 0);
-  const totalPointsAwarded = bookings.reduce((acc, b) => acc + (b.earnedPoints || 0), 0);
+  const [reassignError, setReassignError] = useState<string>('');
+  const [resolutionDrafts, setResolutionDrafts] = useState<Record<string, string>>({});
+  const [auditActionFilter, setAuditActionFilter] = useState<string>('all');
+  const [reminderMessage, setReminderMessage] = useState<string>('');
+
+  // Zone / provider scope: a booking belongs to a zone, and a zone to an enterprise.
+  const providers = useMemo(() => Array.from(new Set(serviceZones.map((z) => z.assignedEnterprise))), [serviceZones]);
+  const bookingInScope = (bookingId?: string) => {
+    if (selectedZoneFilter === 'all' && selectedProviderFilter === 'all') return true;
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking) return false;
+    if (selectedZoneFilter !== 'all' && booking.zoneId !== selectedZoneFilter) return false;
+    if (selectedProviderFilter !== 'all') {
+      const zone = serviceZones.find((z) => z.id === booking.zoneId);
+      if (zone?.assignedEnterprise !== selectedProviderFilter) return false;
+    }
+    return true;
+  };
+  const scopedBookings = bookings.filter((b) => bookingInScope(b.id));
+  const scopedJobs = jobs.filter((j) => bookingInScope(j.bookingId));
+  const scopedLots = lots.filter((l) => !l.sourceBookingId || bookingInScope(l.sourceBookingId));
+  const scopedComplaints = complaints.filter((c) => !c.bookingId || bookingInScope(c.bookingId));
+  const isScoped = selectedZoneFilter !== 'all' || selectedProviderFilter !== 'all';
+
+  // Circular points issued = settled ledger credits (not potential / cancelled bookings).
+  const totalPointsAwarded = pointsLedger
+    .filter((e) => e.type === 'CREDIT' && e.status === 'AVAILABLE')
+    .reduce((acc, e) => acc + e.amount, 0);
 
   // Indicators (PRD A01)
-  const openBookingsCount = bookings.filter((b) => b.status === 'REQUESTED' || b.status === 'CONFIRMED').length;
-  const unassignedJobsCount = jobs.filter((j) => j.status === 'PENDING').length;
-  const weightDiscrepanciesCount = lots.filter((l) => l.discrepancyPercentage !== undefined && !l.discrepancyResolved).length;
-  const unresolvedComplaintsCount = complaints.filter((c) => c.status === 'OPEN').length;
+  const openBookingsCount = scopedBookings.filter((b) => b.status === 'REQUESTED' || b.status === 'CONFIRMED').length;
+  const unassignedJobsCount = scopedJobs.filter((j) => j.status === 'PENDING').length;
+  const discrepantLots = scopedLots.filter((l) => isOverTolerance(l.discrepancyPercentage) && !l.discrepancyResolved);
+  const weightDiscrepanciesCount = discrepantLots.length;
+  const openComplaints = scopedComplaints.filter((c) => c.status === 'OPEN' || c.status === 'INVESTIGATING');
+  const unresolvedComplaintsCount = openComplaints.length;
+
+  // Telemetry derived from state
+  const collectorsInField = new Set(
+    jobs.filter((j) => j.status === 'ACCEPTED' || j.status === 'EN_ROUTE').map((j) => j.collectorName)
+  ).size;
+  const reminders24h = notifications.filter((n) => n.type === 'COLLECTION_REMINDER_24H');
+  const reminders24hSent = reminders24h.length;
+  const reminders24hRead = reminders24h.filter((n) => n.read).length;
+
+  const knownCollectors = useMemo(() => Array.from(new Set(jobs.map((j) => j.collectorName).filter(Boolean))), [jobs]);
+  const sortedAudit = useMemo(
+    () => [...auditLogs].sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
+    [auditLogs]
+  );
+  const auditActions = useMemo(() => Array.from(new Set(auditLogs.map((a) => a.action))).sort(), [auditLogs]);
+  const visibleAudit = auditActionFilter === 'all' ? sortedAudit : sortedAudit.filter((a) => a.action === auditActionFilter);
+
+  const handleReassign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reassignJobId) return;
+    if (!newCollectorName.trim() || !reassignReason.trim()) {
+      setReassignError(t('A collector and a reason are both required.', 'সংগ্রাহক ও কারণ দুটিই আবশ্যক।'));
+      return;
+    }
+    reassignJob(reassignJobId, newCollectorName.trim(), reassignReason.trim());
+    setReassignJobId(null);
+    setReassignError('');
+  };
+
+  const handleReminderRun = () => {
+    const count = triggerManual24hReminderCheck();
+    setReminderMessage(
+      count > 0
+        ? `Scheduler ran: ${count} 24h reminder(s) dispatched to customers.`
+        : 'Scheduler checked: all upcoming collections already have reminders.'
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* 9 Workspaces Navigation Bar (PRD Section 1 Operator Console) */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs">
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto" role="tablist" aria-label={t('Operator workspaces', 'অপারেটর ওয়ার্কস্পেস')}>
           {[
-            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-            { id: 'bookings', label: `Bookings (${bookings.length})`, icon: Calendar },
-            { id: 'dispatch', label: 'Dispatch Board', icon: Truck },
-            { id: 'material', label: 'Material & Scales', icon: Scale },
-            { id: 'rewards', label: 'Rewards Admin', icon: Gift },
-            { id: 'customers', label: 'Customers', icon: Users },
-            { id: 'partners', label: 'Partners', icon: Building },
-            { id: 'reports', label: 'Reports', icon: BarChart3 },
-            { id: 'settings', label: 'Settings & Zones', icon: Settings }
+            { id: 'overview', label: t('Overview', 'ওভারভিউ'), icon: LayoutDashboard },
+            { id: 'bookings', label: `${t('Bookings', 'বুকিং')} (${bookings.length})`, icon: Calendar },
+            { id: 'dispatch', label: t('Dispatch Board', 'ডিসপ্যাচ বোর্ড'), icon: Truck },
+            { id: 'material', label: t('Material & Scales', 'উপাদান ও স্কেল'), icon: Scale },
+            { id: 'rewards', label: t('Rewards Admin', 'রিওয়ার্ড'), icon: Gift },
+            { id: 'customers', label: `${t('Customers', 'গ্রাহক')} (${unresolvedComplaintsCount})`, icon: Users },
+            { id: 'partners', label: t('Partners', 'পার্টনার'), icon: Building },
+            { id: 'reports', label: t('Reports', 'রিপোর্ট'), icon: BarChart3 },
+            { id: 'audit', label: `${t('Audit trail', 'অডিট ট্রেইল')} (${auditLogs.length})`, icon: History },
+            { id: 'settings', label: t('Settings & Zones', 'সেটিংস ও জোন'), icon: Settings }
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeWorkspace === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveWorkspace(item.id as any)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveWorkspace(item.id as Workspace)}
+                className={`flex items-center gap-1.5 px-3 min-h-11 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} aria-hidden="true" />
                 <span>{item.label}</span>
               </button>
             );
@@ -115,6 +191,21 @@ export const OperatorDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {activeWorkspace === 'overview' && (
         <div className="space-y-6">
+          {isScoped && (
+            <div role="status" className="px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 flex items-center justify-between gap-2">
+              <span>{t('Showing a filtered scope (zone / enterprise). Counts below reflect the filter.', 'ফিল্টার করা স্কোপ দেখানো হচ্ছে।')}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedZoneFilter('all');
+                  setSelectedProviderFilter('all');
+                }}
+                className="px-3 min-h-11 font-semibold underline cursor-pointer"
+              >
+                {t('Clear filters', 'ফিল্টার মুছুন')}
+              </button>
+            </div>
+          )}
           {/* Top Indicators Bar (PRD A01) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-1">
@@ -148,7 +239,7 @@ export const OperatorDashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-base font-bold text-slate-900">
-                    Exception-First Operations Queue (PRD A01)
+                    {t('Exception-First Operations Queue (PRD A01)', 'ব্যতিক্রম-প্রথম অপারেশন কিউ (PRD A01)')}
                   </h2>
                   <p className="text-xs text-slate-500">
                     Prioritizes tasks requiring manual operator decision or re-routing.
@@ -158,16 +249,14 @@ export const OperatorDashboard: React.FC = () => {
 
               <div className="space-y-3">
                 {/* Weight Discrepancy Alert */}
-                {lots
-                  .filter((l) => l.discrepancyPercentage !== undefined && !l.discrepancyResolved)
-                  .map((lot) => (
+                {discrepantLots.map((lot) => (
                     <div
                       key={lot.id}
                       className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-amber-700" />
+                          <AlertTriangle className="w-4 h-4 text-amber-700" aria-hidden="true" />
                           <span className="font-bold text-slate-900">Weight Discrepancy #{lot.id}</span>
                           <span className="font-mono text-amber-800 font-bold">{lot.discrepancyPercentage}%</span>
                         </div>
@@ -177,7 +266,7 @@ export const OperatorDashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => setActiveWorkspace('material')}
-                        className="px-3 py-1.5 bg-amber-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
+                        className="px-3 min-h-11 bg-amber-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
                       >
                         Review Scale Log
                       </button>
@@ -185,7 +274,7 @@ export const OperatorDashboard: React.FC = () => {
                   ))}
 
                 {/* Unassigned Job Alert */}
-                {jobs
+                {scopedJobs
                   .filter((j) => j.status === 'PENDING')
                   .map((job) => (
                     <div
@@ -198,17 +287,15 @@ export const OperatorDashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => setActiveWorkspace('dispatch')}
-                        className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
+                        className="px-3 min-h-11 bg-slate-900 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
                       >
-                        Assign Driver
+                        {t('Assign Driver', 'ড্রাইভার নির্ধারণ')}
                       </button>
                     </div>
                   ))}
 
                 {/* Open Complaints */}
-                {complaints
-                  .filter((c) => c.status === 'OPEN')
-                  .map((c) => (
+                {openComplaints.map((c) => (
                     <div
                       key={c.id}
                       className="p-4 rounded-xl border border-rose-200 bg-rose-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
@@ -219,9 +306,9 @@ export const OperatorDashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => setActiveWorkspace('customers')}
-                        className="px-3 py-1.5 bg-rose-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
+                        className="px-3 min-h-11 bg-rose-700 text-white rounded-lg font-semibold self-start sm:self-auto cursor-pointer"
                       >
-                        Open Case
+                        {t('Open Case', 'কেস খুলুন')}
                       </button>
                     </div>
                   ))}
@@ -232,11 +319,12 @@ export const OperatorDashboard: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 text-xs">
               <h3 className="font-bold text-slate-900 text-sm">Operational Scope Filters</h3>
               <div>
-                <label className="block text-slate-500 mb-1 font-medium">Service Lane</label>
+                <label htmlFor="op-zone" className="block text-slate-500 mb-1 font-medium">Service Lane</label>
                 <select
+                  id="op-zone"
                   value={selectedZoneFilter}
                   onChange={(e) => setSelectedZoneFilter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900"
                 >
                   <option value="all">All Pilot Zones (Dhaka North)</option>
                   {serviceZones.map((z) => (
@@ -248,26 +336,30 @@ export const OperatorDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-500 mb-1 font-medium">Collection Enterprise</label>
+                <label htmlFor="op-provider" className="block text-slate-500 mb-1 font-medium">Collection Enterprise</label>
                 <select
+                  id="op-provider"
                   value={selectedProviderFilter}
                   onChange={(e) => setSelectedProviderFilter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-11 text-slate-900"
                 >
                   <option value="all">All Providers</option>
-                  <option value="ent1">Dhaka Clean Lane Enterprise #1</option>
-                  <option value="ent2">Banani Recovery Collective</option>
+                  {providers.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="pt-2 border-t border-slate-100 space-y-2 text-slate-600">
                 <div className="flex justify-between">
-                  <span>Active E-Trikes:</span>
-                  <span className="font-bold font-mono text-slate-900">4 in field</span>
+                  <span>Collectors with active jobs:</span>
+                  <span className="font-bold font-mono text-slate-900">{collectorsInField}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Hub Scales Online:</span>
-                  <span className="font-bold font-mono text-emerald-800">1 (GW-01)</span>
+                  <span>Hub scales registered:</span>
+                  <span className="font-bold font-mono text-emerald-800">1 (GW-01) <span className="font-sans font-normal text-slate-400">· sample</span></span>
                 </div>
               </div>
 
@@ -275,11 +367,11 @@ export const OperatorDashboard: React.FC = () => {
               <div className="pt-3 border-t border-slate-100 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <Bell className="w-3.5 h-3.5 text-[#F5BF55]" />
+                    <Bell className="w-3.5 h-3.5 text-[#F5BF55]" aria-hidden="true" />
                     <span>24h Reminder Service</span>
                   </div>
                   <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
-                    Active (Cron)
+                    Manual trigger · demo
                   </span>
                 </div>
 
@@ -287,33 +379,26 @@ export const OperatorDashboard: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-slate-500">24h Reminders Sent:</span>
                     <span className="font-bold font-mono text-slate-900">
-                      {notifications.filter((n) => n.type === 'COLLECTION_REMINDER_24H').length}
+                      {reminders24hSent}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">SMS Gateway Rate:</span>
-                    <span className="font-bold font-mono text-emerald-700">99.8%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Prep Checklist Opens:</span>
-                    <span className="font-bold font-mono text-indigo-700">94.2%</span>
+                    <span className="text-slate-500">Read by customers:</span>
+                    <span className="font-bold font-mono text-indigo-700">{reminders24hRead} / {reminders24hSent}</span>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => {
-                    const count = triggerManual24hReminderCheck();
-                    showToast(
-                      count > 0
-                        ? `Auto-Scheduler ran: ${count} 24h reminder(s) dispatched to customers!`
-                        : 'Auto-Scheduler checked: all upcoming collections have reminders active.'
-                    );
-                  }}
-                  className="w-full py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs"
+                  type="button"
+                  onClick={handleReminderRun}
+                  className="w-full min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs"
                 >
-                  <Sparkles className="w-3 h-3 text-[#C9F1DC]" />
+                  <Sparkles className="w-3 h-3 text-[#C9F1DC]" aria-hidden="true" />
                   <span>Run Automated Dispatcher</span>
                 </button>
+                {reminderMessage && (
+                  <p role="status" className="text-[11px] text-slate-600">{reminderMessage}</p>
+                )}
               </div>
             </div>
           </div>
@@ -327,7 +412,7 @@ export const OperatorDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Bookings Management (PRD A03)</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('Bookings Management (PRD A03)', 'বুকিং ব্যবস্থাপনা (PRD A03)')}</h2>
               <p className="text-xs text-slate-500">
                 Role-limited customer records, collection windows, and service terms.
               </p>
@@ -348,7 +433,7 @@ export const OperatorDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {bookings.map((b) => (
+                {scopedBookings.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50/60">
                     <td className="py-3 px-3 font-bold text-slate-900">{b.id}</td>
                     <td className="py-3 px-3 font-sans text-slate-700">{b.customerName}</td>
@@ -378,7 +463,7 @@ export const OperatorDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Dispatch Board (PRD A02)</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('Dispatch Board (PRD A02)', 'ডিসপ্যাচ বোর্ড (PRD A02)')}</h2>
               <p className="text-xs text-slate-500">
                 Manage jobs across statuses. Reassignment records mandatory reason in audit log.
               </p>
@@ -387,21 +472,19 @@ export const OperatorDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
-              { id: 'PENDING', title: 'Unassigned', count: jobs.filter((j) => j.status === 'PENDING').length },
-              { id: 'ACCEPTED', title: 'Assigned', count: jobs.filter((j) => j.status === 'ACCEPTED').length },
-              { id: 'COMPLETED', title: 'Completed', count: jobs.filter((j) => j.status === 'COMPLETED').length },
-              { id: 'EXCEPTION', title: 'Exceptions', count: jobs.filter((j) => j.status === 'EXCEPTION').length }
-            ].map((col) => (
+              { id: 'PENDING', title: 'Unassigned', statuses: ['PENDING'] },
+              { id: 'ACCEPTED', title: 'Assigned / In progress', statuses: ['ACCEPTED', 'EN_ROUTE'] },
+              { id: 'COMPLETED', title: 'Completed', statuses: ['COMPLETED'] },
+              { id: 'EXCEPTION', title: 'Exceptions', statuses: ['EXCEPTION'] }
+            ].map((colDef) => ({ ...colDef, jobs: scopedJobs.filter((j) => colDef.statuses.includes(j.status)) })).map((col) => (
               <div key={col.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                   <span>{col.title}</span>
-                  <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">{col.count}</span>
+                  <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">{col.jobs.length}</span>
                 </div>
 
                 <div className="space-y-2">
-                  {jobs
-                    .filter((j) => j.status === col.id)
-                    .map((job) => (
+                  {col.jobs.map((job) => (
                       <div key={job.id} className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1 shadow-2xs">
                         <div className="flex items-center justify-between font-mono font-bold">
                           <span>{job.id}</span>
@@ -410,15 +493,19 @@ export const OperatorDashboard: React.FC = () => {
                         <p className="text-slate-600 text-[11px] truncate">{job.customerAddress}</p>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
                           <span className="text-slate-500">{job.collectorName.split(' ')[0]}</span>
-                          <button
-                            onClick={() => {
-                              setReassignJobId(job.id);
-                              setReassignReason('');
-                            }}
-                            className="text-emerald-700 font-semibold hover:underline"
-                          >
-                            Reassign
-                          </button>
+                          {(job.status === 'PENDING' || job.status === 'ACCEPTED' || job.status === 'EN_ROUTE') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReassignJobId(job.id);
+                                setReassignReason('');
+                                setReassignError('');
+                              }}
+                              className="text-emerald-700 font-semibold hover:underline min-h-11 px-2 cursor-pointer"
+                            >
+                              {t('Reassign', 'পুনর্বণ্টন')}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -427,57 +514,55 @@ export const OperatorDashboard: React.FC = () => {
             ))}
           </div>
 
-          {/* Reassign Modal */}
-          {reassignJobId && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 space-y-4 text-xs">
-                <h3 className="text-base font-bold text-slate-900">Reassign Job #{reassignJobId}</h3>
-                <p className="text-slate-500">PRD A02: Every reassignment records a mandatory audit reason.</p>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">New Collector / Provider</label>
-                    <input
-                      type="text"
-                      value={newCollectorName}
-                      onChange={(e) => setNewCollectorName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Mandatory Reassignment Reason *</label>
-                    <input
-                      type="text"
-                      required
-                      value={reassignReason}
-                      onChange={(e) => setReassignReason(e.target.value)}
-                      placeholder="e.g. Route optimization / capacity rebalancing"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    onClick={() => setReassignJobId(null)}
-                    className="px-3.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!reassignReason) return;
-                      alert(`Job ${reassignJobId} reassigned to ${newCollectorName}. Audit log recorded.`);
-                      setReassignJobId(null);
-                    }}
-                    className="px-4 py-1.5 bg-slate-900 text-white rounded-lg font-semibold"
-                  >
-                    Confirm Reassignment
-                  </button>
-                </div>
+          <Modal
+            open={Boolean(reassignJobId)}
+            onClose={() => setReassignJobId(null)}
+            size="sm"
+            title={`${t('Reassign Job', 'কাজ পুনর্বণ্টন')} #${reassignJobId}`}
+            description="PRD A02: Every reassignment records a mandatory audit reason."
+          >
+            <form onSubmit={handleReassign} className="space-y-3 text-xs">
+              <div>
+                <label htmlFor="reassign-collector" className="block text-slate-700 font-medium mb-1">New Collector / Provider</label>
+                <input
+                  id="reassign-collector"
+                  type="text"
+                  list="reassign-collector-list"
+                  value={newCollectorName}
+                  onChange={(e) => setNewCollectorName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 min-h-11 text-slate-900"
+                />
+                <datalist id="reassign-collector-list">
+                  {knownCollectors.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
-            </div>
-          )}
+              <div>
+                <label htmlFor="reassign-reason" className="block text-slate-700 font-medium mb-1">Mandatory Reassignment Reason *</label>
+                <input
+                  id="reassign-reason"
+                  type="text"
+                  required
+                  value={reassignReason}
+                  onChange={(e) => setReassignReason(e.target.value)}
+                  placeholder="e.g. Route optimization / capacity rebalancing"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 min-h-11 text-slate-900"
+                />
+              </div>
+              {reassignError && (
+                <p role="alert" className="text-rose-700 font-semibold">{reassignError}</p>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setReassignJobId(null)} className="px-3.5 min-h-11 bg-white border border-slate-300 rounded-lg text-slate-600 cursor-pointer">
+                  {t('Cancel', 'বাতিল')}
+                </button>
+                <button type="submit" className="px-4 min-h-11 bg-slate-900 text-white rounded-lg font-semibold cursor-pointer">
+                  {t('Confirm Reassignment', 'পুনর্বণ্টন নিশ্চিত করুন')}
+                </button>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
 
@@ -507,10 +592,10 @@ export const OperatorDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {lots.map((lot) => (
+                {scopedLots.map((lot) => (
                   <tr key={lot.id} className="hover:bg-slate-50/60">
                     <td className="py-3 px-3 font-bold text-slate-900">{lot.id}</td>
-                    <td className="py-3 px-3 font-sans text-slate-700">{lot.material.replace('_', ' ')}</td>
+                    <td className="py-3 px-3 font-sans text-slate-700">{lot.material.replace(/_/g, ' ')}</td>
                     <td className="py-3 px-3 text-slate-600">{lot.initialFieldWeightKg} kg</td>
                     <td className="py-3 px-3 text-slate-900 font-bold">
                       {lot.verifiedHubWeightKg ? `${lot.verifiedHubWeightKg} kg` : 'Pending E2'}
@@ -550,11 +635,11 @@ export const OperatorDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block font-sans">TOTAL CIRCULAR POINTS</span>
+              <span className="text-slate-500 block font-sans">POINTS ISSUED (SETTLED CREDITS)</span>
               <span className="text-2xl font-bold text-slate-900">{totalPointsAwarded} pts</span>
             </div>
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block font-sans">REWARD LIABILITY (BDT)</span>
+              <span className="text-slate-500 block font-sans">EST. LIABILITY (BDT, ৳0.65/pt assumption)</span>
               <span className="text-2xl font-bold text-emerald-800">৳{Math.round(totalPointsAwarded * 0.65)}</span>
             </div>
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -571,35 +656,77 @@ export const OperatorDashboard: React.FC = () => {
       {activeWorkspace === 'customers' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Customer Support Cases & Challenges (PRD A08)</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('Customer Support Cases & Challenges (PRD A08)', 'গ্রাহক সহায়তা কেস (PRD A08)')}</h2>
             <p className="text-xs text-slate-500">
               Customer issue tickets with prefilled transaction context and transparent resolution logs.
             </p>
           </div>
 
           <div className="space-y-3">
-            {complaints.map((c) => (
-              <div key={c.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900">{c.id}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-semibold text-slate-800">{c.customerName}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono text-slate-500">{c.type}</span>
+            {scopedComplaints.length === 0 && (
+              <p className="p-6 text-center bg-slate-50 rounded-xl text-xs text-slate-500">No cases in this scope.</p>
+            )}
+            {scopedComplaints.map((c) => {
+              const canResolve = c.status === 'OPEN' || c.status === 'INVESTIGATING';
+              const draft = resolutionDrafts[c.id] ?? '';
+              return (
+                <div key={c.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900">{c.id}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-semibold text-slate-800">{c.customerName}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono text-slate-500">{c.type}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${COMPLAINT_BADGE[c.status]}`}>
+                      {c.status}
+                    </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${c.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                    {c.status}
-                  </span>
+                  <p className="text-slate-700">{c.description}</p>
+                  {c.bookingId && <p className="text-[11px] text-slate-500 font-mono">Booking: {c.bookingId}</p>}
+                  {c.resolutionNotes && (
+                    <div className="p-2.5 bg-slate-50 rounded-lg text-slate-600 text-[11px]">
+                      <strong>Audit Resolution: </strong> {c.resolutionNotes}
+                      {c.resolvedAt && <span className="text-slate-400"> · {c.resolvedAt.split('T')[0]}</span>}
+                    </div>
+                  )}
+                  {canResolve && (
+                    <form
+                      className="flex flex-col sm:flex-row sm:items-end gap-2 pt-2 border-t border-slate-100"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!draft.trim()) return;
+                        resolveComplaint(c.id, draft.trim());
+                        setResolutionDrafts((prev) => ({ ...prev, [c.id]: '' }));
+                      }}
+                    >
+                      <div className="flex-1">
+                        <label htmlFor={`resolve-${c.id}`} className="block text-slate-600 font-medium mb-1">
+                          {t('Resolution note (visible to the customer) *', 'সমাধানের নোট *')}
+                        </label>
+                        <input
+                          id={`resolve-${c.id}`}
+                          type="text"
+                          required
+                          value={draft}
+                          onChange={(e) => setResolutionDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                          placeholder="e.g. Re-weighed on certified scale; points adjusted."
+                          className="w-full bg-white border border-slate-300 rounded-lg p-2 min-h-11 text-slate-900"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!draft.trim()}
+                        className="px-4 min-h-11 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg font-semibold cursor-pointer"
+                      >
+                        {t('Resolve', 'সমাধান করুন')}
+                      </button>
+                    </form>
+                  )}
                 </div>
-                <p className="text-slate-700">{c.description}</p>
-                {c.resolutionNotes && (
-                  <div className="p-2.5 bg-slate-50 rounded-lg text-slate-600 text-[11px]">
-                    <strong>Audit Resolution: </strong> {c.resolutionNotes}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -651,6 +778,64 @@ export const OperatorDashboard: React.FC = () => {
               <span className="text-lg font-bold text-emerald-950">{totalVerifiedEprKg.toFixed(1)} kg</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* WORKSPACE: AUDIT TRAIL */}
+      {/* ========================================================================= */}
+      {activeWorkspace === 'audit' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{t('Audit trail', 'অডিট ট্রেইল')}</h2>
+              <p className="text-xs text-slate-500">
+                Append-only record of every state change, newest first. {visibleAudit.length} of {auditLogs.length} events.
+              </p>
+            </div>
+            <div className="sm:w-64">
+              <label htmlFor="audit-filter" className="block text-xs font-medium text-slate-600 mb-1">Filter by action</label>
+              <select
+                id="audit-filter"
+                value={auditActionFilter}
+                onChange={(e) => setAuditActionFilter(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 min-h-11 text-xs text-slate-900"
+              >
+                <option value="all">All actions</option>
+                {auditActions.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {visibleAudit.length === 0 ? (
+            <p className="p-6 text-center bg-slate-50 rounded-xl text-xs text-slate-500">No audit events match this filter.</p>
+          ) : (
+            <ol className="space-y-2">
+              {visibleAudit.map((ev) => (
+                <li key={ev.id} className="p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-slate-900">{ev.action}</span>
+                    <time dateTime={ev.timestamp} className="font-mono text-[11px] text-slate-500">
+                      {ev.timestamp.replace('T', ' ').slice(0, 19)}
+                    </time>
+                  </div>
+                  <div className="text-slate-600">
+                    <span className="font-mono">{ev.targetObject}</span> <span className="font-mono font-semibold text-slate-800 break-all">{ev.targetId}</span>
+                    <span aria-hidden="true"> · </span>
+                    {ev.actor} <span className="text-slate-400">({ev.actorRole})</span>
+                  </div>
+                  {(ev.priorValue || ev.newValue) && (
+                    <div className="font-mono text-[11px] text-slate-600">
+                      {ev.priorValue ?? '—'} <span aria-hidden="true">→</span> {ev.newValue ?? '—'}
+                    </div>
+                  )}
+                  {ev.reason && <p className="text-slate-700">{ev.reason}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       )}
 

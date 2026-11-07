@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { isOverTolerance } from '../../domain/rules';
+import { canHandOverToHub } from '../../domain/lots';
+import { Modal } from '../common/Modal';
 import { useApp } from '../../context/AppContext';
 import { MaterialCategory, PickupJob, MaterialLot } from '../../types';
 import { MATERIAL_TAXONOMY } from '../../data/mockData';
@@ -21,13 +23,8 @@ import {
   AlertTriangle,
   RefreshCw,
   QrCode,
-  FileText,
-  Truck,
   Check,
-  ArrowRight,
-  AlertCircle,
-  ScanLine,
-  Sparkles
+  Ban
 } from 'lucide-react';
 
 export const CollectorFieldApp: React.FC = () => {
@@ -36,6 +33,7 @@ export const CollectorFieldApp: React.FC = () => {
     lots,
     acceptJob,
     completeJob,
+    recordJobException,
     isOfflineMode,
     setIsOfflineMode,
     offlineQueueCount,
@@ -72,11 +70,34 @@ export const CollectorFieldApp: React.FC = () => {
   const [uncollectedNotes, setUncollectedNotes] = useState<string>('');
   const [contaminationObservation, setContaminationObservation] = useState<string>('');
 
+  const [exceptionJobId, setExceptionJobId] = useState<string | null>(null);
+  const [exceptionReason, setExceptionReason] = useState<
+    'customer_unavailable' | 'inaccessible' | 'contaminated_stream' | 'cancelled_at_door'
+  >('customer_unavailable');
+  // The bag barcode is not part of completeJob's report, so it is kept for the on-screen receipt only.
+  const [lastPickup, setLastPickup] = useState<{ jobId: string; barcode: string } | null>(null);
+  const t = (en: string, bn: string) => (lang === 'en' ? en : bn);
+
   const currentJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
+  const exceptionJob = jobs.find((j) => j.id === exceptionJobId) || null;
+  const lastPickupJob = lastPickup ? jobs.find((j) => j.id === lastPickup.jobId) : undefined;
+  const handoverLots = [...lots].sort((a, b) => Number(canHandOverToHub(b)) - Number(canHandOverToHub(a)));
+  const awaitingHandoverCount = lots.filter(canHandOverToHub).length;
+
+  const EXCEPTION_REASONS: { id: typeof exceptionReason; en: string; bn: string }[] = [
+    { id: 'customer_unavailable', en: 'Customer unavailable', bn: 'গ্রাহক অনুপস্থিত' },
+    { id: 'inaccessible', en: 'Cannot access premises', bn: 'প্রবেশ করা যায়নি' },
+    { id: 'contaminated_stream', en: 'Material contaminated / unsuitable', bn: 'উপাদান দূষিত / অনুপযুক্ত' },
+    { id: 'cancelled_at_door', en: 'Customer cancelled at the door', bn: 'দরজায় গ্রাহক বাতিল করেছেন' }
+  ];
+
+  // Calibration is shown relative to today so the demo never displays an expired date.
+  const calibratedDaysAgo = 9;
+  const calibrationDate = new Date(Date.now() - calibratedDaysAgo * 86400000).toISOString().slice(0, 10);
 
   const filteredJobs = jobs.filter((j) => {
-    if (jobFilter === 'assigned') return j.status === 'ACCEPTED' || j.status === 'PENDING';
-    if (jobFilter === 'in_progress') return j.status === 'EN_ROUTE';
+    if (jobFilter === 'assigned') return j.status === 'PENDING';
+    if (jobFilter === 'in_progress') return j.status === 'ACCEPTED' || j.status === 'EN_ROUTE';
     if (jobFilter === 'completed') return j.status === 'COMPLETED';
     if (jobFilter === 'exceptions') return j.status === 'EXCEPTION';
     return true;
@@ -89,7 +110,7 @@ export const CollectorFieldApp: React.FC = () => {
     setWeightKg(6.5);
     setBagCount(2);
     setWeightBasis('field_scale');
-    setAssociatedBagBarcode(`TAG-${job.id.slice(-4)}-${job.expectedMaterials[0] || 'PET'}`);
+    setAssociatedBagBarcode(`TAG-${job.id.replace(/^JOB-/, '')}-${(job.expectedMaterials[0] || 'PET_BOTTLES').split('_')[0]}`);
     setUncollectedNotes('');
     setContaminationObservation('');
     setIsPickupModalOpen(true);
@@ -125,18 +146,33 @@ export const CollectorFieldApp: React.FC = () => {
       contaminationObservation
     });
 
+    setLastPickup({ jobId: selectedJobId, barcode: associatedBagBarcode.trim() });
+    setJobFilter('completed');
     setIsPickupModalOpen(false);
+  };
+
+  const handleAccept = (job: PickupJob) => {
+    acceptJob(job.id);
+    setJobFilter('in_progress');
+  };
+
+  const handleExceptionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!exceptionJobId) return;
+    recordJobException(exceptionJobId, exceptionReason);
+    setExceptionJobId(null);
+    setJobFilter('exceptions');
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* 4 Collector Destinations Tab Switcher */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="grid grid-cols-4 sm:flex sm:items-center gap-1" role="tablist" aria-label={t('Collector sections', 'সংগ্রাহক বিভাগ')}>
           {[
             { id: 'jobs', labelEn: 'Jobs', labelBn: 'কাজের তালিকা', icon: Briefcase },
             { id: 'route', labelEn: 'Route', labelBn: 'রুট ম্যাপ', icon: Navigation },
-            { id: 'handovers', labelEn: `Handovers (${lots.filter(l => l.currentCustodian === 'COLLECTOR').length})`, labelBn: `হ্যান্ডওভার (${lots.filter(l => l.currentCustodian === 'COLLECTOR').length})`, icon: PackageCheck },
+            { id: 'handovers', labelEn: `Handovers (${awaitingHandoverCount})`, labelBn: `হ্যান্ডওভার (${awaitingHandoverCount})`, icon: PackageCheck },
             { id: 'account', labelEn: 'Account', labelBn: 'অ্যাকাউন্ট', icon: User }
           ].map((dest) => {
             const Icon = dest.icon;
@@ -144,14 +180,16 @@ export const CollectorFieldApp: React.FC = () => {
             return (
               <button
                 key={dest.id}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => setActiveDestination(dest.id as any)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-3.5 min-h-12 sm:min-h-11 rounded-xl text-[11px] sm:text-xs font-semibold text-center leading-tight transition-all cursor-pointer ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} aria-hidden="true" />
                 <span>{lang === 'en' ? dest.labelEn : dest.labelBn}</span>
               </button>
             );
@@ -159,14 +197,14 @@ export const CollectorFieldApp: React.FC = () => {
         </div>
 
         {/* Offline Mode Switcher & Sync Status (PRD O01) */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {/* Quick Camera QR Code Scanner Trigger */}
           <button
             onClick={() => {
               setScannerMode('any');
               setIsScannerOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 px-3.5 min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
             title={lang === 'en' ? 'Scan QR Code via Device Camera' : 'ডিভাইস ক্যামেরা দিয়ে কিউআর কোড স্ক্যান করুন'}
           >
             <Camera className="w-3.5 h-3.5 text-[#C9F1DC]" />
@@ -175,7 +213,7 @@ export const CollectorFieldApp: React.FC = () => {
 
           <button
             onClick={() => setIsOfflineMode(!isOfflineMode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 min-h-11 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
               isOfflineMode
                 ? 'bg-amber-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -192,7 +230,7 @@ export const CollectorFieldApp: React.FC = () => {
           {offlineQueueCount > 0 && (
             <button
               onClick={syncOfflineQueue}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+              className="flex items-center gap-1 px-3 min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>{lang === 'en' ? `Sync (${offlineQueueCount})` : `সিঙ্ক (${offlineQueueCount})`}</span>
@@ -217,7 +255,7 @@ export const CollectorFieldApp: React.FC = () => {
               </h1>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
+            <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl text-[11px] sm:text-xs font-semibold" role="group" aria-label={t('Job filter', 'কাজের ফিল্টার')}>
               {[
                 { id: 'assigned', labelEn: 'Assigned', labelBn: 'বরাদ্দকৃত' },
                 { id: 'in_progress', labelEn: 'In Progress', labelBn: 'চলমান' },
@@ -227,17 +265,49 @@ export const CollectorFieldApp: React.FC = () => {
                 <button
                   key={f.id}
                   onClick={() => setJobFilter(f.id as any)}
-                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                  aria-pressed={jobFilter === f.id}
+                  className={`px-1 sm:px-3 min-h-11 rounded-lg transition-colors cursor-pointer ${
                     jobFilter === f.id
                       ? 'bg-white text-slate-900 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {lang === 'en' ? f.labelEn : f.labelBn}
+                  {lang === 'en' ? f.labelEn : f.labelBn} ({jobs.filter((j) => (f.id === 'assigned' ? j.status === 'PENDING' : f.id === 'in_progress' ? j.status === 'ACCEPTED' || j.status === 'EN_ROUTE' : f.id === 'completed' ? j.status === 'COMPLETED' : j.status === 'EXCEPTION')).length})
                 </button>
               ))}
             </div>
           </div>
+
+          {lastPickup && lastPickupJob?.fieldReport && (
+            <div role="status" className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl text-xs text-emerald-950 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-sm flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                  {t('Pickup recorded', 'পিকআপ রেকর্ড হয়েছে')} · {lastPickupJob.id}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLastPickup(null)}
+                  aria-label={t('Dismiss summary', 'সারাংশ বন্ধ করুন')}
+                  className="w-11 h-11 -m-2 flex items-center justify-center rounded-lg hover:bg-emerald-100 cursor-pointer"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
+                <span>{t('Lot', 'লট')}: <strong>{lastPickupJob.fieldReport.batchLotId}</strong></span>
+                <span>{t('Weight', 'ওজন')}: <strong>{lastPickupJob.fieldReport.totalWeightKg} kg</strong></span>
+                <span>{t('Customer ack', 'গ্রাহক কোড')}: <strong>{lastPickupJob.fieldReport.customerAckCode}</strong></span>
+                <span>{t('Sync', 'সিঙ্ক')}: <strong>{lastPickupJob.fieldReport.syncStatus === 'synced' ? 'synced' : 'pending'}</strong></span>
+                {lastPickup.barcode && (
+                  <span className="col-span-2 break-all">{t('Sack tag scanned', 'স্ক্যান করা ব্যাগ ট্যাগ')}: <strong>{lastPickup.barcode}</strong></span>
+                )}
+              </div>
+              <p className="text-[11px] text-emerald-900/80">
+                {t('Next: take this lot to the hub — see the Handovers tab.', 'এরপর: লটটি হাবে নিয়ে যান — হ্যান্ডওভার ট্যাব দেখুন।')}
+              </p>
+            </div>
+          )}
 
           {/* Sync Status Banner */}
           <div className="px-4 py-2 bg-slate-100 rounded-xl text-xs text-slate-600 flex items-center justify-between">
@@ -304,13 +374,35 @@ export const CollectorFieldApp: React.FC = () => {
                       {/* Action Button - Large Touch Target (PRD O01 priority) */}
                       <div className="sm:text-right shrink-0">
                         {!isCompleted && !isException ? (
-                          <button
-                            onClick={() => handleOpenPickupFlow(job)}
-                            className="w-full sm:w-auto px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                          >
-                            <Scale className="w-4 h-4" />
-                            <span>{lang === 'en' ? 'Weigh & Pickup' : 'ওজন ও পিকআপ'}</span>
-                          </button>
+                          <div className="flex flex-col gap-2 w-full sm:w-52">
+                            {job.status === 'PENDING' ? (
+                              <button
+                                onClick={() => handleAccept(job)}
+                                className="w-full px-5 min-h-12 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                              >
+                                <Check className="w-4 h-4" aria-hidden="true" />
+                                <span>{t('Accept job', 'কাজ গ্রহণ করুন')}</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenPickupFlow(job)}
+                                className="w-full px-5 min-h-12 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-bold shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                              >
+                                <Scale className="w-4 h-4" aria-hidden="true" />
+                                <span>{t('Weigh & Pickup', 'ওজন ও পিকআপ')}</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setExceptionReason('customer_unavailable');
+                                setExceptionJobId(job.id);
+                              }}
+                              className="w-full px-4 min-h-11 bg-white border border-rose-300 text-rose-800 hover:bg-rose-50 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Ban className="w-4 h-4" aria-hidden="true" />
+                              <span>{t("Can't collect", 'সংগ্রহ করা যাচ্ছে না')}</span>
+                            </button>
+                          </div>
                         ) : isCompleted ? (
                           <div className="text-right">
                             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800">
@@ -393,7 +485,7 @@ export const CollectorFieldApp: React.FC = () => {
                 setScannerMode('lot');
                 setIsScannerOpen(true);
               }}
-              className="px-4 py-2.5 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors shrink-0"
+              className="px-4 min-h-11 bg-[#25345C] hover:bg-[#1B2644] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors shrink-0"
             >
               <Camera className="w-4 h-4 text-[#C9F1DC]" />
               <span>Scan Lot QR Tag (Camera)</span>
@@ -401,13 +493,13 @@ export const CollectorFieldApp: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {lots.map((lot) => (
+            {handoverLots.map((lot) => (
               <div
                 key={lot.id}
                 className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5 text-xs shadow-2xs hover:border-slate-400 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <QrCode className="w-4 h-4 text-[#25345C]" />
                     <span className="font-mono font-bold text-slate-900">{lot.id}</span>
                     <span aria-hidden="true">·</span>
@@ -417,13 +509,19 @@ export const CollectorFieldApp: React.FC = () => {
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                       Custodian: {lot.currentCustodian}
                     </span>
-                    <button
-                      onClick={() => setSelectedLotForHandover(lot)}
-                      className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
-                    >
-                      <Scale className="w-3.5 h-3.5" />
-                      <span>Verify Handover</span>
-                    </button>
+                    {canHandOverToHub(lot) ? (
+                      <button
+                        onClick={() => setSelectedLotForHandover(lot)}
+                        className="px-3 min-h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+                      >
+                        <Scale className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>{t('Verify Handover', 'হস্তান্তর যাচাই')}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {t('Handed over', 'হস্তান্তরিত')} · {lot.evidenceLevel}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -453,7 +551,7 @@ export const CollectorFieldApp: React.FC = () => {
       {/* ========================================================================= */}
       {activeDestination === 'account' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 text-xs">
-          <h2 className="text-base font-bold text-slate-900">Collector Profile & Equipment</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('Collector Profile & Equipment', 'সংগ্রাহক প্রোফাইল ও সরঞ্জাম')}</h2>
           <div className="space-y-2 divide-y divide-slate-100">
             <div className="pt-2 flex justify-between">
               <span className="text-slate-500">Worker ID:</span>
@@ -468,8 +566,10 @@ export const CollectorFieldApp: React.FC = () => {
               <span className="font-semibold text-slate-800">Certified Hanging Scale HS-50</span>
             </div>
             <div className="pt-2 flex justify-between">
-              <span className="text-slate-500">Scale Calibration Date:</span>
-              <span className="font-mono text-emerald-800 font-bold">2026-10-01 (Valid 30 days)</span>
+              <span className="text-slate-500">{t('Scale last calibrated:', 'স্কেল সর্বশেষ ক্যালিব্রেট:')}</span>
+              <span className="font-mono text-emerald-800 font-bold text-right">
+                {calibrationDate} ({t(`${calibratedDaysAgo} days ago · valid 30 days · sample`, `${calibratedDaysAgo} দিন আগে · ৩০ দিন বৈধ · নমুনা`)})
+              </span>
             </div>
           </div>
         </div>
@@ -478,198 +578,235 @@ export const CollectorFieldApp: React.FC = () => {
       {/* ========================================================================= */}
       {/* MODAL: PICKUP OUTCOME & MATERIAL CAPTURE (Wireframes O03, O04, O05) */}
       {/* ========================================================================= */}
-      {isPickupModalOpen && currentJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase block">
-                  PICKUP EXECUTION (PRD O03–O05)
-                </span>
-                <h3 className="text-base font-bold text-slate-900 mt-0.5">{currentJob.customerAddress}</h3>
-              </div>
-              <button onClick={() => setIsPickupModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                ✕
-              </button>
+      <Modal
+        open={isPickupModalOpen && Boolean(currentJob)}
+        onClose={() => setIsPickupModalOpen(false)}
+        size="md"
+        dismissible={false}
+        title={currentJob?.customerAddress}
+        description={t('Pickup execution (PRD O03–O05)', 'পিকআপ সম্পাদন (PRD O03–O05)')}
+        closeLabel={t('Close pickup form', 'পিকআপ ফর্ম বন্ধ করুন')}
+      >
+        <form onSubmit={handlePickupSubmit} className="space-y-4 text-xs">
+          <fieldset>
+            <legend className="block font-bold text-slate-900 mb-2">{t('1. Collection Outcome *', '১. সংগ্রহের ফলাফল *')}</legend>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { id: 'COLLECTED', label: 'Collected', bn: 'সংগৃহীত' },
+                { id: 'PARTIALLY_COLLECTED', label: 'Partially Collected', bn: 'আংশিক সংগৃহীত' },
+                { id: 'CUSTOMER_UNAVAILABLE', label: 'Customer Unavailable', bn: 'গ্রাহক অনুপস্থিত' },
+                { id: 'CANNOT_ACCESS', label: 'Cannot Access', bn: 'প্রবেশ করা যায়নি' },
+                { id: 'MATERIAL_UNSUITABLE', label: 'Material Unsuitable', bn: 'উপাদান অনুপযুক্ত' }
+              ].map((out) => (
+                <button
+                  key={out.id}
+                  type="button"
+                  aria-pressed={pickupOutcome === out.id}
+                  onClick={() => setPickupOutcome(out.id as any)}
+                  className={`p-2.5 min-h-11 rounded-xl border text-center font-semibold transition-all cursor-pointer ${
+                    pickupOutcome === out.id
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {t(out.label, out.bn)}
+                </button>
+              ))}
             </div>
+          </fieldset>
 
-            {/* Modal Body */}
-            <form onSubmit={handlePickupSubmit} className="p-6 overflow-y-auto space-y-4 text-xs">
-              {/* O03: Large Outcome Choices */}
+          {(pickupOutcome === 'COLLECTED' || pickupOutcome === 'PARTIALLY_COLLECTED') && (
+            <div className="space-y-3 pt-2 border-t border-slate-100">
               <div>
-                <label className="block font-bold text-slate-900 mb-2">1. Collection Outcome *</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { id: 'COLLECTED', label: 'Collected' },
-                    { id: 'PARTIALLY_COLLECTED', label: 'Partially Collected' },
-                    { id: 'CUSTOMER_UNAVAILABLE', label: 'Customer Unavailable' },
-                    { id: 'CANNOT_ACCESS', label: 'Cannot Access' },
-                    { id: 'MATERIAL_UNSUITABLE', label: 'Material Unsuitable' }
-                  ].map((out) => (
-                    <button
-                      key={out.id}
-                      type="button"
-                      onClick={() => setPickupOutcome(out.id as any)}
-                      className={`p-2.5 rounded-xl border text-center font-semibold transition-all ${
-                        pickupOutcome === out.id
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {out.label}
-                    </button>
+                <label htmlFor="pickup-material" className="block font-medium text-slate-700 mb-1">{t('Material Fraction', 'উপাদানের ধরন')}</label>
+                <select
+                  id="pickup-material"
+                  value={selectedMaterial}
+                  onChange={(e) => setSelectedMaterial(e.target.value as MaterialCategory)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 min-h-11 text-slate-800 font-medium"
+                >
+                  {Object.values(MATERIAL_TAXONOMY).map((mat) => (
+                    <option key={mat.id} value={mat.id}>
+                      {mat.name} ({mat.id})
+                    </option>
                   ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="pickup-weight" className="block font-medium text-slate-700 mb-1">{t('Quantity (kg) *', 'পরিমাণ (কেজি) *')}</label>
+                  <input
+                    id="pickup-weight"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    required
+                    value={weightKg}
+                    onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-base font-bold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pickup-bags" className="block font-medium text-slate-700 mb-1">{t('Container Count', 'ব্যাগের সংখ্যা')}</label>
+                  <input
+                    id="pickup-bags"
+                    type="number"
+                    min="1"
+                    required
+                    value={bagCount}
+                    onChange={(e) => setBagCount(parseInt(e.target.value) || 1)}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-base font-bold text-slate-900"
+                  />
                 </div>
               </div>
 
-              {/* If Collected or Partially Collected -> O04 Material Capture */}
-              {(pickupOutcome === 'COLLECTED' || pickupOutcome === 'PARTIALLY_COLLECTED') && (
-                <div className="space-y-3 pt-2 border-t border-slate-100">
-                  <div>
-                    <label className="block font-medium text-slate-700 mb-1">Material Fraction</label>
-                    <select
-                      value={selectedMaterial}
-                      onChange={(e) => setSelectedMaterial(e.target.value as MaterialCategory)}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-800 font-medium"
-                    >
-                      {Object.values(MATERIAL_TAXONOMY).map((mat) => (
-                        <option key={mat.id} value={mat.id}>
-                          {mat.name} ({mat.id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div>
+                <label htmlFor="pickup-basis" className="block font-medium text-slate-700 mb-1">{t('Measurement Basis *', 'পরিমাপের ভিত্তি *')}</label>
+                <select
+                  id="pickup-basis"
+                  value={weightBasis}
+                  onChange={(e) => setWeightBasis(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 min-h-11 text-slate-800"
+                >
+                  <option value="field_scale">Certified Portable Scale (HS-50)</option>
+                  <option value="estimate">Field Visual Estimate (Marked as unmeasured)</option>
+                  <option value="not_measured">Not Measured at Doorstep</option>
+                </select>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  PRD O04 Guardrail: An estimated weight is never presented downstream as a confirmed scale weight.
+                </span>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-medium text-slate-700 mb-1">Quantity (kg) *</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        required
-                        value={weightKg}
-                        onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-mono text-base font-bold text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-medium text-slate-700 mb-1">Container Count</label>
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={bagCount}
-                        onChange={(e) => setBagCount(parseInt(e.target.value) || 1)}
-                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 font-mono text-base font-bold text-slate-900"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Measurement Basis (PRD O04 Guardrail) */}
-                  <div>
-                    <label className="block font-medium text-slate-700 mb-1">Measurement Basis *</label>
-                    <select
-                      value={weightBasis}
-                      onChange={(e) => setWeightBasis(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
-                    >
-                      <option value="field_scale">Certified Portable Scale (HS-50)</option>
-                      <option value="estimate">Field Visual Estimate (Marked as unmeasured)</option>
-                      <option value="not_measured">Not Measured at Doorstep</option>
-                    </select>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      PRD O04 Guardrail: An estimated weight is never presented downstream as a confirmed scale weight.
-                    </span>
-                  </div>
-
-                  {pickupOutcome === 'PARTIALLY_COLLECTED' && (
-                    <div>
-                      <label className="block font-medium text-amber-800 mb-1">
-                        Uncollected Items & Reason (PRD Flow E)
-                      </label>
-                      <input
-                        type="text"
-                        value={uncollectedNotes}
-                        onChange={(e) => setUncollectedNotes(e.target.value)}
-                        placeholder="e.g. Cardboard collected; wet milk cartons left behind."
-                        className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-800"
-                      />
-                    </div>
-                  )}
-
-                  {/* Associated Bag Barcode / Tag ID */}
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-slate-900 block text-xs">Physical Sack Barcode / Tag ID</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setScannerMode('any');
-                          setIsScannerOpen(true);
-                        }}
-                        className="text-[11px] font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Camera className="w-3.5 h-3.5 text-[#25345C]" />
-                        <span>Scan Barcode (Camera)</span>
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={associatedBagBarcode}
-                      onChange={(e) => setAssociatedBagBarcode(e.target.value)}
-                      placeholder="e.g. TAG-101-PET"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-xs text-slate-900"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="font-medium text-slate-700">Photo Proof Captured</span>
-                    <input
-                      type="checkbox"
-                      checked={photoRecorded}
-                      onChange={(e) => setPhotoRecorded(e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* If Exception Outcome */}
-              {pickupOutcome !== 'COLLECTED' && pickupOutcome !== 'PARTIALLY_COLLECTED' && (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <label className="block font-medium text-slate-700">Reason & Guidance Note</label>
-                  <textarea
-                    rows={2}
+              {pickupOutcome === 'PARTIALLY_COLLECTED' && (
+                <div>
+                  <label htmlFor="pickup-uncollected" className="block font-medium text-amber-800 mb-1">
+                    {t('Uncollected Items & Reason (PRD Flow E)', 'যা সংগ্রহ হয়নি ও কারণ')}
+                  </label>
+                  <input
+                    id="pickup-uncollected"
+                    type="text"
                     value={uncollectedNotes}
                     onChange={(e) => setUncollectedNotes(e.target.value)}
-                    placeholder="e.g. Mixed bio-waste present; provided guidance on rinsing."
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-800"
+                    placeholder="e.g. Cardboard collected; wet milk cartons left behind."
+                    className="w-full bg-white border border-amber-300 rounded-lg p-2 min-h-11 text-slate-800"
                   />
                 </div>
               )}
 
-              {/* Submit Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsPickupModalOpen(false)}
-                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer transition-colors shadow-xs"
-                >
-                  {isOfflineMode ? 'Save Locally on Device' : 'Submit Pickup'}
-                </button>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="pickup-barcode" className="font-bold text-slate-900 block text-xs">{t('Physical Sack Barcode / Tag ID', 'ব্যাগের বারকোড / ট্যাগ আইডি')}</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScannerMode('any');
+                      setIsScannerOpen(true);
+                    }}
+                    className="text-[11px] font-bold text-[#25345C] hover:underline flex items-center gap-1 cursor-pointer min-h-11 px-1"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-[#25345C]" aria-hidden="true" />
+                    <span>{t('Scan Barcode (Camera)', 'বারকোড স্ক্যান')}</span>
+                  </button>
+                </div>
+                <input
+                  id="pickup-barcode"
+                  type="text"
+                  value={associatedBagBarcode}
+                  onChange={(e) => setAssociatedBagBarcode(e.target.value)}
+                  placeholder="e.g. TAG-101-PET"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 min-h-11 font-mono text-xs text-slate-900"
+                />
               </div>
-            </form>
+
+              <label htmlFor="pickup-photo" className="flex items-center justify-between p-3 min-h-11 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                <span className="font-medium text-slate-700">{t('Photo Proof Captured', 'ছবির প্রমাণ নেওয়া হয়েছে')}</span>
+                <input
+                  id="pickup-photo"
+                  type="checkbox"
+                  checked={photoRecorded}
+                  onChange={(e) => setPhotoRecorded(e.target.checked)}
+                  className="w-5 h-5 text-emerald-600 rounded"
+                />
+              </label>
+            </div>
+          )}
+
+          {pickupOutcome !== 'COLLECTED' && pickupOutcome !== 'PARTIALLY_COLLECTED' && (
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <label htmlFor="pickup-reason" className="block font-medium text-slate-700">{t('Reason & Guidance Note', 'কারণ ও নির্দেশনা')}</label>
+              <textarea
+                id="pickup-reason"
+                rows={2}
+                value={uncollectedNotes}
+                onChange={(e) => setUncollectedNotes(e.target.value)}
+                placeholder="e.g. Mixed bio-waste present; provided guidance on rinsing."
+                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-800"
+              />
+            </div>
+          )}
+
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsPickupModalOpen(false)}
+              className="px-4 min-h-11 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
+            >
+              {t('Cancel', 'বাতিল')}
+            </button>
+            <button
+              type="submit"
+              className="px-5 min-h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer transition-colors shadow-xs"
+            >
+              {isOfflineMode ? t('Save Locally on Device', 'ডিভাইসে সংরক্ষণ') : t('Submit Pickup', 'পিকআপ জমা দিন')}
+            </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(exceptionJob)}
+        onClose={() => setExceptionJobId(null)}
+        size="sm"
+        title={t("Can't collect — reason", 'সংগ্রহ করা যাচ্ছে না — কারণ')}
+        description={exceptionJob?.customerAddress}
+        closeLabel={t('Close', 'বন্ধ করুন')}
+      >
+        <form onSubmit={handleExceptionSubmit} className="space-y-3 text-xs">
+          <fieldset className="space-y-2">
+            <legend className="sr-only">{t('Reason', 'কারণ')}</legend>
+            {EXCEPTION_REASONS.map((r) => (
+              <label
+                key={r.id}
+                className={`flex items-center gap-3 p-3 min-h-11 rounded-xl border cursor-pointer font-semibold ${
+                  exceptionReason === r.id ? 'border-rose-500 bg-rose-50 text-rose-950' : 'border-slate-200 text-slate-700'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="exception-reason"
+                  value={r.id}
+                  checked={exceptionReason === r.id}
+                  onChange={() => setExceptionReason(r.id)}
+                  className="w-4 h-4"
+                />
+                {t(r.en, r.bn)}
+              </label>
+            ))}
+          </fieldset>
+          <p className="text-[11px] text-slate-500">
+            {t('The booking is marked missed and the operator is alerted.', 'বুকিং মিসড হিসেবে চিহ্নিত হবে এবং অপারেটরকে জানানো হবে।')}
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={() => setExceptionJobId(null)} className="px-4 min-h-11 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer">
+              {t('Cancel', 'বাতিল')}
+            </button>
+            <button type="submit" className="px-5 min-h-11 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-bold cursor-pointer">
+              {t('Record exception', 'ব্যতিক্রম রেকর্ড করুন')}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* ========================================================================= */}
       {/* QR CODE CAMERA SCANNER MODAL */}

@@ -1,23 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Camera,
-  X,
   QrCode,
-  Sparkles,
   Zap,
   ZapOff,
   SwitchCamera,
   CheckCircle2,
   AlertCircle,
-  Package,
   ArrowRight,
   RefreshCw,
-  Scale,
-  Search,
-  ScanLine
+  Search
 } from 'lucide-react';
 import { MaterialLot, PickupJob } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { Modal } from '../common/Modal';
 
 interface QrCodeScannerModalProps {
   isOpen: boolean;
@@ -246,33 +241,16 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
     handleCodeFound(manualInput.trim());
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg bg-[#202B38] text-white rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
-        {/* Top Header */}
-        <div className="px-5 py-4 bg-[#172521]/90 border-b border-slate-700/80 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-[#C9F1DC] text-[#12613F] flex items-center justify-center font-bold shadow-xs">
-              <QrCode className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white leading-tight">{title}</h3>
-              <span className="text-[11px] text-slate-400 font-mono block">
-                {lang === 'en' ? 'Camera Live Stream' : 'ডিভাইস ক্যামেরা স্ক্যানার'}
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title={title}
+      description={lang === 'en' ? 'Camera live stream — or enter the code manually below' : 'ডিভাইস ক্যামেরা স্ক্যানার — অথবা নিচে ম্যানুয়ালি কোড লিখুন'}
+      closeLabel={lang === 'en' ? 'Close scanner' : 'স্ক্যানার বন্ধ করুন'}
+    >
+      <div className="-mx-5 -my-4 bg-[#202B38] text-white rounded-b-3xl overflow-hidden">
         {/* Camera Viewport & Laser Overlay */}
         <div className="relative bg-black aspect-4/3 sm:aspect-16/10 flex items-center justify-center overflow-hidden">
           <video
@@ -310,8 +288,11 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
           {/* Camera Controls Overlay */}
           <div className="absolute bottom-3 inset-x-4 flex items-center justify-between text-xs">
             <button
+              type="button"
               onClick={toggleTorch}
-              className={`p-2.5 rounded-2xl backdrop-blur-md transition-all cursor-pointer ${
+              aria-label={lang === 'en' ? 'Toggle flashlight' : 'ফ্ল্যাশলাইট চালু/বন্ধ'}
+              aria-pressed={isTorchOn}
+              className={`w-11 h-11 flex items-center justify-center rounded-2xl backdrop-blur-md transition-all cursor-pointer ${
                 isTorchOn
                   ? 'bg-amber-400 text-slate-950 font-bold shadow-lg'
                   : 'bg-slate-900/80 text-white hover:bg-slate-800'
@@ -322,8 +303,10 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={toggleCamera}
-              className="px-3.5 py-2 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-white backdrop-blur-md flex items-center gap-1.5 font-bold cursor-pointer"
+              aria-label={lang === 'en' ? 'Flip camera' : 'ক্যামেরা পরিবর্তন'}
+              className="px-3.5 min-h-11 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-white backdrop-blur-md flex items-center gap-1.5 font-bold cursor-pointer"
               title="Flip Camera"
             >
               <SwitchCamera className="w-4 h-4" />
@@ -342,8 +325,9 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                 <p className="text-xs text-slate-300 mt-1 max-w-xs">{cameraError}</p>
               </div>
               <button
+                type="button"
                 onClick={startCamera}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-4 min-h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry Camera Permission</span>
@@ -414,13 +398,13 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                     setDetectedResult(null);
                     setIsScanning(true);
                   }}
-                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors cursor-pointer text-center"
+                  className="flex-1 min-h-11 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors cursor-pointer text-center"
                 >
                   {lang === 'en' ? 'Scan Again' : 'পুনরায় স্ক্যান'}
                 </button>
                 <button
                   onClick={handleConfirmResult}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  className="flex-1 min-h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
                   <span>{lang === 'en' ? 'Confirm & Process' : 'নিশ্চিত ও হস্তান্তর'}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -440,7 +424,7 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
                       key={lot.id}
                       type="button"
                       onClick={() => handleCodeFound(lot.id)}
-                      className="p-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-left transition-all cursor-pointer group"
+                      className="p-2.5 min-h-11 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-left transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-1.5 text-emerald-400">
                         <QrCode className="w-3.5 h-3.5" />
@@ -458,23 +442,24 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
 
               {/* Manual QR Code Input Fallback */}
               <form onSubmit={handleManualSubmit} className="pt-2 border-t border-slate-700/80 space-y-2">
-                <label className="text-[11px] text-slate-400 font-semibold block">
+                <label htmlFor="manual-code" className="text-[11px] text-slate-400 font-semibold block">
                   {lang === 'en' ? 'Or enter QR Barcode tag manually:' : 'অথবা ম্যানুয়ালি কোড লিখুন:'}
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" aria-hidden="true" />
                     <input
+                      id="manual-code"
                       type="text"
                       value={manualInput}
                       onChange={(e) => setManualInput(e.target.value)}
                       placeholder="e.g. LOT-2026-098-PET or CL-BK-2026-101"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 font-mono focus:outline-hidden focus:border-emerald-400"
+                      className="w-full pl-9 pr-3 min-h-11 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 font-mono focus:outline-hidden focus:border-emerald-400"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs cursor-pointer shrink-0 transition-colors"
+                    className="px-4 min-h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs cursor-pointer shrink-0 transition-colors"
                   >
                     Lookup
                   </button>
@@ -484,6 +469,6 @@ export const QrCodeScannerModal: React.FC<QrCodeScannerModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

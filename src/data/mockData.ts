@@ -642,6 +642,16 @@ export const INITIAL_REDEMPTIONS: CustomerRedemption[] = [
 
 export const INITIAL_COMPLAINTS: ServiceComplaint[] = [
   {
+    id: 'CMP-2026-014',
+    customerId: 'CUST-BIZ-511',
+    customerName: 'Artisan Roastery & Café',
+    type: 'MISSED_COLLECTION',
+    bookingId: 'CL-BK-2026-104',
+    description: 'Collector window passed yesterday without a pickup; cardboard is blocking the rear loading dock.',
+    status: 'OPEN',
+    createdAt: '2026-10-05T19:30:00Z'
+  },
+  {
     id: 'CMP-2026-012',
     customerId: 'CUST-H-709',
     customerName: 'Sultan Mahmud',
