@@ -4,9 +4,11 @@ import { EvidenceBadge } from '../common/EvidenceBadge';
 import { Modal } from '../common/Modal';
 import { isOverTolerance } from '../../domain/rules';
 import type { EvidencePackage, MaterialCategory } from '../../types';
-import { ShieldCheck, Award, FileDown, Plus, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
-import { verifyLotUrl } from '../../live/routes';
-import brandImg from '../../assets/images/brand_campaign_circular_1791258420512.jpg';
+import { ShieldCheck, FileDown, Plus, AlertCircle, CheckCircle2, Lock, ArrowDown } from 'lucide-react';
+import { MaterialGlyph, MATERIALS, relatableCount } from '../../design/materials';
+import { EmptyState } from '../../design/Celebrate';
+import { Term } from '../../design/Glossary';
+import { FollowOneBottle } from './FollowOneBottle';
 
 type ClaimType = EvidencePackage['claimType'];
 
@@ -55,7 +57,7 @@ export const BrandEPRPortal: React.FC = () => {
   const unallocatedEligibleKg = unallocatedProcessedKg;
   const isInconsistent = alreadyClaimedKg > totalProcessedKg + 0.05;
   const maxClaimKg = Math.floor(unallocatedEligibleKg * 10) / 10;
-  const period = `${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} (Monthly Audit)`;
+  const period = `${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} (monthly audit)`;
 
   // Best-effort provenance for a new claim: E4 dispositions oldest-first, minus what earlier packages
   // already consumed, until the requested weight is covered.
@@ -119,7 +121,7 @@ export const BrandEPRPortal: React.FC = () => {
 
     if (evidenceWeightKg > unallocatedEligibleKg + 1e-9) {
       setFormError(
-        `Only ${unallocatedEligibleKg} kg of processed (E4) material is unallocated. Reduce the claim to avoid double-counting.`
+        `Only ${unallocatedEligibleKg} kg is still free to claim. Reduce the amount so nothing is counted twice.`
       );
       return;
     }
@@ -191,253 +193,194 @@ export const BrandEPRPortal: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  // The story: one number for the sponsor, in plain words.
+  const sponsor = evidencePackages[0]?.sponsorName ?? campaigns[0]?.sponsorName ?? '';
+  const sponsorPackages = evidencePackages.filter((p) => p.sponsorName === sponsor);
+  const verifiedKg = sponsorPackages.reduce((acc, p) => acc + p.evidencedWeightKg, 0) || totalVerifiedEprKg;
+  const sponsorMaterial: MaterialCategory = campaigns.find((c) => c.sponsorName === sponsor)?.targetMaterial ?? 'PET_BOTTLES';
+  const noun = sponsorMaterial === 'PET_BOTTLES' ? t('bottles', 'বোতল') : t(MATERIALS[sponsorMaterial].en.toLowerCase(), MATERIALS[sponsorMaterial].bn);
+  const itemCount = relatableCount(sponsorMaterial, verifiedKg);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Award className="w-4 h-4 text-emerald-800" />
-            <span className="font-semibold text-slate-800">EPR & Brand Partner Console</span>
-            <span aria-hidden="true">·</span>
-            <span>Bangladesh Solid Waste Management Rules 2021 Context</span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
-            {t('Circular Campaigns & Defensible EPR Evidence', 'বৃত্তাকার ক্যাম্পেইন ও প্রমাণপত্র')}
-          </h1>
-          <p className="text-xs text-slate-500 max-w-2xl">
-            PRD § 11 & Journey E: Strict non-duplication safeguards ensure recovery claims are attributed exclusively once to authorized partners.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden lg:flex items-center gap-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
-            <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-slate-200">
-              <img
-                src={brandImg}
-                alt="Circular take-back kiosk for post-consumer packaging"
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="text-[11px] leading-tight pr-2">
-              <span className="font-semibold text-slate-800 block">Circular Take-Back</span>
-              <span className="text-slate-500">Post-Consumer Packaging</span>
-            </div>
-          </div>
-
-          <button
-            onClick={openCreateModal}
-            className="px-4 min-h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 self-start md:self-auto cursor-pointer"
-          >
-            <Plus className="w-4 h-4" aria-hidden="true" />
-            <span>{t('New Evidence Package', 'নতুন প্রমাণ প্যাকেজ')}</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="space-y-8">
       {sealedMessage && (
-        <div role="status" className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-950 flex items-center justify-between gap-2">
+        <div role="status" className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-300 text-sm text-emerald-950 flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="w-4 h-4 text-emerald-700" aria-hidden="true" />
             {sealedMessage}
           </span>
-          <button type="button" onClick={() => setSealedMessage('')} className="px-3 min-h-11 font-semibold underline cursor-pointer">
-            {t('Dismiss', 'বন্ধ করুন')}
-          </button>
+          <button type="button" onClick={() => setSealedMessage('')} className="px-3 min-h-11 font-semibold underline cursor-pointer">{t('Dismiss', 'বন্ধ করুন')}</button>
         </div>
       )}
       {isInconsistent && (
-        <div role="alert" className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-900 flex items-center gap-2">
+        <div role="alert" className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-300 text-sm text-rose-900 flex items-center gap-2">
           <AlertCircle className="w-4 h-4" aria-hidden="true" />
-          Allocated claims ({alreadyClaimedKg.toLocaleString()} kg) exceed confirmed processed material ({totalProcessedKg.toLocaleString()} kg). Reconcile before sealing more packages.
+          {t(`Claims (${alreadyClaimedKg.toLocaleString()} kg) are higher than what has been confirmed recycled (${totalProcessedKg.toLocaleString()} kg). Reconcile before sealing more.`, `দাবি (${alreadyClaimedKg.toLocaleString()} কেজি) নিশ্চিত রিসাইকেলের (${totalProcessedKg.toLocaleString()} কেজি) চেয়ে বেশি। আরও সিল করার আগে মিলিয়ে নিন।`)}
         </div>
       )}
 
-      {/* Safeguard & Mass Balance Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-1">
-          <span className="text-xs font-semibold text-slate-500">Total Confirmed Recycled (E4)</span>
-          <div className="text-2xl font-bold font-mono text-slate-900 tabular-nums">
-            {totalProcessedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+      {/* 1. The one number */}
+      <section aria-labelledby="brand-hero" className="rounded-3xl bg-gradient-to-br from-[#124B3A] to-[#0B2F24] text-white p-6 sm:p-10 overflow-hidden relative">
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <p className="text-sm font-semibold text-[#CBEA70]">{sponsor || t('Your campaign', 'আপনার ক্যাম্পেইন')}</p>
+            <h1 id="brand-hero" className="mt-2">
+              <span className="block font-display text-6xl sm:text-8xl font-extrabold tabular-nums leading-none" data-testid="brand-hero-kg">
+                {verifiedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}<span className="text-3xl sm:text-4xl ml-2 text-white/70">kg</span>
+              </span>
+              <span className="block mt-3 font-display text-xl sm:text-3xl font-bold leading-tight">
+                {t(`of your ${noun}, verified recycled.`, `আপনার ${noun}, যাচাই করা রিসাইকেল।`)}
+              </span>
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm sm:text-base text-white/75">
+              {t(`About ${itemCount.toLocaleString()} ${MATERIALS[sponsorMaterial].itemEn}. Weighed at every hand-over and checked by an independent auditor, so you can show it for `, `প্রায় ${itemCount.toLocaleString()}টি ${MATERIALS[sponsorMaterial].itemBn}। প্রতিটি হস্তান্তরে ওজন করা এবং স্বাধীন নিরীক্ষক দ্বারা যাচাই, তাই এটি দেখাতে পারবেন `)}
+              <span className="[&_button]:text-[#CBEA70]"><Term id="epr" lang={lang} /></span>.
+            </p>
           </div>
-          <div className="text-[11px] text-slate-500">
-            Across licensed polymer & paper mills
+          <a href="#follow" className="inline-flex items-center justify-center gap-2 min-h-12 px-6 rounded-full bg-[#CBEA70] text-[#0B1A15] font-bold">
+            {t('See how it got there', 'কীভাবে হলো দেখুন')} <ArrowDown className="h-5 w-5" aria-hidden="true" />
+          </a>
+        </div>
+        <div className="pointer-events-none absolute -right-10 -top-10 opacity-20" aria-hidden="true">
+          <MaterialGlyph material={sponsorMaterial} size={260} />
+        </div>
+      </section>
+
+      {/* 2. Follow one bottle */}
+      <div id="follow" className="scroll-mt-24"><FollowOneBottle preferMaterial={sponsorMaterial} /></div>
+
+      {/* 3. Campaigns */}
+      <section aria-labelledby="brand-camps" className="space-y-4">
+        <div className="flex items-end justify-between gap-3">
+          <h2 id="brand-camps" className="font-display text-2xl font-bold text-slate-900">{t('Your campaigns', 'আপনার ক্যাম্পেইন')}</h2>
+          <span className="text-sm text-slate-500">{t(`${campaigns.length} running`, `${campaigns.length}টি চলছে`)}</span>
+        </div>
+        {campaigns.length === 0 ? (
+          <EmptyState title={t('No campaigns yet', 'এখনো কোনো ক্যাম্পেইন নেই')} body={t('A campaign sets a recovery goal for one material. Customers earn bonus points, and the kilograms count towards your total.', 'ক্যাম্পেইনে একটি উপাদানের লক্ষ্য ঠিক হয়। গ্রাহকরা বোনাস পয়েন্ট পান, আর কেজিগুলো আপনার মোটে যোগ হয়।')} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {campaigns.map((camp) => {
+              const pct = Math.min(100, camp.targetRecoveryKg ? (camp.allocatedVerifiedKg / camp.targetRecoveryKg) * 100 : 0);
+              return (
+                <article key={camp.id} className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: MATERIALS[camp.targetMaterial].tint }}>
+                      <MaterialGlyph material={camp.targetMaterial} size={22} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-emerald-800">{camp.sponsorName}</p>
+                      <h3 className="font-bold text-slate-900 leading-snug">{camp.title}</h3>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{camp.status === 'ACTIVE' ? t('Running', 'চলছে') : camp.status === 'PLANNED' ? t('Planned', 'পরিকল্পিত') : t('Closed', 'সমাপ্ত')}</span>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">{t('Verified so far', 'এ পর্যন্ত যাচাইকৃত')}</span>
+                      <span className="font-bold tabular-nums text-slate-900">{camp.allocatedVerifiedKg.toLocaleString()} / {camp.targetRecoveryKg.toLocaleString()} kg</span>
+                    </div>
+                    <div className="mt-1.5 h-2.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={camp.title}>
+                      <div className="h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">{camp.regulatoryFramework}</p>
+                </article>
+              );
+            })}
           </div>
-        </div>
+        )}
+      </section>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-1">
-          <span className="text-xs font-semibold text-slate-500">Allocated to Brand Claims (E5)</span>
-          <div className="text-2xl font-bold font-mono text-emerald-800 tabular-nums">
-            {alreadyClaimedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+      {/* 4. For the compliance team */}
+      <section aria-labelledby="brand-audit" className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="brand-audit" className="font-display text-2xl font-bold text-slate-900">{t('For your compliance team', 'আপনার কমপ্লায়েন্স দলের জন্য')}</h2>
+            <p className="text-sm text-slate-600 max-w-2xl">{t('Audited packages you can hand to a regulator, each with a full record download.', 'নিরীক্ষিত প্যাকেজ, যা নিয়ন্ত্রকের হাতে দেওয়া যায়; প্রতিটির সঙ্গে পূর্ণ রেকর্ড ডাউনলোড।')}</p>
           </div>
-          <div className="text-[11px] text-emerald-700">
-            Locked in sealed audit packages
+          <button onClick={openCreateModal} className="px-5 min-h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 cursor-pointer">
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            <span>{t('New audited package', 'নতুন নিরীক্ষিত প্যাকেজ')}</span>
+          </button>
+        </div>
+
+        <dl className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200">
+            <dt className="text-sm font-semibold text-slate-600">{t('Confirmed recycled', 'নিশ্চিত রিসাইকেল')} <span className="font-mono text-[11px] text-slate-400">E4</span></dt>
+            <dd className="text-2xl font-bold tabular-nums text-slate-900">{totalProcessedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</dd>
+            <p className="text-xs text-slate-500">{t('Across licensed polymer and paper mills', 'লাইসেন্সপ্রাপ্ত পলিমার ও কাগজ মিলে')}</p>
           </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-1">
-          <span className="text-xs font-semibold text-slate-500">Available Unallocated Pool</span>
-          <div className="text-2xl font-bold font-mono text-cyan-800 tabular-nums">
-            {unallocatedEligibleKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+          <div className="bg-white p-5 rounded-2xl border border-slate-200">
+            <dt className="text-sm font-semibold text-slate-600">{t('Already claimed by brands', 'ব্র্যান্ডের দাবিতে ব্যবহৃত')} <span className="font-mono text-[11px] text-slate-400">E5</span></dt>
+            <dd className="text-2xl font-bold tabular-nums text-emerald-800">{alreadyClaimedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</dd>
+            <p className="text-xs text-slate-500">{t('Locked into sealed packages', 'সিল করা প্যাকেজে আটকানো')}</p>
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1">
-            <Lock className="w-3 h-3 text-slate-400" aria-hidden="true" />
-            <span>E4 − E5 · double-counting prevention active</span>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200">
+            <dt className="text-sm font-semibold text-slate-600">{t('Still free to claim', 'এখনো দাবি করা যায়')}</dt>
+            <dd className="text-2xl font-bold tabular-nums text-cyan-800">{unallocatedEligibleKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</dd>
+            <p className="text-xs text-slate-500 flex items-center gap-1"><Lock className="w-3 h-3" aria-hidden="true" />{t('A kilogram can only be claimed once', 'একটি কেজি একবারই দাবি করা যায়')}</p>
           </div>
-        </div>
-      </div>
+        </dl>
 
-      {/* Active Brand Campaigns */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">Active Brand Sponsor Campaigns</h2>
-          <span className="text-xs font-mono text-slate-500">{campaigns.length} active</span>
-        </div>
+        <p className="text-xs text-slate-500">
+          {t('Each package is the last rung of the', 'প্রতিটি প্যাকেজ')} <Term id="evidenceLevel" lang={lang} /> {t('ladder (E5). The download includes every', 'ধাপের শেষ (E5)। ডাউনলোডে আছে প্রতিটি')} <Term id="lot" lang={lang} /> {t('record behind it.', 'রেকর্ড।')}
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {campaigns.map((camp) => (
-            <div
-              key={camp.id}
-              className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-bold text-emerald-800 tracking-wide">
-                    {camp.sponsorName}
-                  </span>
-                  <h3 className="text-sm font-bold text-slate-900 mt-0.5">{camp.title}</h3>
+        {evidencePackages.length === 0 ? (
+          <EmptyState
+            title={t('No audited packages yet', 'এখনো কোনো নিরীক্ষিত প্যাকেজ নেই')}
+            body={t('When material has been confirmed recycled, create a package to claim it. An independent auditor signs it and it can never be claimed twice.', 'উপাদান রিসাইকেল নিশ্চিত হলে প্যাকেজ বানিয়ে দাবি করুন। স্বাধীন নিরীক্ষক সই করেন এবং দুবার দাবি করা যায় না।')}
+            action={<button type="button" onClick={openCreateModal} className="px-5 min-h-11 bg-slate-900 text-white rounded-xl text-sm font-semibold cursor-pointer">{t('New audited package', 'নতুন নিরীক্ষিত প্যাকেজ')}</button>}
+          />
+        ) : (
+          <div className="space-y-3">
+            {evidencePackages.map((pkg) => (
+              <article key={pkg.id} className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-700" aria-hidden="true" />
+                    <h3 className="font-bold text-slate-900">{pkg.title}</h3>
+                    <span className="font-mono text-xs text-slate-500">{pkg.id}</span>
+                  </div>
+                  <EvidenceBadge level="E5" />
                 </div>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                  {camp.status}
-                </span>
-              </div>
-
-              <div className="space-y-1 text-xs text-slate-600">
-                <div className="flex justify-between font-mono">
-                  <span>Target Recovery:</span>
-                  <span className="font-bold text-slate-900">{camp.targetRecoveryKg} kg</span>
+                <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 border-y border-slate-100">
+                  <div><dt className="text-xs text-slate-500">{t('Verified weight', 'যাচাইকৃত ওজন')}</dt><dd className="font-bold text-emerald-800">{pkg.evidencedWeightKg.toLocaleString()} kg</dd></div>
+                  <div><dt className="text-xs text-slate-500">{t('Period', 'সময়কাল')}</dt><dd>{pkg.period}</dd></div>
+                  <div><dt className="text-xs text-slate-500">{t('Covers', 'অন্তর্ভুক্ত')}</dt><dd>{pkg.includedTransactionCount} {t('pickups', 'পিকআপ')} · {pkg.includedLotCount} <Term id="lot" lang={lang}>{t('lots', 'লট')}</Term></dd></div>
+                  <div><dt className="text-xs text-slate-500">{t('Independent auditor', 'স্বাধীন নিরীক্ষক')}</dt><dd className="truncate">{pkg.reviewerName.split('(')[0]}</dd></div>
+                </dl>
+                <div className="space-y-1 text-slate-600 text-xs">
+                  <p><strong>{t('What is left out: ', 'যা বাদ: ')}</strong>{pkg.exclusionsDisclosed}</p>
+                  <p><strong>{t('Rule it follows: ', 'যে বিধি অনুসারে: ')}</strong>{pkg.regulatoryCitation}</p>
                 </div>
-                <div className="flex justify-between font-mono">
-                  <span>Verified Claimed:</span>
-                  <span className="font-bold text-emerald-800">{camp.allocatedVerifiedKg} kg</span>
+                <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400 text-xs">{t('Sealed on', 'সিল করা হয়েছে')} {pkg.approvedDate}</span>
+                  <button type="button" onClick={() => handleDownloadDossier(pkg)} className="flex items-center gap-1.5 px-4 min-h-11 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-medium cursor-pointer">
+                    <FileDown className="w-4 h-4" aria-hidden="true" />
+                    <span>{t('Download full record (JSON)', 'পূর্ণ রেকর্ড ডাউনলোড (JSON)')}</span>
+                  </button>
                 </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-1.5">
-                  <div
-                    className="bg-emerald-600 h-full rounded-full"
-                    style={{
-                      width: `${Math.min(100, (camp.allocatedVerifiedKg / camp.targetRecoveryKg) * 100)}%`
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500">
-                <strong>Regulatory citation:</strong> {camp.regulatoryFramework}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Sealed Evidence Packages (E5) */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-slate-900">
-            Audited Evidence Packages (Evidence Level E5)
-          </h2>
-          <p className="text-xs text-slate-500">
-            PRD § 9.3 & § 11.2: Independent auditor reviewed documentation supporting EPR claims.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {evidencePackages.map((pkg) => (
-            <div
-              key={pkg.id}
-              className="p-5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3 text-xs"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-700" aria-hidden="true" />
-                  <span className="font-bold text-slate-900 text-sm">{pkg.title}</span>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-mono text-slate-500">{pkg.id}</span>
-                </div>
-                <EvidenceBadge level="E5" />
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2 border-y border-slate-100 font-mono text-slate-700">
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-sans">EVIDENCED WEIGHT</span>
-                  <span className="text-sm font-bold text-emerald-800">{pkg.evidencedWeightKg} kg</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-sans">PERIOD</span>
-                  <span>{pkg.period}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-sans">TRANSACTIONS</span>
-                  <span>{pkg.includedTransactionCount} transactions · {pkg.includedLotCount} lots</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-sans">INDEPENDENT AUDITOR</span>
-                  <span className="truncate block">{pkg.reviewerName.split('(')[0]}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-slate-600 text-[11px]">
-                <div>
-                  <strong>Mandatory Exclusion Disclosure: </strong>
-                  {pkg.exclusionsDisclosed}
-                </div>
-                <div>
-                  <strong>Legal Grounding: </strong>
-                  {pkg.regulatoryCitation}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <span className="text-slate-400 font-mono text-[10px]">
-                  Approved & Sealed on {pkg.approvedDate}
-                </span>
-                <a
-                  href={verifyLotUrl(lots.find((l) => l.evidenceLevel === 'E4')?.id ?? 'LOT-2026-092-OCC')}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center min-h-11 px-2 font-medium text-emerald-800 underline underline-offset-2"
-                >
-                  {t('Consumer QR preview ↗', 'ভোক্তা QR প্রিভিউ ↗')}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadDossier(pkg)}
-                  className="flex items-center gap-1.5 px-3 min-h-11 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-medium transition-colors cursor-pointer"
-                >
-                  <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>{t('Download Audit Dossier (JSON)', 'অডিট ডসিয়ার ডাউনলোড (JSON)')}</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <Modal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         size="md"
-        title={t('Issue Audited Evidence Package', 'নিরীক্ষিত প্রমাণ প্যাকেজ ইস্যু')}
-        description="Allocate verified recovery quantities to an official EPR partner claim."
+        title={t('Create an audited package', 'নিরীক্ষিত প্যাকেজ তৈরি')}
+        description={t('Claim recycled kilograms for a campaign. They can only be claimed once.', 'একটি ক্যাম্পেইনের জন্য রিসাইকেল করা কেজি দাবি করুন। একবারই দাবি করা যায়।')}
       >
         <form onSubmit={handleCreatePackage} className="space-y-4 text-xs">
           <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-950 flex flex-wrap items-center justify-between gap-2">
-            <span className="font-semibold">Unallocated processed (E4) pool</span>
+            <span className="font-semibold">Recycled and still free to claim</span>
             <span className="font-mono font-bold text-sm">{unallocatedEligibleKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</span>
           </div>
 
           <div>
-            <label htmlFor="epr-campaign" className="block font-medium text-slate-700 mb-1">Target Campaign</label>
+            <label htmlFor="epr-campaign" className="block font-medium text-slate-700 mb-1">Campaign</label>
             <select
               id="epr-campaign"
               value={selectedCampaignId}
@@ -454,7 +397,7 @@ export const BrandEPRPortal: React.FC = () => {
 
           <div>
             <label htmlFor="epr-weight" className="block font-medium text-slate-700 mb-1">
-              Evidence Weight to Allocate (kg) *
+              Kilograms to claim *
             </label>
             <input
               id="epr-weight"
@@ -471,12 +414,12 @@ export const BrandEPRPortal: React.FC = () => {
               className="w-full bg-white border border-slate-300 rounded-lg p-2.5 min-h-11 font-mono text-base font-bold text-slate-900"
             />
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Max {maxClaimKg} kg. Derived: {provenance.lotCount} lot(s), {provenance.transactionCount} transaction(s), {provenance.discrepancies} flagged discrepancy(ies) — best effort from E4 dispositions.
+              Max {maxClaimKg} kg. Covers about {provenance.lotCount} lot(s) and {provenance.transactionCount} pickup(s); {provenance.discrepancies} weight mismatch(es) were reviewed.
             </span>
           </div>
 
           <div>
-            <label htmlFor="epr-claim" className="block font-medium text-slate-700 mb-1">Claim Type</label>
+            <label htmlFor="epr-claim" className="block font-medium text-slate-700 mb-1">What is being claimed</label>
             <select
               id="epr-claim"
               value={claimType}
@@ -491,7 +434,7 @@ export const BrandEPRPortal: React.FC = () => {
 
           <div>
             <label htmlFor="epr-exclusions" className="block font-medium text-slate-700 mb-1">
-              Exclusions & Methodology Disclosure (PRD § 11.2) *
+              What is left out, and how it was measured *
             </label>
             <textarea
               id="epr-exclusions"
@@ -505,7 +448,7 @@ export const BrandEPRPortal: React.FC = () => {
 
           <div>
             <label htmlFor="epr-reviewer" className="block font-medium text-slate-700 mb-1">
-              Reviewer / Auditor Name & Accreditation *
+              Auditor name and accreditation *
             </label>
             <input
               id="epr-reviewer"
@@ -535,7 +478,7 @@ export const BrandEPRPortal: React.FC = () => {
               disabled={maxClaimKg <= 0 || !(evidenceWeightKg > 0)}
               className="px-4 min-h-11 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold cursor-pointer"
             >
-              {t('Seal Evidence Package (E5)', 'প্রমাণ প্যাকেজ সিল করুন (E5)')}
+              {t('Seal the package', 'প্যাকেজ সিল করুন')}
             </button>
           </div>
         </form>

@@ -140,7 +140,7 @@ export const SwipeToComplete: React.FC<{
   return (
     <div>
       <div ref={trackRef} className="cf-track" aria-hidden="true" data-testid="swipe-track">
-        <div className="cf-fill absolute inset-y-0 left-0 bg-white/25" style={{ width: x + 60, transition: drag ? 'none' : 'width .25s' }} />
+        <div className="cf-fill absolute inset-y-0 left-0 bg-white/25" style={{ width: x > 0 ? x + 60 : 0, transition: drag ? 'none' : 'width .25s' }} />
         <span
           className="absolute inset-0 flex items-center justify-center pl-16 pr-4 text-center text-[1.05em] font-extrabold leading-tight"
           style={{ opacity: 1 - pct * 1.3 }}
@@ -149,14 +149,16 @@ export const SwipeToComplete: React.FC<{
         </span>
         <div
           data-testid="swipe-thumb"
-          className={`cf-thumb ${!drag && !done && hint ? 'cf-nudge' : ''}`}
-          style={{ transform: `translateX(${x}px)`, transition: drag ? 'none' : 'transform .25s cubic-bezier(.2,.8,.2,1)', animationPlayState: drag ? 'paused' : 'running' }}
+          className="cf-thumb"
+          style={{ transform: `translateX(${x}px)`, transition: drag ? 'none' : 'transform .25s cubic-bezier(.2,.8,.2,1)' }}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
         >
-          {done ? <Check size={28} strokeWidth={3} /> : <ChevronRight size={30} strokeWidth={3} />}
+          <span className={!drag && !done && x === 0 && hint ? 'cf-nudge grid place-items-center' : 'grid place-items-center'}>
+            {done ? <Check size={28} strokeWidth={3} /> : <ChevronRight size={30} strokeWidth={3} />}
+          </span>
         </div>
       </div>
       <button type="button" onClick={finish} className="cf-btn mt-2 w-full !min-h-[48px] !text-[.95em]" data-testid="swipe-alt">
@@ -393,7 +395,7 @@ export const SyncBanner: React.FC<{ lang: Lang; offline: boolean; queued: number
     );
   }
   return (
-    <div role="status" className="cf-calm flex flex-wrap items-center gap-3 p-3.5" data-testid="sync-banner">
+    <div role="status" className="cf-calm grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 p-3.5" data-testid="sync-banner">
       <CloudOff size={24} aria-hidden="true" className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="font-extrabold leading-snug">
@@ -405,7 +407,7 @@ export const SyncBanner: React.FC<{ lang: Lang; offline: boolean; queued: number
             : pick(lang, 'No signal needed. Keep working.', 'সিগন্যাল লাগবে না। কাজ চালিয়ে যান।')}
         </p>
       </div>
-      <button type="button" onClick={onSync} className="cf-btn !min-h-[48px] shrink-0 !text-[.9em]">
+      <button type="button" onClick={onSync} className="cf-btn col-span-2 !min-h-[48px] !text-[.9em]">
         <RefreshCw size={16} aria-hidden="true" /> {offline ? pick(lang, "I'm online — sync", 'অনলাইন — সিঙ্ক করুন') : pick(lang, 'Sync now', 'এখনই সিঙ্ক')}
       </button>
     </div>

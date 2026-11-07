@@ -213,10 +213,10 @@ export const CollectorFieldApp: React.FC = () => {
     return (
       <section aria-labelledby="cf-addr" className="cf-card space-y-4 p-5" key={current.id}>
         <div className="flex items-center justify-between gap-2">
-          <p className="cf-chip !py-1 !pl-3" data-testid="job-progress">
+          <p className="cf-chip !py-1 !pl-3 whitespace-nowrap" data-testid="job-progress">
             {t(`Job ${doneToday + idx + 1} of ${todayJobs.length}`, `${fmtNum(doneToday + idx + 1, 'bn')} / ${fmtNum(todayJobs.length, 'bn')} নম্বর কাজ`)}
           </p>
-          <span className="cf-chip !py-1" style={{ background: 'transparent' }}>
+          <span className="cf-chip !py-1 !px-3 min-w-0 text-[.8em]" style={{ background: 'transparent' }}>
             <Clock size={16} aria-hidden="true" /> {windowText(current.scheduledWindow, lang)}
           </span>
         </div>
@@ -244,7 +244,22 @@ export const CollectorFieldApp: React.FC = () => {
           <Phone size={20} aria-hidden="true" /> {t('Call', 'ফোন')} · <span className="font-mono">{current.customerPhone}</span>
         </a>
 
-        <div className="pt-1">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="cf-btn !gap-1.5 !px-2 !text-[.9em] whitespace-nowrap"
+            onClick={() => {
+              setExceptionReason('customer_unavailable');
+              setExceptionJobId(current.id);
+            }}
+          >
+            <Ban size={18} aria-hidden="true" /> {t("Can't collect", 'সংগ্রহ হচ্ছে না')}
+          </button>
+          <button type="button" className="cf-btn !gap-1.5 !px-2 !text-[.9em] whitespace-nowrap" onClick={() => setFocusIdx((idx + 1) % Math.max(1, active.length))} disabled={active.length < 2}>
+            {t('Next job', 'পরের কাজ')} <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="sticky bottom-[72px] z-10 -mx-2 rounded-[28px] p-2 shadow-[0_-8px_20px_rgba(0,0,0,.08)]" style={{ background: 'var(--card)', border: 'var(--bw) solid var(--line)' }} data-testid="primary-action">
           {pending ? (
             <SwipeToComplete
               key={`${current.id}-accept`}
@@ -264,21 +279,6 @@ export const CollectorFieldApp: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="cf-btn !text-[.95em]"
-            onClick={() => {
-              setExceptionReason('customer_unavailable');
-              setExceptionJobId(current.id);
-            }}
-          >
-            <Ban size={18} aria-hidden="true" /> {t("Can't collect", 'সংগ্রহ হচ্ছে না')}
-          </button>
-          <button type="button" className="cf-btn !text-[.95em]" onClick={() => setFocusIdx((idx + 1) % Math.max(1, active.length))} disabled={active.length < 2}>
-            {t('Next job', 'পরের কাজ')} <ChevronRight size={18} aria-hidden="true" />
-          </button>
-        </div>
       </section>
     );
   };
