@@ -102,3 +102,24 @@ export const bandMidpointKg = (band: string): number => {
 /** Points held while a booking awaits hub verification: estimated weight x doorstep rate. */
 export const estimateHeldPoints = (bands: { approximateBandKg: string }[]): number =>
   pointsForWeight(bands.reduce((a, m) => a + bandMidpointKg(m.approximateBandKg), 0));
+
+/**
+ * Taka value of points, for "worth ≈ ৳X" copy. Derived from the reward
+ * catalogue (titles like "৳250 … Voucher" with a points cost), using the LEAST
+ * generous rate so the app never over-promises.
+ */
+export const takaPerPoint = (rewards: { title: string; pointsCost: number }[]): number | null => {
+  const rates = rewards
+    .map((r) => {
+      const m = /৳\s?([\d,]+)/.exec(r.title);
+      const taka = m ? Number(m[1].replace(/,/g, '')) : NaN;
+      return taka > 0 && r.pointsCost > 0 ? taka / r.pointsCost : NaN;
+    })
+    .filter((x) => Number.isFinite(x));
+  return rates.length ? Math.min(...rates) : null;
+};
+
+export const pointsToTaka = (points: number, rewards: { title: string; pointsCost: number }[]): number | null => {
+  const rate = takaPerPoint(rewards);
+  return rate === null ? null : Math.floor(Math.max(0, points) * rate);
+};

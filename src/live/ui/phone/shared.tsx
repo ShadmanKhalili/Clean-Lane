@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { MaterialGlyph, MATERIAL_LIST } from '../../../design/materials';
 
 export type Lang = 'en' | 'bn';
 
@@ -57,44 +56,7 @@ export const PhoneStyles: React.FC = () => (
   `}</style>
 );
 
-/** Short burst of material-shaped confetti, CSS only. Mount it to fire it. */
-export const Confetti: React.FC<{ count?: number }> = ({ count = 30 }) => {
-  const pieces = Array.from({ length: count }, (_, i) => {
-    const angle = (i / count) * Math.PI * 2 + (i % 3) * 0.4;
-    const dist = 90 + ((i * 53) % 110);
-    return {
-      m: MATERIAL_LIST[i % MATERIAL_LIST.length].id,
-      dx: Math.cos(angle) * dist,
-      dy: Math.sin(angle) * dist * 0.8 - 40,
-      rot: (i % 2 ? 1 : -1) * (180 + ((i * 37) % 260)),
-      delay: (i % 6) * 0.04,
-      size: 16 + ((i * 7) % 12)
-    };
-  });
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-visible" aria-hidden="true">
-      <div className="absolute left-1/2 top-[42%]">
-        {pieces.map((p, i) => (
-          <span
-            key={i}
-            className="absolute"
-            style={
-              {
-                '--dx': `${p.dx}px`,
-                '--dy': `${p.dy}px`,
-                '--rot': `${p.rot}deg`,
-                animation: `cl-confetti 2.1s ${p.delay}s cubic-bezier(.15,.7,.3,1) both`,
-                filter: 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff)'
-              } as React.CSSProperties
-            }
-          >
-            <MaterialGlyph material={p.m} size={p.size} />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
+export { Confetti } from '../../../design/Celebrate';
 
 export const LangToggle: React.FC<{ lang: Lang; setLang: (l: Lang) => void; dark?: boolean }> = ({ lang, setLang, dark }) => (
   <div
