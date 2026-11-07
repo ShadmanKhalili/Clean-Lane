@@ -173,12 +173,15 @@ const MainContent: React.FC = () => {
                 : 'বাংলাদেশ কঠিন বর্জ্য ব্যবস্থাপনা বিধিমালা ২০২১ অনুসরণে'}
             </span>
             <span aria-hidden="true">·</span>
-            <button
-              onClick={() => setView('evidence_model')}
-              className="hover:text-[#25345C] underline underline-offset-4 cursor-pointer font-medium"
-            >
-              {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
-            </button>
+            {/* Evidence codes are for staff and brand reviewers; customers see plain wording. */}
+            {!isCustomerRole(role) && (
+              <button
+                onClick={() => setView('evidence_model')}
+                className="hover:text-[#25345C] underline underline-offset-4 cursor-pointer font-medium"
+              >
+                {lang === 'en' ? 'Evidence Protocol (E0–E5)' : 'প্রমাণ মানদণ্ড (E0–E5)'}
+              </button>
+            )}
           </div>
         </div>
       </footer>
