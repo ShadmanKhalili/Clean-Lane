@@ -4,7 +4,6 @@ import { AppNotification, UserRole } from '../../types';
 import { useTranslation } from '../../utils/translations';
 import {
   ShieldCheck,
-  WifiOff,
   Sparkles,
   HelpCircle,
   User,
@@ -40,9 +39,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     setRole,
     lang,
     setLang,
-    isOfflineMode,
-    offlineQueueCount,
-    syncOfflineQueue,
     savedLocations,
     selectedLocationId,
     notifications,
@@ -80,25 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     <>
       <DemoModePill />
       <header className="sticky top-0 z-40 bg-white border-b border-[#EDE4D8] shadow-2xs">
-        {/* Offline Alert Banner if collector */}
-        {isOfflineMode && role === 'collector' && (
-          <div className="bg-[#B46A14] text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <WifiOff className="w-4 h-4 text-white" />
-              <span>
-                {lang === 'en'
-                  ? `Field Offline Simulation Active · ${offlineQueueCount} records queued`
-                  : `অফলাইন মোড সক্রিয় · ${offlineQueueCount} রেকর্ড জমা রয়েছে`}
-              </span>
-            </div>
-            <button
-              onClick={syncOfflineQueue}
-              className="px-2.5 py-0.5 bg-[#172521] text-white rounded-lg text-xs hover:bg-black transition-colors cursor-pointer"
-            >
-              {lang === 'en' ? 'Reconnect & Sync' : 'পুনঃসংযোগ ও সিঙ্ক'}
-            </button>
-          </div>
-        )}
+        {/* Offline state for collectors is shown by the calm banner inside the collector app. */}
 
         {/* Top Bar: Brand, 3 Navigation Tabs, Help & Account */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">

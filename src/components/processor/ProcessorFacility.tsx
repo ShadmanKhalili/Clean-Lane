@@ -84,7 +84,7 @@ export const ProcessorFacility: React.FC = () => {
             {t('Processor Receipt & Final Recovery Disposition', 'রিসাইক্লার মিল ও প্রক্রিয়াকরণ ফলাফল')}
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
-            PRD § 9 & 1.3: Document mechanical recycling conversion, actual yield, and process loss. Advances lot to <strong>Evidence Level E4 (Processing outcome confirmed)</strong>.
+            Document mechanical recycling conversion, actual yield, and process loss. Advances lot to <strong>Evidence Level E4 (Processing outcome confirmed)</strong>.
           </p>
         </div>
       </div>

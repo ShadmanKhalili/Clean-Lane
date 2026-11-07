@@ -32,7 +32,7 @@ export const EvidenceModelView: React.FC = () => {
           {lang === 'en' ? 'Evidence Taxonomy & Claims Protocol (E0–E5)' : 'প্রমাণ স্তর ও সত্যনিষ্ঠ দাবি মানদণ্ড'}
         </h1>
         <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
-          <strong>The Critical Distinction (PRD § 1.3):</strong> A collection request is not a pickup. A pickup is not a confirmed weight. A confirmed weight is not an approved recovery chain entry. Entering a recovery chain is not a confirmed processing outcome. And a processing outcome is not an unallocated EPR claim.
+          <strong>The key distinction:</strong> A collection request is not a pickup. A pickup is not a confirmed weight. A confirmed weight is not an approved recovery chain entry. Entering a recovery chain is not a confirmed processing outcome. And a processing outcome is not an unallocated EPR claim.
         </p>
       </div>
 
@@ -83,7 +83,7 @@ export const EvidenceModelView: React.FC = () => {
                 <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-1">
                   <span className="font-semibold text-rose-900 flex items-center gap-1.5">
                     <AlertOctagon className="w-3.5 h-3.5 text-rose-600" aria-hidden="true" />
-                    Prohibited Premature Claims (PRD § 3)
+                    Claims we never make early
                   </span>
                   <p className="text-rose-950 text-[11px] leading-relaxed">{banned}</p>
                 </div>
@@ -95,7 +95,7 @@ export const EvidenceModelView: React.FC = () => {
 
       {/* Ten Product Principles Box */}
       <div className="bg-slate-900 text-white rounded-2xl p-6 md:p-8 space-y-4">
-        <h3 className="text-lg font-bold tracking-tight">The 10 Clean Lane Architectural Principles (PRD § 3)</h3>
+        <h3 className="text-lg font-bold tracking-tight">The 10 Clean Lane principles</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
           <div>
             <strong className="text-white block mb-0.5">1. Service first</strong>

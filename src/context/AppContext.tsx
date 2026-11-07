@@ -596,7 +596,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const trxId = `CL-DROP-${shortId()}`;
     const pts = pointsForWeight(weightKg, 'dropOff');
 
-    // Create completed booking record directly at E2: Quantity confirmed (PRD Flow C)
+    // Create completed booking record directly at E2: Quantity confirmed 
     const newBooking: Booking = {
       id: trxId,
       customerId: currentCustomer.id,
@@ -623,7 +623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setBookings((prev) => [newBooking, ...prev]);
 
-    // Available points immediately (PRD Flow C step 5)
+    // Available points immediately 
     setPointsLedger((prev) => [
       {
         id: `PTS-${shortId()}`,
@@ -1357,7 +1357,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Scenario 5 passed! Building totals updated without misallocating points to residents.');
       return {
         title: 'Scenario 5: Building-Level Shared Collection Attribution',
-        outcomeText: '55.0 kg confirmed for Green View Heights building account. PRD § R-08 safeguard prevented crediting individual residents for entire building gross weight.'
+        outcomeText: '55.0 kg confirmed for Green View Heights building account. Safeguard prevented crediting individual residents for entire building gross weight.'
       };
     }
 

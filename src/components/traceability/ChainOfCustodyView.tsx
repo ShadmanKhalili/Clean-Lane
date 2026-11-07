@@ -50,7 +50,7 @@ export const ChainOfCustodyView: React.FC = () => {
           {lang === 'en' ? 'Material Lot Custody & Transformation Inspector' : 'ম্যাটেরিয়াল লট কাস্টডি ও রূপান্তর ট্র্যাকার'}
         </h1>
         <p className="text-xs text-slate-500 max-w-2xl">
-          PRD § 9.2: Every material lot preserves its physical sender, receiver, certified scale measurement, transformation splits, and cryptographic hash proof.
+          Every material lot preserves its physical sender, receiver, certified scale measurement, transformation splits, and cryptographic hash proof.
         </p>
 
         {/* Search + Lot Selector */}
@@ -290,7 +290,7 @@ export const ChainOfCustodyView: React.FC = () => {
             {relevantSorting.length > 0 && (
               <div className="pt-4 border-t border-slate-200 space-y-3">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                  Documented Sorting Splits (PRD § T-04)
+                  Documented sorting splits
                 </h4>
                 {relevantSorting.map((sort) => (
                   <div key={sort.id} className="p-4 bg-cyan-50/40 border border-cyan-100 rounded-xl space-y-2 text-xs">

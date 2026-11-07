@@ -114,6 +114,7 @@
 /* Shared motion vocabulary (pitch screens + main app). Reduced motion is handled above. */
 @keyframes cl-ring { 0% { transform: scale(1); opacity: .55 } 100% { transform: scale(2.3); opacity: 0 } }
 @keyframes cl-pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.08); opacity: 1 } 100% { transform: scale(1) } }
+@keyframes cl-slide { from { transform: translateY(100%) } to { transform: none } }
 @keyframes cl-rise { 0% { transform: translateY(10px); opacity: 0 } 100% { transform: none; opacity: 1 } }
 @keyframes cl-stamp { 0% { transform: scale(1.6) rotate(-12deg); opacity: 0 } 70% { transform: scale(.94) rotate(2deg); opacity: 1 } 100% { transform: none } }
 @keyframes cl-draw-y { from { transform: scaleY(0) } to { transform: scaleY(1) } }

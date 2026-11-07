@@ -58,8 +58,8 @@ export const JourneyLine: React.FC<JourneyLineProps> = ({ stops, lang, orientati
     return (
       <div className={`${muted ? 'opacity-50 grayscale' : ''} ${className}`}>
         <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${stops.length}, minmax(0, 1fr))` }} aria-label={label}>
-          <span className="absolute left-4 right-4 top-4 h-0.5 bg-[#124B3A]/15" aria-hidden="true" />
-          <span className="absolute left-4 top-4 h-0.5 bg-[#124B3A] cl-draw-x origin-left" style={{ width: `calc((100% - 2rem) * ${pct / 100})` }} aria-hidden="true" />
+          <span className="absolute top-4 h-0.5 bg-[#124B3A]/15" style={{ left: `${50 / stops.length}%`, right: `${50 / stops.length}%` }} aria-hidden="true" />
+          <span className="absolute top-4 h-0.5 bg-[#124B3A] cl-draw-x origin-left" style={{ left: `${50 / stops.length}%`, width: `${(100 - 100 / stops.length) * (pct / 100)}%` }} aria-hidden="true" />
           {stops.map((s, i) => (
             <li key={s.id} className="relative flex flex-col items-center text-center gap-1.5" aria-current={s.state === 'current' ? 'step' : undefined}>
               <Dot stop={s} n={i} lang={lang} />
